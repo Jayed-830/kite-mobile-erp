@@ -285,7 +285,7 @@ jobs:
           sudo pg_ctlcluster 17 main restart
           sleep 3
           psql -p "$port" -c "SELECT version()" -c "SHOW archive_mode" -c "SHOW wal_level"
-          grep -E "^host +replication" /etc/postgresql/17/main/pg_hba.conf
+          sudo grep -E "^host +replication" /etc/postgresql/17/main/pg_hba.conf
       - name: Create both KITE databases and roles (the installer's job in production)
         run: |
           for port in $MAINPG_PORT 5434; do
