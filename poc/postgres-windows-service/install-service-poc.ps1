@@ -47,13 +47,13 @@ try {
   $tables = & "$PgBin\psql.exe" -h localhost -p $Port -U kite_migrator -d kite -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema IN ('core','iam','tax','acct','audit','sync')"
   $perms = & "$PgBin\psql.exe" -h localhost -p $Port -U kite_migrator -d kite -tAc "SELECT count(*) FROM iam.permission"
   Write-Host "Tables: $tables, permissions: $perms"
-  if ([int]$tables -lt 20 -or [int]$perms -ne 31) { throw "Unexpected schema: $tables tables, $perms permissions" }
+  if ([int]$tables -lt 20 -or [int]$perms -lt 35) { throw "Unexpected schema: $tables tables, $perms permissions" }
 
   # 5. A restart of the service keeps the data (durability across reboots).
   Restart-Service $ServiceName
   $env:PGPASSWORD = "poc-migrator"
   $again = & "$PgBin\psql.exe" -h localhost -p $Port -U kite_migrator -d kite -tAc "SELECT count(*) FROM iam.permission"
-  if ([int]$again -ne 31) { throw "Data missing after restart" }
+  if ([int]$again -ne [int]$perms) { throw "Data missing after restart" }
   Write-Host "PostgreSQL Windows service PoC: ALL CHECKS PASSED"
 }
 finally {

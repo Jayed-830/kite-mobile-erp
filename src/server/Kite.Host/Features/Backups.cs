@@ -357,7 +357,7 @@ public sealed class BackupService(KiteDb db, ServerContext server, KeyStore keys
             schedule = new { opts.Backup.LogicalAt, opts.Backup.BaseAt, opts.Backup.BaseBackups, verifyDay = opts.Backup.VerifyDay.ToString(), opts.Backup.VerifyAt },
             lastLogicalOk = LastOk("logical"), lastBaseOk = LastOk("base"), lastVerifyOk = LastOk("verify"), lastOffsiteOk = LastOk("offsite"),
             alert, alertAfterHours = opts.Backup.AlertAfterHours, wal, keyProtection = keys.Protector.Kind, recoveryKeyShownAt = shown,
-            runs = list.Select(r => new { r.Id, r.Kind, r.Status, r.Trigger, r.StartedAt, r.FinishedAt, r.FileName, r.SizeBytes, r.Sha256, checks = r.Checks is null ? null : JsonDocument.Parse(r.Checks).RootElement, r.Error }),
+            runs = list.Select(r => new { r.Id, r.Kind, r.Status, r.Trigger, r.StartedAt, r.FinishedAt, r.FileName, r.SizeBytes, r.Sha256, checks = r.Checks is null ? (JsonElement?)null : JsonDocument.Parse(r.Checks).RootElement, r.Error }),
         };
     }
 
