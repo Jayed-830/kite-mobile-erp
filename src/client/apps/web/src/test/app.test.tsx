@@ -57,6 +57,18 @@ describe('Arabic and right-to-left', () => {
     expect(screen.getByRole('heading', { name: 'تسجيل الدخول' })).toBeInTheDocument();
     expect(localStorage.getItem('kite.lang')).toBe('ar');
   });
+
+  it('shows server errors in Arabic, keeping the code for support', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true })} initialPath="/login" lang="ar" />);
+    await user.type(await screen.findByLabelText(/اسم المستخدم/), 'owner');
+    await user.type(screen.getByLabelText(/^كلمة المرور/), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'دخول' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('اسم المستخدم أو كلمة المرور غير صحيحة.');
+    expect(alert).toHaveTextContent('AUTH-001');
+    expect(alert).not.toHaveTextContent('not correct');
+  });
 });
 
 describe('setup wizard', () => {

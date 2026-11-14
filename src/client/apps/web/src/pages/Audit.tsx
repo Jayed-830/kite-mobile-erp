@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { can } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Button, DataTable, PageHeader, Spinner } from '@kite/ui';
@@ -9,7 +9,9 @@ export function AuditPage() {
   const { me } = useAuth();
   const { t, lang } = useI18n();
   const rows = useQuery({ queryKey: ['audit'], queryFn: () => api.audit() });
-  const verify = useMutation({ mutationFn: () => api.verifyAudit() });
+  const qc = useQueryClient();
+  // Verifying is itself audited, so refresh the list afterwards.
+  const verify = useMutation({ mutationFn: () => api.verifyAudit(), onSuccess: () => qc.invalidateQueries({ queryKey: ['audit'] }) });
   if (rows.isLoading) return <Spinner label={t('app.loading')} />;
   return (
     <div className="stack">

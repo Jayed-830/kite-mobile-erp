@@ -162,3 +162,77 @@ jobs:
       - name: SQLCipher emergency store on Windows
         working-directory: poc/sqlcipher-store
         run: npm ci && npm start
+
+  e2e:
+    name: End-to-end (real server, PostgreSQL and a browser, Arabic and English)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create the database and roles (the installer's job in production)
+        run: |
+          createdb kite
+          psql -v ON_ERROR_STOP=1 -d kite -f db/bootstrap/00_bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -d kite -c "ALTER ROLE kite_migrator PASSWORD 'e2e-migrator'; ALTER ROLE kite_app PASSWORD 'e2e-app';"
+      - name: Build the web app into the server
+        run: bash scripts/build-web.sh
+      - name: Build and start the KITE server
+        env:
+          ConnectionStrings__App: Host=localhost;Database=kite;Username=kite_app;Password=e2e-app
+          ConnectionStrings__Migrator: Host=localhost;Database=kite;Username=kite_migrator;Password=e2e-migrator
+          Kite__DataDir: ${{ runner.temp }}/kite-data
+          ASPNETCORE_URLS: http://localhost:5080
+        run: |
+          dotnet build src/server/Kite.Host -c Release
+          cd src/server/Kite.Host
+          nohup dotnet bin/Release/net10.0/Kite.Host.dll > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5080/health/ready > /dev/null && break; sleep 2; done
+          curl -sf http://localhost:5080/health/ready
+          test -s "$RUNNER_TEMP/kite-data/setup-code.txt"
+      - name: Browser walk-through
+        working-directory: e2e
+        env:
+          KITE_URL: http://localhost:5080
+          KITE_SETUP_CODE_FILE: ${{ runner.temp }}/kite-data/setup-code.txt
+          KITE_EXPECT_REAL: "1"
+          SHOTS_DIR: ${{ runner.temp }}/e2e-shots
+        run: npm ci && node real-server.mjs
+      - name: Database after the walk-through (immutable audit chain, sync events)
+        if: always()
+        run: |
+          psql -d kite -c "SELECT count(*) AS audit_rows, (SELECT ok FROM audit.verify_chain()) AS chain_ok FROM audit.audit_log;"
+          psql -d kite -c "SELECT event_type, count(*) FROM sync.outbox GROUP BY 1 ORDER BY 1;"
+          psql -d kite -c "SELECT username, totp_enabled, must_change_password FROM iam.\"user\" ORDER BY username;"
+      - name: Print screenshots for review
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/e2e-shots/*.jpg; do
+            [ -f "$f" ] || continue
+            echo "SHOT-BEGIN $(basename "$f")"; base64 -w 40000 "$f"; echo "SHOT-END"
+          done
+      - name: Server log
+        if: always()
+        run: tail -n 200 "$RUNNER_TEMP/server.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: ${{ runner.temp }}/e2e-shots/

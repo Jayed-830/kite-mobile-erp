@@ -230,8 +230,9 @@ public sealed class ServerTests(KiteServerFixture fx)
             var setup = await Json(await c.PostAsync("/api/v1/auth/2fa/setup", null));
             var secret = Base32.Decode(setup.GetProperty("secret").GetString()!);
             Assert.StartsWith("otpauth://totp/", setup.GetProperty("otpauthUri").GetString(), StringComparison.Ordinal);
+            var enableCode = Totp.Code(secret, DateTimeOffset.UtcNow);
             Assert.Equal(HttpStatusCode.NoContent,
-                (await c.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = Totp.Code(secret, DateTimeOffset.UtcNow) })).StatusCode);
+                (await c.PostAsJsonAsync("/api/v1/auth/2fa/enable", new { code = enableCode })).StatusCode);
 
             var login = await fx.LoginAsync("mfa_user", pw);
             Assert.True(login.GetProperty("mfaRequired").GetBoolean());
@@ -239,9 +240,15 @@ public sealed class ServerTests(KiteServerFixture fx)
             await AssertProblem(await pending.GetAsync("/api/v1/settings/business"), HttpStatusCode.Unauthorized, "AUTH-004");
             await AssertProblem(await pending.PostAsJsonAsync("/api/v1/auth/mfa", new { code = "000000" == Totp.Code(secret, DateTimeOffset.UtcNow) ? "111111" : "000000" }),
                 HttpStatusCode.Unauthorized, "AUTH-005");
+            // The code that turned two-step on cannot be used again (RFC 6238 replay protection).
+            await AssertProblem(await pending.PostAsJsonAsync("/api/v1/auth/mfa", new { code = enableCode }),
+                HttpStatusCode.Unauthorized, "AUTH-005");
+            // A code for a later time step is accepted (one step of clock drift is allowed).
+            var usedStep = await fx.QueryDbAsync<long>("SELECT totp_last_step FROM iam.\"user\" WHERE username = 'mfa_user'");
             Assert.Equal(HttpStatusCode.NoContent,
-                (await pending.PostAsJsonAsync("/api/v1/auth/mfa", new { code = Totp.Code(secret, DateTimeOffset.UtcNow) })).StatusCode);
+                (await pending.PostAsJsonAsync("/api/v1/auth/mfa", new { code = Totp.CodeForStep(secret, usedStep + 1) })).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await pending.GetAsync("/api/v1/settings/business")).StatusCode);
+            Assert.Equal(usedStep + 1, await fx.QueryDbAsync<long>("SELECT totp_last_step FROM iam.\"user\" WHERE username = 'mfa_user'"));
         }
         Assert.Equal(0L, await fx.QueryDbAsync<long>("SELECT count(*) FROM iam.\"user\" WHERE username = 'mfa_user' AND totp_secret_enc IS NULL"));
     }

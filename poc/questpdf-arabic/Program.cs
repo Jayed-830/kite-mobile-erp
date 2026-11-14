@@ -64,11 +64,15 @@ Document.Create(doc => doc.Page(page =>
                 t.Cell().PaddingVertical(4).AlignRight().Text(l.Amount);
             }
         });
-        col.Item().AlignRight().Width(260).Column(c =>
+        col.Item().PaddingTop(6).AlignRight().Width(340).Table(t =>
         {
-            c.Item().Row(r => { r.RelativeItem().Text("VAT 5% included"); r.RelativeItem().ContentFromRightToLeft().Text("شامل ضريبة القيمة المضافة 5%"); });
-            c.Item().AlignRight().Text("14.929");
-            c.Item().Row(r => { r.RelativeItem().Text("TOTAL  313.500").Bold().FontSize(14); r.RelativeItem().ContentFromRightToLeft().Text("الإجمالي").Bold().FontSize(14); });
+            t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(1.4f); c.ConstantColumn(70); });
+            t.Cell().Text("VAT 5% included");
+            t.Cell().ContentFromRightToLeft().Text("شامل ضريبة القيمة المضافة 5%");
+            t.Cell().AlignRight().Text("14.929");
+            t.Cell().PaddingTop(4).Text("TOTAL").Bold().FontSize(14);
+            t.Cell().PaddingTop(4).ContentFromRightToLeft().Text("الإجمالي").Bold().FontSize(14);
+            t.Cell().PaddingTop(4).AlignRight().Text("313.500").Bold().FontSize(14);
         });
     });
 

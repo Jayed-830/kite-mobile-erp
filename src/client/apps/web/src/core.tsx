@@ -15,13 +15,32 @@ export function useApi(): KiteApi {
   return v;
 }
 
-/** Shows an API error in the user's language with the server's code for support. */
+/** Codes whose server message carries details (which field, which rule) that the generic translation does not. */
+const DETAILED = new Set(['VAL-001', 'GEN-409', 'AUTH-006', 'MOD-001']);
+
+/**
+ * Shows an API error in the user's language with the server's code for support.
+ * English shows the server's own message. Arabic shows the translation for the code;
+ * for codes with field-level detail, the server's English detail follows on a second line
+ * (server messages are English-only in Phase 2).
+ */
 export function ErrorBox({ error }: { error: unknown }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   if (!error) return null;
   if (error instanceof ApiError) {
-    const text = error.code === 'NET-000' ? t('errors.network') : error.message;
-    return <Alert tone="error" code={error.code}>{text}</Alert>;
+    if (error.code === 'NET-000') return <Alert tone="error" code={error.code}>{t('errors.network')}</Alert>;
+    const key = `errors.codes.${error.code}`;
+    const translated = t(key);
+    const known = translated !== key;
+    if (lang === 'en' || !known) return <Alert tone="error" code={error.code}>{error.message || (known ? translated : t('errors.unknown'))}</Alert>;
+    return (
+      <Alert tone="error" code={error.code}>
+        {translated}
+        {DETAILED.has(error.code) && error.message && error.message !== t(key) && (
+          <span className="ltr muted" style={{ display: 'block', fontSize: 13, marginBlockStart: 4 }} title={t('errors.detail')}>{error.message}</span>
+        )}
+      </Alert>
+    );
   }
   return <Alert tone="error">{t('errors.unknown')}</Alert>;
 }

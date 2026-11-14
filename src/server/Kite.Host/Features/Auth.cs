@@ -24,7 +24,7 @@ public static class AuthEndpoints
 
     private sealed record UserRow(
         Guid Id, string Username, string PasswordHash, string? PinHash, string Status, int FailedLoginCount,
-        DateTime? LockedUntil, bool TotpEnabled, byte[]? TotpSecretEnc, bool MustChangePassword);
+        DateTime? LockedUntil, bool TotpEnabled, byte[]? TotpSecretEnc, bool MustChangePassword, long? TotpLastStep);
 
     // Spends the same time as a real check when the username does not exist.
     private static string? _dummyHash;
@@ -130,13 +130,15 @@ public static class AuthEndpoints
             await EnsureNotLocked(user, clock);
             if (!user.TotpEnabled || user.TotpSecretEnc is null) return Results.NoContent();
             var secret = protector.Unprotect(user.TotpSecretEnc);
-            if (!Totp.Verify(secret, req.Code ?? "", clock.UtcNow))
+            var step = Totp.MatchStep(secret, req.Code ?? "", clock.UtcNow);
+            if (step is null || step <= user.TotpLastStep)
             {
                 await RecordFailure(db, http, user, lockout, clock, "totp", ct);
                 throw new KiteException(ErrorCodes.MfaInvalid, "That code is not correct. Check the time on your phone and try again.", 401, "code");
             }
             await db.InTransactionAsync(AccessScope.System, http.ActorOf(), async t =>
             {
+                await ConsumeTotpStep(t, uid, step.Value);
                 await t.ExecuteAsync("UPDATE iam.session SET mfa_satisfied = true WHERE id = @sid", new { sid });
                 await t.ExecuteAsync("""UPDATE iam."user" SET failed_login_count = 0, locked_until = NULL WHERE id = @uid AND failed_login_count > 0""", new { uid });
                 await t.AuditAsync(new AuditEntry("auth.mfa_passed", "user", uid));
@@ -219,7 +221,7 @@ public static class AuthEndpoints
             var secret = Totp.NewSecret();
             await db.InTransactionAsync(AccessScope.System, http.ActorOf(), async t =>
             {
-                await t.ExecuteAsync("""UPDATE iam."user" SET totp_secret_enc = @enc WHERE id = @uid""", new { enc = protector.Protect(secret), uid });
+                await t.ExecuteAsync("""UPDATE iam."user" SET totp_secret_enc = @enc, totp_last_step = NULL WHERE id = @uid""", new { enc = protector.Protect(secret), uid });
                 await t.AuditAsync(new AuditEntry("auth.totp_setup_started", "user", uid));
             }, ct);
             return Results.Ok(new { secret = Base32.Encode(secret), otpauthUri = Totp.EnrolmentUri(secret, user.Username) });
@@ -231,10 +233,12 @@ public static class AuthEndpoints
             var sid = http.User.SessionIdOf();
             var user = await LoadUser(db, uid, ct);
             if (user.TotpSecretEnc is null) throw new KiteException(ErrorCodes.Validation, "Start two-factor setup first.", 400);
-            if (!Totp.Verify(protector.Unprotect(user.TotpSecretEnc), req.Code ?? "", clock.UtcNow))
+            var step = Totp.MatchStep(protector.Unprotect(user.TotpSecretEnc), req.Code ?? "", clock.UtcNow);
+            if (step is null || step <= user.TotpLastStep)
                 throw new KiteException(ErrorCodes.MfaInvalid, "That code is not correct.", 400, "code");
             await db.InTransactionAsync(AccessScope.System, http.ActorOf(), async t =>
             {
+                await ConsumeTotpStep(t, uid, step.Value);
                 await t.ExecuteAsync("""UPDATE iam."user" SET totp_enabled = true, updated_by = @uid WHERE id = @uid""", new { uid });
                 await t.ExecuteAsync("UPDATE iam.session SET mfa_satisfied = true WHERE id = @sid", new { sid });
                 await t.AuditAsync(new AuditEntry("auth.totp_enabled", "user", uid));
@@ -250,7 +254,7 @@ public static class AuthEndpoints
                 throw new KiteException(ErrorCodes.BadCredentials, "Current password is not correct.", 400, "currentPassword");
             await db.InTransactionAsync(AccessScope.System, http.ActorOf(), async t =>
             {
-                await t.ExecuteAsync("""UPDATE iam."user" SET totp_enabled = false, totp_secret_enc = NULL, updated_by = @uid WHERE id = @uid""", new { uid });
+                await t.ExecuteAsync("""UPDATE iam."user" SET totp_enabled = false, totp_secret_enc = NULL, totp_last_step = NULL, updated_by = @uid WHERE id = @uid""", new { uid });
                 await t.AuditAsync(new AuditEntry("auth.totp_disabled", "user", uid));
             }, ct);
             return Results.NoContent();
@@ -272,9 +276,19 @@ public static class AuthEndpoints
             t.QuerySingleOrDefaultAsync<UserRow>("""
                 SELECT id, username, password_hash AS PasswordHash, pin_hash AS PinHash, status, failed_login_count AS FailedLoginCount,
                        locked_until AS LockedUntil, totp_enabled AS TotpEnabled, totp_secret_enc AS TotpSecretEnc,
-                       must_change_password AS MustChangePassword
+                       must_change_password AS MustChangePassword, totp_last_step AS TotpLastStep
                   FROM iam."user" WHERE business_id = @b AND username = @u
                 """, new { b = server.BusinessId, u = username.Trim().ToLowerInvariant() }), ct);
+    }
+
+    // Records the step of an accepted code. The WHERE clause makes two simultaneous requests with the same code
+    // race safely: only one updates the row, the other is refused and its transaction rolls back.
+    private static async Task ConsumeTotpStep(DbTx t, Guid uid, long step)
+    {
+        var updated = await t.ExecuteAsync(
+            """UPDATE iam."user" SET totp_last_step = @step WHERE id = @uid AND (totp_last_step IS NULL OR totp_last_step < @step)""",
+            new { uid, step });
+        if (updated != 1) throw new KiteException(ErrorCodes.MfaInvalid, "That code is not correct. Check the time on your phone and try again.", 401, "code");
     }
 
     private static async Task<UserRow> LoadUser(KiteDb db, Guid uid, CancellationToken ct) =>
@@ -282,7 +296,7 @@ public static class AuthEndpoints
             t.QuerySingleOrDefaultAsync<UserRow>("""
                 SELECT id, username, password_hash AS PasswordHash, pin_hash AS PinHash, status, failed_login_count AS FailedLoginCount,
                        locked_until AS LockedUntil, totp_enabled AS TotpEnabled, totp_secret_enc AS TotpSecretEnc,
-                       must_change_password AS MustChangePassword
+                       must_change_password AS MustChangePassword, totp_last_step AS TotpLastStep
                   FROM iam."user" WHERE id = @uid
                 """, new { uid }), ct)
         ?? throw new KiteException(ErrorCodes.Unauthenticated, "Sign in required.", 401);

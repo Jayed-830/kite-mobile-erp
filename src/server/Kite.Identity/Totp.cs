@@ -17,15 +17,24 @@ public static class Totp
     public static string Code(byte[] secret, DateTimeOffset at) => CodeForStep(secret, at.ToUnixTimeSeconds() / StepSeconds);
 
     /// <summary>Accepts the current step and one step either side to allow for clock drift.</summary>
-    public static bool Verify(byte[] secret, string code, DateTimeOffset at, int window = 1)
+    public static bool Verify(byte[] secret, string code, DateTimeOffset at, int window = 1) =>
+        MatchStep(secret, code, at, window) is not null;
+
+    /// <summary>
+    /// The time step the code belongs to (current step, or one either side for clock drift), or null if it matches none.
+    /// Callers store the step and refuse it next time, so a code cannot be used twice.
+    /// Every candidate is compared in constant time.
+    /// </summary>
+    public static long? MatchStep(byte[] secret, string code, DateTimeOffset at, int window = 1)
     {
         ArgumentNullException.ThrowIfNull(secret);
-        if (string.IsNullOrEmpty(code) || code.Length != Digits || !code.All(char.IsAsciiDigit)) return false;
+        if (string.IsNullOrEmpty(code) || code.Length != Digits || !code.All(char.IsAsciiDigit)) return null;
         var step = at.ToUnixTimeSeconds() / StepSeconds;
-        var ok = false;
+        long? matched = null;
         for (var i = -window; i <= window; i++)
-            ok |= CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(CodeForStep(secret, step + i)), Encoding.ASCII.GetBytes(code));
-        return ok;
+            if (CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(CodeForStep(secret, step + i)), Encoding.ASCII.GetBytes(code)))
+                matched = step + i;
+        return matched;
     }
 
     public static string CodeForStep(byte[] secret, long step)

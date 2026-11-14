@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { ar, en, formatAmount, leafKeys, translate } from './index';
 
 describe('dictionaries', () => {
@@ -17,6 +18,16 @@ describe('dictionaries', () => {
     expect(translate('en', 'dashboard.welcome', { name: 'Salim' })).toBe('Welcome, Salim');
     expect(translate('ar', 'dashboard.welcome', { name: 'سالم' })).toBe('مرحبًا، سالم');
     expect(translate('en', 'no.such.key')).toBe('no.such.key');
+  });
+});
+
+describe('server error codes', () => {
+  it('every code the server can return has an English and an Arabic message', () => {
+    const source: string = readFileSync('../server/Kite.Platform/Errors.cs', 'utf8') /* Vitest runs from src/client */;
+    const codes = [...source.matchAll(/=\s*"([A-Z]{2,4}-\d{3})"/g)].map((m) => m[1] ?? "");
+    expect(codes.length).toBeGreaterThan(20);
+    const missing = codes.filter((c) => translate('ar', `errors.codes.${c}`) === `errors.codes.${c}` || !(c in ar.errors.codes));
+    expect(missing).toEqual([]);
   });
 });
 

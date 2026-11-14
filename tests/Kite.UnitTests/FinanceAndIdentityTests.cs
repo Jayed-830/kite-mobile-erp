@@ -179,6 +179,20 @@ public class IdentityTests
     }
 
     [Fact]
+    public void Totp_reports_which_time_step_a_code_belongs_to_so_it_can_be_refused_next_time()
+    {
+        // RFC 6238 test secret, so the codes for neighbouring steps are fixed and distinct.
+        var secret = System.Text.Encoding.ASCII.GetBytes("12345678901234567890");
+        var now = DateTimeOffset.FromUnixTimeSeconds(1_763_114_400);
+        var step = now.ToUnixTimeSeconds() / 30;
+        Assert.Equal(step, Totp.MatchStep(secret, Totp.CodeForStep(secret, step), now));
+        Assert.Equal(step - 1, Totp.MatchStep(secret, Totp.CodeForStep(secret, step - 1), now));
+        Assert.Equal(step + 1, Totp.MatchStep(secret, Totp.CodeForStep(secret, step + 1), now));
+        Assert.Null(Totp.MatchStep(secret, Totp.CodeForStep(secret, step + 2), now));
+        Assert.Null(Totp.MatchStep(secret, "", now));
+    }
+
+    [Fact]
     public void Base32_round_trips_and_builds_an_enrolment_uri()
     {
         var data = RandomNumberGenerator.GetBytes(20);
