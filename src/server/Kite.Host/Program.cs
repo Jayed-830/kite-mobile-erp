@@ -27,8 +27,8 @@ builder.Services.AddSingleton(new SetupCodeStore(Path.Combine(dataDir, "setup-co
 builder.Services.AddSingleton(SessionPolicy.Default);
 builder.Services.AddSingleton(new LockoutPolicy());
 
-builder.Services.AddAuthentication(SessionAuthHandler.Scheme)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.Scheme, null);
+builder.Services.AddAuthentication(SessionAuthHandler.SchemeName)
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, SessionAuthHandler>(SessionAuthHandler.SchemeName, null);
 builder.Services.AddAuthorization();
 builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);

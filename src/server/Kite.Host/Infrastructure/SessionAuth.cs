@@ -17,7 +17,7 @@ public sealed class SessionAuthHandler(
     KiteDb db, IClock clock)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
-    public const string Scheme = "KiteSession";
+    public const string SchemeName = "KiteSession";
 
     private sealed record SessionRow(
         Guid SessionId, Guid UserId, Guid? TerminalId, bool MfaSatisfied, DateTime AccessExpiresAt, DateTime? RevokedAt,
@@ -73,8 +73,8 @@ public sealed class SessionAuthHandler(
         if (branches.Any(b => b is null)) claims.Add(new Claim(KiteClaims.AllBranches, "true"));
         claims.AddRange(branches.Where(b => b is not null).Select(b => new Claim(KiteClaims.Branch, b!.Value.ToString())));
 
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme));
-        return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme));
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, SchemeName));
+        return AuthenticateResult.Success(new AuthenticationTicket(principal, SchemeName));
     }
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
