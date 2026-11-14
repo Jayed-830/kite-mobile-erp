@@ -1,0 +1,11 @@
+# Migration checksums must not change between Windows and Linux checkouts.
+*.sql text eol=lf
+*.sh text eol=lf
+*.cs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary

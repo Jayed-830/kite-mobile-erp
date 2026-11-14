@@ -1,0 +1,79 @@
+namespace Kite.Platform;
+
+/// <summary>
+/// Permission codes. Must match db/migrations/V0009__seed_permissions.sql; a unit test
+/// compares the two so they cannot drift.
+/// </summary>
+public static class Permissions
+{
+    public const string SetupBusinessEdit = "SETUP.BUSINESS.EDIT";
+    public const string BranchesManage = "BRANCHES.MANAGE";
+    public const string SettingsView = "SETTINGS.VIEW";
+    public const string SettingsModulesEdit = "SETTINGS.MODULES.EDIT";
+    public const string TerminalsApprove = "TERMINALS.APPROVE";
+    public const string UsersView = "USERS.VIEW";
+    public const string UsersManage = "USERS.MANAGE";
+    public const string RolesManage = "ROLES.MANAGE";
+    public const string AuditView = "AUDIT.VIEW";
+    public const string AuditVerify = "AUDIT.VERIFY";
+    public const string TaxManage = "TAX.MANAGE";
+    public const string TaxReview = "TAX.REVIEW";
+    public const string AcctCoaManage = "ACCT.COA.MANAGE";
+    public const string AcctJournalManual = "ACCT.JOURNAL.MANUAL";
+    public const string AcctControlAccountPost = "ACCT.CONTROL_ACCOUNT.POST";
+    public const string AcctPeriodClose = "ACCT.PERIOD.CLOSE";
+    public const string PosSell = "POS.SELL";
+    public const string PosDiscountAboveLimit = "POS.DISCOUNT.ABOVE_LIMIT";
+    public const string PosPriceOverride = "POS.PRICE.OVERRIDE";
+    public const string PosSaleVoid = "POS.SALE.VOID";
+    public const string PosRefund = "POS.REFUND";
+    public const string PosReturnNoReceipt = "POS.RETURN.NO_RECEIPT";
+    public const string PosCreditSale = "POS.CREDIT_SALE";
+    public const string PosDrawerNoSale = "POS.DRAWER.NO_SALE";
+    public const string PosReceiptReprint = "POS.RECEIPT.REPRINT";
+    public const string PosShiftAcceptVariance = "POS.SHIFT.ACCEPT_VARIANCE";
+    public const string PosEmergencyActivate = "POS.EMERGENCY.ACTIVATE";
+    public const string DeviceImeiManualEntry = "DEVICE.IMEI.MANUAL_ENTRY";
+    public const string RepairCredentialView = "REPAIR.CREDENTIAL.VIEW";
+    public const string CreditOverride = "CREDIT.OVERRIDE";
+    public const string CreditWriteOff = "CREDIT.WRITE_OFF";
+
+    public static readonly IReadOnlyList<string> All = typeof(Permissions)
+        .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+        .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+        .Select(f => (string)f.GetRawConstantValue()!)
+        .OrderBy(c => c, StringComparer.Ordinal)
+        .ToArray();
+}
+
+/// <summary>System role templates created by the setup wizard (blueprint 0.1, 10.5).</summary>
+public sealed record RoleTemplate(string Code, string NameEn, string NameAr, IReadOnlyList<string> Permissions);
+
+public static class RoleTemplates
+{
+    public const string OwnerCode = "owner";
+
+    public static readonly IReadOnlyList<RoleTemplate> All =
+    [
+        new(OwnerCode, "Owner", "المالك", Permissions.All),
+        new("branch_manager", "Branch manager", "مدير الفرع",
+        [
+            Permissions.SettingsView, Permissions.TerminalsApprove, Permissions.UsersView, Permissions.AuditView,
+            Permissions.PosSell, Permissions.PosDiscountAboveLimit, Permissions.PosPriceOverride, Permissions.PosSaleVoid,
+            Permissions.PosRefund, Permissions.PosReturnNoReceipt, Permissions.PosCreditSale, Permissions.PosDrawerNoSale,
+            Permissions.PosReceiptReprint, Permissions.PosShiftAcceptVariance, Permissions.PosEmergencyActivate,
+            Permissions.DeviceImeiManualEntry, Permissions.CreditOverride,
+        ]),
+        new("senior_cashier", "Senior cashier", "أمين صندوق أول",
+            [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint]),
+        new("cashier", "Cashier", "أمين صندوق", [Permissions.PosSell, Permissions.PosReceiptReprint]),
+        new("technician", "Technician", "فني", [Permissions.RepairCredentialView]),
+        new("inventory_controller", "Inventory controller", "مراقب المخزون", [Permissions.DeviceImeiManualEntry]),
+        new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry]),
+        new("accountant", "Accountant", "المحاسب",
+        [
+            Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
+            Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
+        ]),
+    ];
+}

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platform services shared by every module. No third-party dependencies on purpose. -->
+  <PropertyGroup>
+    <RootNamespace>Kite.Platform</RootNamespace>
+  </PropertyGroup>
+</Project>

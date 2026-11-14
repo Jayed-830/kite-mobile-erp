@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Kite.Persistence</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kite.Platform\Kite.Platform.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Dapper" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The same SQL files the database tests run (db/tests/run.sh). -->
+    <EmbeddedResource Include="..\..\..\db\migrations\V*.sql" LogicalName="migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\..\db\bootstrap\00_bootstrap.sql" LogicalName="bootstrap/00_bootstrap.sql" />
+  </ItemGroup>
+</Project>

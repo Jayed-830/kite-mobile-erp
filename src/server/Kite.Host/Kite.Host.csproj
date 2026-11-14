@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Kite.Host</RootNamespace>
+    <AssemblyName>Kite.Host</AssemblyName>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kite.Platform\Kite.Platform.csproj" />
+    <ProjectReference Include="..\Kite.Tax\Kite.Tax.csproj" />
+    <ProjectReference Include="..\Kite.Accounting\Kite.Accounting.csproj" />
+    <ProjectReference Include="..\Kite.Identity\Kite.Identity.csproj" />
+    <ProjectReference Include="..\Kite.Persistence\Kite.Persistence.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kite.Integration.Tests" />
+  </ItemGroup>
+</Project>

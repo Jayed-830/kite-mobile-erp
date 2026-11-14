@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  database:
+    name: Database tests (PostgreSQL ${{ matrix.pg }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: ["16", "17"]
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run migrations and SQL tests
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: bash db/tests/run.sh
+
+  server-linux:
+    name: Server build and tests (Linux + PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Kite.slnx
+      - run: dotnet build Kite.slnx -c Release --no-restore
+      - name: Unit tests
+        run: dotnet test tests/Kite.UnitTests -c Release --no-build --logger "trx;LogFileName=unit.trx" --results-directory TestResults
+      - name: Integration tests
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --logger "trx;LogFileName=integration.trx" --logger "console;verbosity=normal" --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-test-results-linux
+          path: TestResults
+
+  server-windows:
+    name: Server build and unit tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Kite.slnx -c Release
+      - run: dotnet test tests/Kite.UnitTests -c Release --no-build
