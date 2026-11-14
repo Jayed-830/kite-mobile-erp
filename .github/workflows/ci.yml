@@ -132,6 +132,13 @@ jobs:
           node-version: "22"
       - name: QuestPDF Arabic invoice
         run: dotnet run --project poc/questpdf-arabic -c Release -- poc/questpdf-arabic/output/arabic-invoice.pdf
+      - name: Inspect the PDF (fonts, text, page image for review)
+        run: |
+          sudo apt-get install -y -qq poppler-utils > /dev/null
+          pdffonts poc/questpdf-arabic/output/arabic-invoice.pdf
+          pdftotext -layout poc/questpdf-arabic/output/arabic-invoice.pdf - | head -20
+          pdftoppm -r 60 -png -singlefile poc/questpdf-arabic/output/arabic-invoice.pdf poc/questpdf-arabic/output/page1
+          echo "PAGE1-PNG-BASE64-BEGIN"; base64 -w0 poc/questpdf-arabic/output/page1.png; echo; echo "PAGE1-PNG-BASE64-END"
       - name: Arabic raster receipt (ESC/POS bytes)
         working-directory: poc/escpos-raster
         run: npm ci && npm start
