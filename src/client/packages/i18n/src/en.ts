@@ -109,7 +109,7 @@ export const en = {
     checklist: 'Setup checklist',
     taxReview: '{count} tax code(s) waiting for your accountant to confirm',
     taxReviewed: 'All tax codes are confirmed by the accountant',
-    twoFactorOff: 'Turn on two-step verification for the owner account',
+    twoFactorOff: 'Turn on two-step verification for your account',
     twoFactorOn: 'Two-step verification is on',
     terminalsPending: '{count} terminal(s) waiting for approval',
     phase: 'Phase 2 foundation: sales, inventory and repairs arrive in later phases.',

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ApiError, type KiteApi, type Me } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert } from '@kite/ui';
@@ -65,9 +66,18 @@ const AuthContext = createContext<AuthValue | null>(null);
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const api = useApi();
+  const queryClient = useQueryClient();
   const { setLang } = useI18n();
   const [stage, setStage] = useState<Stage>('loading');
   const [me, setMe] = useState<Me | null>(null);
+
+  // Cached server data belongs to the user who loaded it. Shop terminals are shared, so the cache is
+  // dropped whenever a session ends or a different user signs in.
+  const signedOut = useCallback(() => {
+    queryClient.clear();
+    setMe(null);
+    setStage('signedOut');
+  }, [queryClient]);
 
   const load = useCallback(async () => {
     try {
@@ -75,24 +85,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setMe(m);
       setStage(m.mfaPending ? 'mfa' : m.mustChangePassword ? 'changePassword' : 'signedIn');
     } catch {
-      setMe(null);
-      setStage('signedOut');
+      signedOut();
     }
-  }, [api]);
+  }, [api, signedOut]);
 
   useEffect(() => {
-    api.onSessionEnded = () => {
-      setMe(null);
-      setStage('signedOut');
-    };
+    api.onSessionEnded = signedOut;
     void load();
-  }, [api, load]);
+  }, [api, load, signedOut]);
 
   const value = useMemo<AuthValue>(() => ({
     stage,
     me,
     async signIn(username, password) {
       const tokens = await api.login(username, password);
+      queryClient.clear();
       const m = await api.me();
       setMe(m);
       if (!tokens.mfaRequired && !tokens.mustChangePassword) setLang(m.user.preferredLanguage);
@@ -108,11 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async signOut() {
       try { await api.logout(); } catch { /* already signed out */ }
-      setMe(null);
-      setStage('signedOut');
+      signedOut();
     },
     reload: load,
-  }), [api, stage, me, load, setLang]);
+  }), [api, stage, me, load, setLang, queryClient, signedOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

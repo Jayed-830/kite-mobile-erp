@@ -338,7 +338,12 @@ public sealed class ServerTests(KiteServerFixture fx)
         using var c = fx.Client();
         var ready = await c.GetFromJsonAsync<JsonElement>("/health/ready");
         Assert.True(ready.GetProperty("configured").GetBoolean());
-        Assert.Equal(9, ready.GetProperty("schemaVersion").GetInt32());
+        // The schema version is the number of the newest embedded migration, so adding one never needs a test edit.
+        var newest = typeof(Kite.Persistence.Migrator).Assembly.GetManifestResourceNames()
+            .Select(n => System.Text.RegularExpressions.Regex.Match(n, @"V(\d{4})__"))
+            .Where(m => m.Success).Max(m => int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.True(newest >= 10);
+        Assert.Equal(newest, ready.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync("/api/v1/does-not-exist")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/v1/users")).StatusCode);
     }

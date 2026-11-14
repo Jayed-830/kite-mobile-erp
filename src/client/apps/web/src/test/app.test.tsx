@@ -47,6 +47,29 @@ describe('sign-in', () => {
   });
 });
 
+describe('shared terminals', () => {
+  it('drops the previous user\'s cached data when another user signs in', async () => {
+    const api = createMockApi({ configured: true });
+    await api.login('owner', OWNER_PW);
+    const cashier = (await api.roles()).find((r) => r.code === 'cashier')!;
+    await api.createUser({ username: 'cashier1', displayNameEn: 'Aisha', temporaryPassword: 'Temp-Seeb-2026!', preferredLanguage: 'en', roles: [{ roleId: cashier.id, branchId: null }] });
+    await api.logout();
+
+    const user = userEvent.setup();
+    render(<App api={api} initialPath="/login" lang="en" />);
+    await signIn(user);
+    expect(await screen.findByText(/5 tax code\(s\) waiting/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    await user.type(await screen.findByLabelText(/Username/), 'cashier1');
+    await user.type(screen.getByLabelText(/^Password/), 'Temp-Seeb-2026!');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Welcome, Aisha' })).toBeInTheDocument();
+    expect(screen.queryByText(/tax code/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
+  });
+});
+
 describe('Arabic and right-to-left', () => {
   it('switches the whole page to Arabic and RTL', async () => {
     const user = userEvent.setup();

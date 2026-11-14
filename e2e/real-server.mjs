@@ -124,6 +124,7 @@ try {
   await welcome();
   if ((await currentLang()) !== 'en') await lang('en');
   if (real) await expectVisible('Welcome, Aisha Al Balushi');
+  if (await page.getByText(/tax code/).count()) throw new Error('the cashier sees data cached from the owner\'s session');
   for (const hidden of ['Users', 'Roles', 'Audit log', 'Modules']) {
     if (await page.getByRole('link', { name: hidden, exact: true }).count()) throw new Error(`a cashier can see "${hidden}"`);
   }
