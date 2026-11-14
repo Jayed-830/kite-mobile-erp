@@ -133,7 +133,8 @@ export function LicenceBanner() {
     s.state === 'expiring' ? { tone: 'warning' as const, text: t('licence.banner.expiring', { date: formatDate(s.validUntil, lang), days: s.daysLeft ?? 0 }) } :
     s.state === 'none' ? { tone: 'warning' as const, text: t('licence.banner.none', { admin: '' }).trim() } : null;
   const messages = s.messages.filter((m) => !hidden.includes(m.id));
-  if (!main && messages.length === 0) return null;
+  // An empty marker once the status is known, so tests can tell "nothing to warn about" from "not loaded yet".
+  if (!main && messages.length === 0) return <span data-testid="licence-ok" hidden />;
   return (
     <div className="stack" style={{ gap: 8, marginBlockEnd: 16 }} data-testid="licence-banner">
       {main && <Alert tone={main.tone}>{main.text} {link}</Alert>}

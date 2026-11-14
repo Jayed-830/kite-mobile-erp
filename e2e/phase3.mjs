@@ -43,17 +43,20 @@ const signIn = async (p, base) => {
   await p.getByRole('heading', { name: /^(Welcome, |مرحبًا، )/ }).waitFor({ timeout: 30000 });
 };
 const nav = (p, name) => p.getByRole('link', { name, exact: true }).click();
-/** Reloads until the check passes (the servers update on their own schedule). */
+/** Polls the page, reloading every few seconds, until the check passes (the servers change on their own schedule). */
 async function until(p, what, check, timeoutMs = 90000) {
   const end = Date.now() + timeoutMs;
   for (;;) {
-    if (await check().catch(() => false)) return;
+    const inner = Date.now() + 6000;
+    while (Date.now() < inner) { if (await check().catch(() => false)) return; await sleep(500); }
     if (Date.now() > end) throw new Error(`timed out waiting for: ${what}`);
-    await sleep(2500);
-    await p.reload();
+    await p.reload({ waitUntil: 'networkidle' }).catch(() => undefined);
   }
 }
 const bannerText = async (p) => ((await p.getByTestId('licence-banner').count()) ? await p.getByTestId('licence-banner').innerText() : '');
+/** True once the licence status has loaded and there is no licence warning (Nextdab messages may still show). */
+const noLicenceWarning = async (p) => (await p.getByTestId('licence-ok').count()) > 0
+  || ((await p.getByTestId('licence-banner').count()) > 0 && (await p.getByTestId('licence-banner').locator('.alert-error, .alert-warning').count()) === 0);
 async function importLicence(p, licenceOpts) {
   const { file, licence } = await stub('/stub/licence', licenceOpts);
   const f = path.join(os.tmpdir(), `${licence.id}.kmelic`);
@@ -95,7 +98,7 @@ try {
   await nav(main, 'Licence');
   const mid = (await main.getByTestId('installation-id').innerText()).trim();
   await importLicence(main, { mid, kind: 'subscription', validUntil: day(365), branches: 3, terminals: 5, graceDays: 30 });
-  await until(main, 'licence banner gone', async () => (await bannerText(main)) === '');
+  await until(main, 'licence banner gone', () => noLicenceWarning(main));
   await main.getByText('Licensed', { exact: true }).first().waitFor();
   await shot(main, 'licence-imported');
 
@@ -113,7 +116,7 @@ try {
   for (const bad of ['password', 'imei', 'customer_phone', 'argon2']) if (rep.toLowerCase().includes(bad)) throw new Error(`report contains ${bad}`);
   await stub('/stub/command', { mid, type: 'resume', data: {} });
   await main.getByRole('button', { name: 'Check in now' }).click();
-  await until(main, 'switched-off banner gone', async () => !(await bannerText(main)).includes('switched off'));
+  await until(main, 'switched-off banner gone', () => noLicenceWarning(main));
 
   step('branch B02 is added and a one-time registration token is made');
   await nav(main, 'Branches and servers');
