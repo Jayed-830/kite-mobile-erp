@@ -253,7 +253,7 @@ jobs:
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
-      PGBIN: /usr/lib/postgresql/16/bin
+      PGBIN: /usr/lib/postgresql/17/bin
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -262,20 +262,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Head office database - PostgreSQL 16 on the runner, with WAL archiving and replication for the backup agent
+      - name: Head office database - PostgreSQL 17 on the runner (PGDG), with WAL archiving and replication for the backup agent
         run: |
-          [ -x "$PGBIN/pg_basebackup" ] || { sudo apt-get update -q && sudo apt-get install -y -q postgresql-16; }
+          set -e
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          for codename in "$VERSION_CODENAME" noble; do
+            echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $codename-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+            if sudo apt-get update -q 2>&1 | tee /tmp/apt.log && ! grep -qE "^(E|Err):.*pgdg" /tmp/apt.log; then break; fi
+          done
+          sudo apt-get install -y -q postgresql-17 postgresql-client-17
+          sudo pg_lsclusters
+          port=$(sudo pg_lsclusters -h | awk '$1 == "17" && $2 == "main" {print $3}')
+          echo "MAINPG_PORT=$port" >> "$GITHUB_ENV"
           sudo mkdir -p /var/lib/postgresql/wal-archive && sudo chown postgres:postgres /var/lib/postgresql/wal-archive
-          sudo systemctl start postgresql
-          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER USER postgres PASSWORD 'postgres'" -c "ALTER SYSTEM SET wal_level = replica" \
+          sudo pg_ctlcluster 17 main start || true
+          sudo -u postgres psql -p "$port" -v ON_ERROR_STOP=1 -c "ALTER USER postgres PASSWORD 'postgres'" -c "ALTER SYSTEM SET wal_level = replica" \
             -c "ALTER SYSTEM SET archive_mode = on" -c "ALTER SYSTEM SET archive_command = 'cp %p /var/lib/postgresql/wal-archive/%f'"
-          sudo systemctl restart postgresql
+          sudo pg_ctlcluster 17 main restart
           sleep 3
-          psql -p 5432 -c "SELECT version()" -c "SHOW archive_mode" -c "SHOW wal_level"
-          grep -E "^host +replication" /etc/postgresql/16/main/pg_hba.conf
+          psql -p "$port" -c "SELECT version()" -c "SHOW archive_mode" -c "SHOW wal_level"
+          grep -E "^host +replication" /etc/postgresql/17/main/pg_hba.conf
       - name: Create both KITE databases and roles (the installer's job in production)
         run: |
-          for port in 5432 5434; do
+          for port in $MAINPG_PORT 5434; do
             createdb -p $port kite
             psql -p $port -v ON_ERROR_STOP=1 -d kite -f db/bootstrap/00_bootstrap.sql
             psql -p $port -v ON_ERROR_STOP=1 -d kite -c "ALTER ROLE kite_migrator PASSWORD 'e2e-migrator'; ALTER ROLE kite_app PASSWORD 'e2e-app'; ALTER ROLE kite_backup PASSWORD 'e2e-backup';"
@@ -297,9 +308,9 @@ jobs:
         run: |
           export ASPNETCORE_ENVIRONMENT=Development   # only so the test licence key below is accepted
           export ASPNETCORE_URLS=http://localhost:5080
-          export ConnectionStrings__App="Host=localhost;Port=5432;Database=kite;Username=kite_app;Password=e2e-app"
-          export ConnectionStrings__Migrator="Host=localhost;Port=5432;Database=kite;Username=kite_migrator;Password=e2e-migrator"
-          export ConnectionStrings__Backup="Host=localhost;Port=5432;Database=kite;Username=kite_backup;Password=e2e-backup"
+          export ConnectionStrings__App="Host=localhost;Port=$MAINPG_PORT;Database=kite;Username=kite_app;Password=e2e-app"
+          export ConnectionStrings__Migrator="Host=localhost;Port=$MAINPG_PORT;Database=kite;Username=kite_migrator;Password=e2e-migrator"
+          export ConnectionStrings__Backup="Host=localhost;Port=$MAINPG_PORT;Database=kite;Username=kite_backup;Password=e2e-backup"
           export Kite__DataDir="$RUNNER_TEMP/main-data" Kite__Sync__Port=5443 Kite__Sync__Hosts=localhost
           export Kite__Licensing__ControlUrl=http://127.0.0.1:8799 Kite__Licensing__DevPublicKey="$(cat "$RUNNER_TEMP/stub-key.txt")"
           export Kite__Backup__PgBin="$PGBIN" Kite__Backup__Folder="$RUNNER_TEMP/backups"
@@ -335,20 +346,20 @@ jobs:
           file=$(ls -t "$RUNNER_TEMP"/backups/logical/*.kbak | head -1)
           echo "backup file: $file ($(stat -c %s "$file") bytes)"
           dotnet src/server/Kite.Host/bin/Release/net10.0/Kite.Host.dll backup-decrypt --in "$file" --out "$RUNNER_TEMP/restore.dump" --recovery-key "$(cat "$RUNNER_TEMP/recovery-key.txt")"
-          createdb -p 5432 kite_restore_check
-          "$PGBIN/pg_restore" -p 5432 --no-owner --no-acl --exit-on-error -d kite_restore_check "$RUNNER_TEMP/restore.dump"
-          psql -p 5432 -d kite_restore_check -v ON_ERROR_STOP=1 -c "SELECT (SELECT ok FROM audit.verify_chain()) AS audit_chain_ok, (SELECT count(*) FROM audit.audit_log) AS audit_rows, (SELECT count(*) FROM core.branch) AS branches, (SELECT count(*) FROM lic.licence) AS licences"
-          test "$(psql -p 5432 -d kite_restore_check -tAc "SELECT ok FROM audit.verify_chain()")" = "t"
-          test "$(psql -p 5432 -d kite_restore_check -tAc "SELECT count(*) FROM core.branch")" -ge 2
+          createdb -p $MAINPG_PORT kite_restore_check
+          "$PGBIN/pg_restore" -p $MAINPG_PORT --no-owner --no-acl --exit-on-error -d kite_restore_check "$RUNNER_TEMP/restore.dump"
+          psql -p $MAINPG_PORT -d kite_restore_check -v ON_ERROR_STOP=1 -c "SELECT (SELECT ok FROM audit.verify_chain()) AS audit_chain_ok, (SELECT count(*) FROM audit.audit_log) AS audit_rows, (SELECT count(*) FROM core.branch) AS branches, (SELECT count(*) FROM lic.licence) AS licences"
+          test "$(psql -p $MAINPG_PORT -d kite_restore_check -tAc "SELECT ok FROM audit.verify_chain()")" = "t"
+          test "$(psql -p $MAINPG_PORT -d kite_restore_check -tAc "SELECT count(*) FROM core.branch")" -ge 2
           echo "wrong recovery key must fail:"
           ! dotnet src/server/Kite.Host/bin/Release/net10.0/Kite.Host.dll backup-decrypt --in "$file" --out "$RUNNER_TEMP/wrong.dump" --recovery-key "AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA"
       - name: Databases after the walk-through
         if: always()
         run: |
-          psql -p 5432 -d kite -c "SELECT kind, status, trigger, size_bytes, checks->>'journals_balanced' AS balanced, checks->>'audit_chain_intact' AS chain, error FROM ops.backup_run ORDER BY started_at;" || true
-          psql -p 5432 -d kite -c "SELECT s.role, s.name, s.status, b.code FROM core.server s LEFT JOIN core.branch b ON b.id = s.branch_id;" || true
-          psql -p 5432 -d kite -c "SELECT serial, kind, revoked_at IS NOT NULL AS revoked, revoked_reason FROM pki.certificate ORDER BY issued_at;" || true
-          psql -p 5432 -d kite -c "SELECT id, kind, valid_until, source, is_current FROM lic.licence ORDER BY imported_at;" || true
+          psql -p $MAINPG_PORT -d kite -c "SELECT kind, status, trigger, size_bytes, checks->>'journals_balanced' AS balanced, checks->>'audit_chain_intact' AS chain, error FROM ops.backup_run ORDER BY started_at;" || true
+          psql -p $MAINPG_PORT -d kite -c "SELECT s.role, s.name, s.status, b.code FROM core.server s LEFT JOIN core.branch b ON b.id = s.branch_id;" || true
+          psql -p $MAINPG_PORT -d kite -c "SELECT serial, kind, revoked_at IS NOT NULL AS revoked, revoked_reason FROM pki.certificate ORDER BY issued_at;" || true
+          psql -p $MAINPG_PORT -d kite -c "SELECT id, kind, valid_until, source, is_current FROM lic.licence ORDER BY imported_at;" || true
           psql -p 5434 -d kite -c "SELECT role, name, status FROM core.server;" || true
           ls -la "$RUNNER_TEMP"/backups/* || true
       - name: Print screenshots for review
