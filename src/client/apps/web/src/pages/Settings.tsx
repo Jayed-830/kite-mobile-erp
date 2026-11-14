@@ -72,9 +72,10 @@ export function ModulesPage() {
         <div className="stack">
           {mods.data.map((m) => (
             <div key={m.code} className="row">
-              <Switch label={pick(m.nameEn, m.nameAr)} checked={m.enabled} disabled={m.alwaysOn || !editable || update.isPending} onChange={(v) => update.mutate({ [m.code]: v })} />
+              <Switch label={pick(m.nameEn, m.nameAr)} checked={m.enabled} disabled={m.alwaysOn || !editable || update.isPending || (!!m.locked && !m.enabled)} onChange={(v) => update.mutate({ [m.code]: v })} />
               <strong>{pick(m.nameEn, m.nameAr)}</strong>
               {m.alwaysOn && <Badge>{t('modules.alwaysOn')}</Badge>}
+              {m.locked && <Badge tone="warning">{m.locked === 'nextdab' ? t('modules.lockedNextdab') : t('modules.lockedLicence')}</Badge>}
               {m.dependsOn.length > 0 && <span className="muted" style={{ fontSize: 13 }}>{t('modules.needs', { list: m.dependsOn.map(nameOf).join(lang === 'ar' ? '، ' : ', ') })}</span>}
             </div>
           ))}

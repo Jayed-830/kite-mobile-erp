@@ -14,6 +14,9 @@ import { RolesPage } from './pages/Roles';
 import { TerminalsPage } from './pages/Terminals';
 import { BusinessPage, ModulesPage, TaxPage, AccountsPage } from './pages/Settings';
 import { AuditPage } from './pages/Audit';
+import { ServersPage } from './pages/Servers';
+import { LicencePage } from './pages/Licence';
+import { BackupsPage } from './pages/Backups';
 import { AccountPage } from './pages/Account';
 import { useI18n } from '@kite/i18n';
 
@@ -40,6 +43,9 @@ function AppRoutes() {
         <Route path="settings/tax" element={<TaxPage />} />
         <Route path="settings/accounts" element={<AccountsPage />} />
         <Route path="audit" element={<AuditPage />} />
+        <Route path="servers" element={<ServersPage />} />
+        <Route path="licence" element={<LicencePage />} />
+        <Route path="backups" element={<BackupsPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />

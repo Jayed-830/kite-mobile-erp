@@ -705,6 +705,10 @@ public static class ServerEndpoints
                   FROM core.registration_token r JOIN core.branch b ON b.id = r.branch_id
                  WHERE r.created_at > now() - interval '30 days' ORDER BY r.created_at DESC
                 """), ct);
+            var branches = await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.QueryAsync<BranchAdminRow>("""
+                SELECT id, code, name_en AS NameEn, name_ar AS NameAr, address_en AS AddressEn, address_ar AS AddressAr, phone, is_head_office AS IsHeadOffice,
+                       status, version FROM core.branch ORDER BY is_head_office DESC, code
+                """), ct);
             object? ca = null;
             if (server.IsHeadOffice && pki.SyncTlsCertificate is not null)
                 ca = new { fingerprintCode = BusinessCa.FingerprintCode(pki.Authority), hosts = pki.SyncHosts() };
@@ -721,6 +725,8 @@ public static class ServerEndpoints
                     heartbeat = r.Heartbeat is null ? null : JsonNode.Parse(r.Heartbeat),
                 }),
                 tokens,
+                branches,
+                syncPort = app.Services.GetRequiredService<KiteOptions>().Sync.Port,
             });
         }).RequirePermission(Permissions.SettingsView);
 
@@ -790,6 +796,7 @@ public static class ServerEndpoints
 
     private sealed record ServerRow(Guid Id, Guid? BranchId, string? BranchCode, string Role, string Name, bool IsSelf, string Status, string? AppVersion,
         DateTime? LastSeenAt, string? LastIp, string? InstallationId, string? Heartbeat, string? CertificateSerial, DateTime? CertificateExpires);
+    private sealed record BranchAdminRow(Guid Id, string Code, string NameEn, string NameAr, string? AddressEn, string? AddressAr, string? Phone, bool IsHeadOffice, string Status, int Version);
     public sealed record TokenDto(Guid Id, Guid BranchId, string BranchCode, DateTime ExpiresAt, DateTime CreatedAt, DateTime? UsedAt, DateTime? CancelledAt);
 }
 

@@ -27,6 +27,7 @@ export function SetupPage() {
   const api = useApi();
   const navigate = useNavigate();
   const { t, pick, lang } = useI18n();
+  const [mode, setMode] = useState<'choose' | 'new' | 'join'>('choose');
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -92,6 +93,26 @@ export function SetupPage() {
       setBusy(false);
     }
   }
+
+  if (mode === 'choose') {
+    return (
+      <AuthFrame title={t('setup.title')} wide>
+        <div className="wide-card stack" style={{ width: '100%' }}>
+          <p className="muted" style={{ margin: 0 }}>{t('setup.intro')}</p>
+          <h2 style={{ margin: 0 }}>{t('setup.choose')}</h2>
+          <div className="grid-2">
+            <button type="button" className="card" style={{ textAlign: 'start', cursor: 'pointer' }} onClick={() => setMode('new')}>
+              <strong>{t('setup.newBusiness')}</strong><p className="muted" style={{ marginBlockEnd: 0 }}>{t('setup.newBusinessHelp')}</p>
+            </button>
+            <button type="button" className="card" style={{ textAlign: 'start', cursor: 'pointer' }} onClick={() => setMode('join')}>
+              <strong>{t('setup.joinBranch')}</strong><p className="muted" style={{ marginBlockEnd: 0 }}>{t('setup.joinBranchHelp')}</p>
+            </button>
+          </div>
+        </div>
+      </AuthFrame>
+    );
+  }
+  if (mode === 'join') return <JoinBranch onBack={() => setMode('choose')} />;
 
   return (
     <AuthFrame title={t('setup.title')} wide>
@@ -173,7 +194,7 @@ export function SetupPage() {
         <div style={{ marginBlockStart: 16 }} className="stack">
           <ErrorBox error={error} />
           <div className="row">
-            {step > 0 && <Button onClick={() => setStep(step - 1)}>{t('app.back')}</Button>}
+            <Button onClick={() => (step > 0 ? setStep(step - 1) : setMode('choose'))}>{t('app.back')}</Button>
             <span className="spacer" />
             {step < steps.length - 1
               ? <Button variant="primary" disabled={!valid[step]} onClick={() => setStep(step + 1)}>{t('app.next')}</Button>
@@ -185,3 +206,59 @@ export function SetupPage() {
   );
 }
 
+
+/** Branch server setup (blueprint 18.1): connect to head office, compare the security code, then join with the one-time token. */
+function JoinBranch({ onBack }: { onBack: () => void }) {
+  const api = useApi();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const [f, setF] = useState({ setupCode: '', mainUrl: 'https://', token: '', serverName: '' });
+  const [found, setFound] = useState<{ businessName: string; fingerprintCode: string; fingerprint: string } | null>(null);
+  const [match, setMatch] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const run = async (work: () => Promise<void>) => { setBusy(true); setError(null); try { await work(); } catch (e) { setError(e); } finally { setBusy(false); } };
+  const inspect = () => run(async () => { setFound(await api.joinInspect(f.mainUrl.trim(), f.setupCode.trim().toUpperCase())); setMatch(false); });
+  const join = () => run(async () => {
+    await api.join({ mainUrl: f.mainUrl.trim(), setupCode: f.setupCode.trim().toUpperCase(), token: f.token.trim(), confirmedFingerprint: found!.fingerprint, serverName: f.serverName.trim() || undefined });
+    navigate('/login', { replace: true, state: { joined: true } });
+  });
+  return (
+    <AuthFrame title={t('setup.joinTitle')} wide>
+      <div className="wide-card stack" style={{ width: '100%' }}>
+        <div className="grid-2">
+          <TextField label={t('setup.code')} help={t('setup.codeHelp')} value={f.setupCode} onChange={(e) => { setF({ ...f, setupCode: e.target.value }); setFound(null); }} maxLength={8} dir="ltr" required autoFocus />
+          <TextField label={t('setup.mainUrl')} help={t('setup.mainUrlHelp')} value={f.mainUrl} onChange={(e) => { setF({ ...f, mainUrl: e.target.value }); setFound(null); }} dir="ltr" required />
+        </div>
+        {!found && (
+          <div className="row">
+            <Button onClick={onBack}>{t('app.back')}</Button>
+            <span className="spacer" />
+            <Button variant="primary" busy={busy} disabled={f.setupCode.trim().length !== 8 || !/^https:\/\/.+/.test(f.mainUrl.trim())} onClick={() => void inspect()}>{t('setup.connect')}</Button>
+          </div>
+        )}
+        {found && (
+          <div className="stack">
+            <h2 style={{ margin: 0 }}>{t('setup.compareTitle')}</h2>
+            <div><div className="muted">{t('setup.business')}</div><div><strong>{found.businessName}</strong></div></div>
+            <div className="ltr" style={{ fontSize: 28, fontWeight: 700, letterSpacing: 3 }} data-testid="join-code">{found.fingerprintCode}</div>
+            <Alert tone="warning">{t('setup.compareHelp')}</Alert>
+            <Checkbox label={t('setup.codesMatch')} checked={match} onChange={(e) => setMatch(e.target.checked)} />
+            {match && (
+              <div className="grid-2">
+                <TextField label={t('setup.token')} help={t('setup.tokenHelp')} value={f.token} onChange={(e) => setF({ ...f, token: e.target.value })} dir="ltr" required />
+                <TextField label={t('setup.serverName')} value={f.serverName} onChange={(e) => setF({ ...f, serverName: e.target.value })} dir="ltr" />
+              </div>
+            )}
+            <div className="row">
+              <Button onClick={() => setFound(null)}>{t('app.back')}</Button>
+              <span className="spacer" />
+              <Button variant="primary" busy={busy} disabled={!match || f.token.trim().length < 10} onClick={() => void join()}>{t('setup.join')}</Button>
+            </div>
+          </div>
+        )}
+        <ErrorBox error={error} />
+      </div>
+    </AuthFrame>
+  );
+}

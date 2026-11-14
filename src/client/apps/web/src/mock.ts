@@ -1,7 +1,7 @@
 // In-memory stand-in for the KITE server, used by tests, `npm run dev:mock` and design review.
 // It mirrors the server's main rules (permissions, module dependencies, password policy) but is
 // NOT the source of truth: the real server enforces everything again.
-import { ApiError, type Account, type AuditRow, type Branch, type Business, type KiteApi, type Me, type Module, type Permission, type Role, type TaxCode, type Terminal, type Tokens, type User } from '@kite/api';
+import { ApiError, type Account, type AuditRow, type BackupRun, type Branch, type BranchAdmin, type Business, type KiteApi, type LicenceDetails, type LicenceState, type Me, type Module, type NextdabMessage, type Permission, type RegistrationTokenRow, type Role, type ServerInfo, type TaxCode, type Terminal, type Tokens, type User } from '@kite/api';
 
 const PERMISSIONS: Permission[] = [
   ['SETUP.BUSINESS.EDIT', 'core', 'Edit business profile and tax registration', 'تعديل بيانات المنشأة والتسجيل الضريبي'],
@@ -15,6 +15,11 @@ const PERMISSIONS: Permission[] = [
   ['AUDIT.VERIFY', 'audit', 'Run the audit chain verification', 'تشغيل التحقق من سلسلة سجل التدقيق'],
   ['TAX.REVIEW', 'tax', 'Confirm tax codes as reviewed by the accountant', 'تأكيد مراجعة المحاسب للرموز الضريبية'],
   ['POS.SELL', 'sales', 'Make sales at the POS', 'إجراء المبيعات في نقطة البيع'],
+  ['BRANCHES.MANAGE', 'core', 'Add and change branches', 'إضافة الفروع وتعديلها'],
+  ['SERVERS.MANAGE', 'core', 'Register and revoke branch servers', 'تسجيل خوادم الفروع وإلغاؤها'],
+  ['LICENCE.MANAGE', 'core', 'View and import the licence', 'عرض الترخيص واستيراده'],
+  ['BACKUP.VIEW', 'core', 'View backups', 'عرض النسخ الاحتياطية'],
+  ['BACKUP.MANAGE', 'core', 'Run backups and show the recovery key', 'تشغيل النسخ الاحتياطي وعرض مفتاح الاسترداد'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -37,7 +42,9 @@ const MODULES: Module[] = [
 const problem = (status: number, code: string, title: string) => new ApiError({ status, code, title });
 const id = () => crypto.randomUUID();
 
-export function createMockApi(opts: { configured: boolean }): KiteApi {
+export interface MockOptions { configured: boolean; licence?: LicenceState; licenceModules?: string[]; backupsConfigured?: boolean; messages?: NextdabMessage[] }
+
+export function createMockApi(opts: MockOptions): KiteApi {
   let configured = opts.configured;
   const branch: Branch = { id: id(), code: 'B01', nameEn: 'Muscat - Ruwi', nameAr: 'مسقط - روي', isHeadOffice: true, status: 'active' };
   const branches: Branch[] = [branch, { id: id(), code: 'B02', nameEn: 'Sohar', nameAr: 'صحار', isHeadOffice: false, status: 'active' }];
@@ -79,6 +86,33 @@ export function createMockApi(opts: { configured: boolean }): KiteApi {
     ['2000', 'Liabilities', 'الالتزامات', 'liability', false, false], ['2200', 'VAT output', 'ضريبة المخرجات', 'liability', true, true],
     ['4000', 'Revenue', 'الإيرادات', 'revenue', false, false], ['4100', 'Sales: new devices', 'المبيعات: أجهزة جديدة', 'revenue', true, false],
   ].map(([code, nameEn, nameAr, type, isPostable, isControl]) => ({ id: id(), code, nameEn, nameAr, type, parentId: isPostable ? 'p' : null, isPostable, isControl, status: 'active' }) as Account);
+  // ---- Phase 3 state: branches, servers, licence, backups ----
+  const branchVersions = new Map<string, number>(branches.map((b) => [b.id, 1]));
+  const branchExtra = new Map<string, Pick<BranchAdmin, 'addressEn' | 'addressAr' | 'phone'>>();
+  const now = Date.now();
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const servers: ServerInfo[] = [
+    { id: id(), branchId: branch.id, branchCode: 'B01', role: 'main', name: 'HO-SERVER', isSelf: true, status: 'active', appVersion: '0.3.0', lastSeenAt: iso(now), lastIp: null, installationId: '1A2B-3C4D-5E6F-7A8B', certificateSerial: null, certificateExpires: null, online: true, heartbeat: null },
+    { id: id(), branchId: branches[1]!.id, branchCode: 'B02', role: 'branch', name: 'SOHAR-PC', isSelf: false, status: 'active', appVersion: '0.3.0', lastSeenAt: iso(now - 20_000), lastIp: '192.168.10.21', installationId: '9F8E-7D6C-5B4A-3921', certificateSerial: '7c1f', certificateExpires: iso(now + 700 * 864e5), online: true, heartbeat: { pending: 0, lastSeq: 1840 } },
+  ];
+  const regTokens: RegistrationTokenRow[] = [];
+  const licState: LicenceState = opts.licence ?? 'active';
+  const validUntil = licState === 'expiring' ? iso(now + 9 * 864e5) : licState === 'grace' || licState === 'expired' ? iso(now - (licState === 'grace' ? 5 : 40) * 864e5) : iso(now + 300 * 864e5);
+  let licence: LicenceDetails = {
+    state: licState,
+    terms: licState === 'none' ? null : { id: 'kme-1794697889215-06d0f3', installationId: '1A2B-3C4D-5E6F-7A8B', kind: 'subscription', customer: 'Al Noor Mobiles LLC', validUntil: validUntil.slice(0, 10), graceDays: 30, branchesAllowed: 3, terminalsAllowed: 10, modules: opts.licenceModules ?? MODULES.map((m) => m.code), issuedAt: iso(now - 60 * 864e5) },
+    daysLeft: licState === 'none' ? null : Math.round((Date.parse(validUntil) - now) / 864e5), endsOn: licState === 'grace' ? iso(Date.parse(validUntil) + 30 * 864e5).slice(0, 10) : null,
+    branchesAllowed: licState === 'none' ? 1 : 3, terminalsAllowed: licState === 'none' ? 1 : 10, canTransact: !['none', 'expired', 'suspended'].includes(licState),
+    suspendMessage: licState === 'suspended' ? 'Please contact Nextdab about the renewal.' : null, suspendMessageAr: licState === 'suspended' ? 'يرجى التواصل مع نكستداب بخصوص التجديد.' : null,
+    branchesUsed: 2, terminalsUsed: 1, installationId: '1A2B-3C4D-5E6F-7A8B', role: 'main', keyConfigured: true,
+    connection: { lastCheckinAt: iso(now - 3600_000), lastCheckinOkAt: iso(now - 3600_000), lastError: null, nextCheckinAt: iso(now + 5 * 3600_000), modulesOff: [] },
+    history: licState === 'none' ? [] : [{ id: 'kme-1794697889215-06d0f3', kind: 'subscription', customer: 'Al Noor Mobiles LLC', validUntil: validUntil.slice(0, 10), source: 'nextdab', importedAt: iso(now - 60 * 864e5), isCurrent: true }],
+  };
+  const backupsConfigured = opts.backupsConfigured ?? true;
+  const runs: BackupRun[] = backupsConfigured ? [
+    { id: id(), kind: 'verify', status: 'succeeded', trigger: 'schedule', startedAt: iso(now - 2 * 864e5), finishedAt: iso(now - 2 * 864e5 + 95_000), fileName: null, sizeBytes: null, sha256: null, checks: { restored: true, journals_balanced: true, outbox_gap_free: true, audit_chain_intact: true, audit_rows_checked: 412 }, error: null },
+    { id: id(), kind: 'logical', status: 'succeeded', trigger: 'schedule', startedAt: iso(now - 7 * 3600_000), finishedAt: iso(now - 7 * 3600_000 + 41_000), fileName: 'kite-20261115-0200.kbak', sizeBytes: 18_400_000, sha256: 'ab12', checks: null, error: null },
+  ] : [];
   const audit: AuditRow[] = [];
   let current: User | null = null;
   let mfaPending = false;
@@ -190,7 +224,11 @@ export function createMockApi(opts: { configured: boolean }): KiteApi {
       log('business.updated', 'business');
       return delay({ ...business });
     },
-    async modules() { need('SETTINGS.VIEW'); return delay(modules.map((m) => ({ ...m }))); },
+    async modules() {
+      need('SETTINGS.VIEW');
+      const lic = licence.terms?.modules;
+      return delay(modules.map((m) => ({ ...m, locked: licence.connection?.modulesOff.includes(m.code) ? 'nextdab' as const : lic && !m.alwaysOn && !lic.includes(m.code) ? 'licence' as const : null })));
+    },
     async updateModules(changes) {
       need('SETTINGS.MODULES.EDIT');
       const next = new Map(modules.map((m) => [m.code, m.enabled]));
@@ -221,6 +259,106 @@ export function createMockApi(opts: { configured: boolean }): KiteApi {
     },
     async audit() { need('AUDIT.VIEW'); return delay(audit.slice(0, 50)); },
     async verifyAudit() { need('AUDIT.VERIFY'); log('audit.verified', null, 'chain intact'); return delay({ ok: true, rowsChecked: audit.length, firstBrokenSeq: null }); },
+    // ---- Phase 3 ----
+    async joinInspect(mainUrl, setupCode) {
+      if (configured) throw problem(409, 'SET-001', 'This server is already set up.');
+      if (setupCode !== 'ABCD2345') throw problem(403, 'SET-002', 'The setup code is not correct.');
+      if (!mainUrl.startsWith('https://')) throw problem(400, 'SRV-006', 'Head office could not be reached at that address.');
+      return delay({ businessName: 'Al Noor Mobiles LLC', fingerprintCode: '7F3A-91C2-04BD', fingerprint: 'f'.repeat(64) });
+    },
+    async join(req) {
+      if (req.token !== 'kite-reg-token-0123456789') throw problem(403, 'SRV-002', 'The registration token is not valid (wrong, used, cancelled or expired).');
+      configured = true;
+      return delay({ branchId: branches[1]!.id, businessName: 'Al Noor Mobiles LLC' });
+    },
+    async servers() {
+      need('SETTINGS.VIEW');
+      return delay({
+        self: { serverId: servers[0]!.id, role: 'main', installationId: '1A2B-3C4D-5E6F-7A8B', version: '0.3.0', ca: { fingerprintCode: '7F3A-91C2-04BD', hosts: ['192.168.10.5', 'ho-server'] } },
+        link: null, servers: servers.map((x) => ({ ...x })), tokens: regTokens.map((x) => ({ ...x })),
+        branches: branches.map((b) => ({ ...b, status: b.status as 'active' | 'inactive', addressEn: null, addressAr: null, phone: null, ...branchExtra.get(b.id), version: branchVersions.get(b.id) ?? 1 })), syncPort: 5443,
+      });
+    },
+    async createBranch(b) {
+      need('BRANCHES.MANAGE');
+      if (branches.filter((x) => x.status === 'active').length >= licence.branchesAllowed) throw problem(403, 'LIC-004', `The licence allows ${licence.branchesAllowed} branches. Ask Nextdab to extend it.`);
+      if (!/^[A-Z0-9-]{2,12}$/.test(b.code)) throw problem(400, 'VAL-001', 'Branch code must be 2 to 12 letters, digits or hyphens.');
+      if (branches.some((x) => x.code === b.code)) throw problem(409, 'GEN-409', `Branch code ${b.code} is already used.`);
+      const nb: Branch = { id: id(), code: b.code, nameEn: b.nameEn, nameAr: b.nameAr, isHeadOffice: false, status: 'active' };
+      branches.push(nb); branchVersions.set(nb.id, 1); branchExtra.set(nb.id, { addressEn: b.addressEn ?? null, addressAr: b.addressAr ?? null, phone: b.phone ?? null });
+      licence = { ...licence, branchesUsed: licence.branchesUsed + 1 };
+      log('branch.created', 'branch');
+      return delay({ id: nb.id, code: nb.code });
+    },
+    async updateBranch(bid, b) {
+      need('BRANCHES.MANAGE');
+      const x = branches.find((y) => y.id === bid)!;
+      if ((branchVersions.get(bid) ?? 1) !== b.version) throw problem(412, 'GEN-412', 'Someone else changed this branch. Reload and try again.');
+      Object.assign(x, { nameEn: b.nameEn, nameAr: b.nameAr, status: b.status });
+      branchVersions.set(bid, b.version + 1);
+      if (b.status === 'inactive') servers.filter((s) => s.branchId === bid && s.role === 'branch').forEach((s) => { s.status = 'revoked'; s.online = false; });
+      log('branch.updated', 'branch');
+    },
+    async createRegistrationToken(bid) {
+      need('SERVERS.MANAGE');
+      const b = branches.find((y) => y.id === bid)!;
+      const tok: RegistrationTokenRow = { id: id(), branchId: bid, branchCode: b.code, expiresAt: iso(Date.now() + 864e5), createdAt: iso(Date.now()), usedAt: null, cancelledAt: null };
+      regTokens.unshift(tok);
+      log('server.registration_token_created', 'branch');
+      return delay({ id: tok.id, token: 'kite-reg-token-0123456789', expiresAt: tok.expiresAt, fingerprintCode: '7F3A-91C2-04BD', hosts: ['192.168.10.5', 'ho-server'], port: 5443 });
+    },
+    async cancelRegistrationToken(tid) { need('SERVERS.MANAGE'); regTokens.find((x) => x.id === tid)!.cancelledAt = iso(Date.now()); },
+    async revokeServer(sid) { need('SERVERS.MANAGE'); const x = servers.find((y) => y.id === sid)!; x.status = 'revoked'; x.online = false; log('server.revoked', 'server'); },
+    async caRecoveryCopy(password, passphrase) {
+      const u = need('SERVERS.MANAGE');
+      if (passwords.get(u.username) !== password) throw problem(403, 'AUTH-001', 'Your password is not correct.');
+      if (passphrase.length < 12) throw problem(400, 'VAL-001', 'The passphrase must have at least 12 characters.');
+      return delay('-----BEGIN ENCRYPTED PRIVATE KEY-----\nMOCK\n-----END ENCRYPTED PRIVATE KEY-----\n');
+    },
+    async licenceStatus() {
+      need();
+      const admin = permsOf(current!).includes('LICENCE.MANAGE');
+      return delay({ state: licence.state, daysLeft: licence.daysLeft, endsOn: licence.endsOn, validUntil: licence.terms?.validUntil ?? null, kind: licence.terms?.kind ?? null, canTransact: licence.canTransact,
+        suspendMessage: licence.suspendMessage, suspendMessageAr: licence.suspendMessageAr, messages: (opts.messages ?? []).filter((m) => m.audience === 'all' || admin) });
+    },
+    async licence() { need('LICENCE.MANAGE'); return delay(structuredClone(licence)); },
+    async importLicence(fileText) {
+      need('LICENCE.MANAGE');
+      let file: { type?: string; licence?: { id: string; mid: string; kind: 'trial' | 'subscription'; customer: string; valid_until: string; branches: number; terminals: number; modules: string[]; grace_days: number }; sig?: string };
+      try { file = JSON.parse(fileText) as typeof file; } catch { throw problem(400, 'LIC-010', 'This is not a KITE MOBILE ERP licence file.'); }
+      if (file.type !== 'KITE MOBILE ERP licence file' || !file.licence || !file.sig) throw problem(400, 'LIC-010', 'This is not a KITE MOBILE ERP licence file.');
+      if (file.sig !== 'mock-valid-signature') throw problem(400, 'LIC-011', 'The licence signature is not valid. Use the file exactly as Nextdab sent it.');
+      const l = file.licence;
+      if (l.mid !== licence.installationId) throw problem(400, 'LIC-013', `This licence is for installation ${l.mid}; this installation is ${licence.installationId}.`);
+      licence = { ...licence, state: 'active', canTransact: true, branchesAllowed: l.branches, terminalsAllowed: l.terminals, daysLeft: Math.round((Date.parse(l.valid_until) - Date.now()) / 864e5),
+        terms: { id: l.id, installationId: l.mid, kind: l.kind, customer: l.customer, validUntil: l.valid_until, graceDays: l.grace_days, branchesAllowed: l.branches, terminalsAllowed: l.terminals, modules: l.modules, issuedAt: iso(Date.now()) },
+        history: [{ id: l.id, kind: l.kind, customer: l.customer, validUntil: l.valid_until, source: 'import', importedAt: iso(Date.now()), isCurrent: true }, ...licence.history.map((h) => ({ ...h, isCurrent: false }))] };
+      log('licence.imported', 'licence');
+      return delay({ id: l.id, kind: l.kind, validUntil: l.valid_until });
+    },
+    async licenceCheckin() { need('LICENCE.MANAGE'); },
+    async backups() {
+      need('BACKUP.VIEW');
+      const lastOk = (k: string) => runs.find((r) => r.kind === k && r.status === 'succeeded')?.finishedAt ?? null;
+      return delay({
+        configured: backupsConfigured, enabled: true, running: null, folder: backupsConfigured ? 'C:\\ProgramData\\KITE\\backups' : null, offsiteFolder: null,
+        schedule: { logicalAt: '02:00', baseAt: '03:00', baseBackups: true, verifyDay: 'Sunday', verifyAt: '04:00' },
+        lastLogicalOk: lastOk('logical'), lastBaseOk: lastOk('base'), lastVerifyOk: lastOk('verify'), lastOffsiteOk: null, alert: backupsConfigured && !lastOk('logical'), alertAfterHours: 26,
+        wal: backupsConfigured ? { mode: 'on', archived: 312, lastArchivedAt: iso(Date.now() - 60_000), failed: 0, lastFailedAt: null } : null,
+        keyProtection: 'dpapi-machine', recoveryKeyShownAt: null, runs: runs.map((r) => ({ ...r })),
+      });
+    },
+    async runBackup(kind) {
+      need('BACKUP.MANAGE');
+      if (!backupsConfigured) throw problem(409, 'BAK-001', 'Backups are not configured: ConnectionStrings:Backup (the kite_backup login) is missing.');
+      runs.unshift({ id: id(), kind, status: 'succeeded', trigger: 'manual', startedAt: iso(Date.now()), finishedAt: iso(Date.now() + 1000), fileName: kind === 'verify' ? null : 'kite-manual.kbak', sizeBytes: kind === 'verify' ? null : 18_500_000, sha256: null,
+        checks: kind === 'verify' ? { restored: true, journals_balanced: true, outbox_gap_free: true, audit_chain_intact: true, audit_rows_checked: 413 } : null, error: null });
+    },
+    async backupRecoveryKey(password) {
+      const u = need('BACKUP.MANAGE');
+      if (passwords.get(u.username) !== password) throw problem(403, 'AUTH-001', 'Your password is not correct.');
+      return delay({ recoveryKey: 'K4TE-7QXM-2PLA-90ZD-WW3R-HN6B-QF2C-UE8S-1MJK-RT5V-YA7G-PD4E-XB9N', keyId: '3f9a1c2b' });
+    },
   };
   return api;
 }

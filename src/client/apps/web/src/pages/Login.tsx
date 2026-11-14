@@ -37,6 +37,7 @@ export function LoginPage() {
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const justSetUp = (location.state as { setupDone?: boolean } | null)?.setupDone;
+  const justJoined = (location.state as { joined?: boolean } | null)?.joined;
 
   useEffect(() => {
     api.setupStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(true));
@@ -90,6 +91,7 @@ export function LoginPage() {
   return (
     <AuthFrame title={t('login.title')}>
       {justSetUp && <Alert tone="success">{t('setup.done')}</Alert>}
+      {justJoined && <Alert tone="success">{t('setup.joined')}</Alert>}
       <form className="stack" onSubmit={run(() => signIn(username.trim(), password))}>
         <TextField label={t('login.username')} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required autoFocus dir="ltr" />
         <TextField label={t('login.password')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />

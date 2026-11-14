@@ -1,5 +1,5 @@
-// Typed client for the KITE server API (blueprint 22). Phase 2 endpoints are written by hand;
-// from Phase 3 the types are generated from the server's OpenAPI document.
+// Typed client for the KITE server API (blueprint 22). Written by hand for Phases 2 and 3; generating it from the
+// server's OpenAPI document is moved to Phase 4 (ADR 18), when the API grows past what is practical to keep by hand.
 
 export interface Problem {
   title: string;
@@ -83,7 +83,7 @@ export interface Business {
   pricesIncludeTax: boolean; addressEn: string | null; addressAr: string | null; phone: string | null; email: string | null; version: number;
 }
 export type UpdateBusiness = Omit<Business, 'id' | 'countryCode' | 'baseCurrency' | 'currencyDecimals' | 'timeZone' | 'fiscalYearStartMonth'>;
-export interface Module { code: string; nameEn: string; nameAr: string; alwaysOn: boolean; enabled: boolean; dependsOn: string[] }
+export interface Module { code: string; nameEn: string; nameAr: string; alwaysOn: boolean; enabled: boolean; dependsOn: string[]; locked?: 'nextdab' | 'licence' | null }
 export interface Terminal {
   id: string; branchId: string; code: string; name: string; kind: 'windows' | 'browser'; status: 'pending' | 'active' | 'revoked';
   emergencyEnabled: boolean; requestedAt: string; approvedAt: string | null; version: number;
@@ -95,6 +95,47 @@ export interface TaxCode {
 export interface Account { id: string; code: string; nameEn: string; nameAr: string; type: string; parentId: string | null; isPostable: boolean; isControl: boolean; status: string }
 export interface AuditRow { seq: number; occurredAt: string; userId: string | null; username: string | null; branchId: string | null; action: string; entityType: string | null; entityId: string | null; reason: string | null }
 export interface AuditVerify { ok: boolean; rowsChecked: number; firstBrokenSeq: number | null }
+
+// ---- Phase 3: branches and servers, licence, backups ----
+export interface BranchAdmin { id: string; code: string; nameEn: string; nameAr: string; addressEn: string | null; addressAr: string | null; phone: string | null; isHeadOffice: boolean; status: 'active' | 'inactive'; version: number }
+export interface ServerInfo {
+  id: string; branchId: string | null; branchCode: string | null; role: 'combined' | 'main' | 'branch'; name: string; isSelf: boolean; status: 'active' | 'revoked' | string;
+  appVersion: string | null; lastSeenAt: string | null; lastIp: string | null; installationId: string | null; certificateSerial: string | null; certificateExpires: string | null;
+  online: boolean; heartbeat: { pending?: number; lastSeq?: number; backupAt?: string | null; backupStatus?: string | null } | null;
+}
+export interface RegistrationTokenRow { id: string; branchId: string; branchCode: string; expiresAt: string; createdAt: string; usedAt: string | null; cancelledAt: string | null }
+export interface ServersOverview {
+  self: { serverId: string; role: 'combined' | 'main' | 'branch'; installationId: string | null; version: string; ca: { fingerprintCode: string; hosts: string[] } | null };
+  link: { mainUrl: string | null; lastOkAt: string | null; lastError: string | null; revoked: boolean } | null;
+  servers: ServerInfo[]; tokens: RegistrationTokenRow[]; branches: BranchAdmin[]; syncPort: number;
+}
+export interface NewBranch { code: string; nameEn: string; nameAr: string; addressEn?: string | null; addressAr?: string | null; phone?: string | null }
+export interface RegistrationToken { id: string; token: string; expiresAt: string; fingerprintCode: string; hosts: string[]; port: number }
+export type LicenceState = 'none' | 'active' | 'expiring' | 'grace' | 'expired' | 'suspended';
+export interface NextdabMessage { id: string; title: string | null; text: string | null; titleAr: string | null; textAr: string | null; level: 'info' | 'important'; audience: 'all' | 'admin'; until: string | null; receivedAt: string }
+export interface LicenceBanner {
+  state: LicenceState; daysLeft: number | null; endsOn: string | null; validUntil: string | null; kind: 'trial' | 'subscription' | null;
+  canTransact: boolean; suspendMessage: string | null; suspendMessageAr: string | null; messages: NextdabMessage[];
+}
+export interface LicenceTerms { id: string; installationId: string; kind: 'trial' | 'subscription'; customer: string; validUntil: string; graceDays: number; branchesAllowed: number; terminalsAllowed: number; modules: string[]; issuedAt: string }
+export interface LicenceDetails {
+  state: LicenceState; terms: LicenceTerms | null; daysLeft: number | null; endsOn: string | null; branchesAllowed: number; terminalsAllowed: number; canTransact: boolean;
+  suspendMessage: string | null; suspendMessageAr: string | null; branchesUsed: number; terminalsUsed: number; installationId: string; role: string; keyConfigured: boolean;
+  connection: { lastCheckinAt: string | null; lastCheckinOkAt: string | null; lastError: string | null; nextCheckinAt: string | null; modulesOff: string[] } | null;
+  history: { id: string; kind: string; customer: string; validUntil: string; source: string; importedAt: string; isCurrent: boolean }[];
+}
+export interface BackupRun {
+  id: string; kind: 'logical' | 'base' | 'verify' | 'offsite' | string; status: 'running' | 'succeeded' | 'failed' | string; trigger: string; startedAt: string; finishedAt: string | null;
+  fileName: string | null; sizeBytes: number | null; sha256: string | null; checks: Record<string, unknown> | null; error: string | null;
+}
+export interface BackupStatus {
+  configured: boolean; enabled: boolean; running: string | null; folder: string | null; offsiteFolder: string | null;
+  schedule: { logicalAt: string; baseAt: string; baseBackups: boolean; verifyDay: string; verifyAt: string };
+  lastLogicalOk: string | null; lastBaseOk: string | null; lastVerifyOk: string | null; lastOffsiteOk: string | null; alert: boolean; alertAfterHours: number;
+  wal: { mode: string; archived: number; lastArchivedAt: string | null; failed: number; lastFailedAt: string | null } | null;
+  keyProtection: string; recoveryKeyShownAt: string | null; runs: BackupRun[];
+}
+export interface JoinRequest { mainUrl: string; setupCode: string; token: string; confirmedFingerprint: string; serverName?: string }
 
 /** Everything the web app calls. The real client and the in-memory mock both implement it. */
 export interface KiteApi {
@@ -132,6 +173,23 @@ export interface KiteApi {
   accounts(): Promise<Account[]>;
   audit(before?: number): Promise<AuditRow[]>;
   verifyAudit(): Promise<AuditVerify>;
+  // Phase 3
+  joinInspect(mainUrl: string, setupCode: string): Promise<{ businessName: string; fingerprintCode: string; fingerprint: string }>;
+  join(req: JoinRequest): Promise<{ branchId: string; businessName: string }>;
+  servers(): Promise<ServersOverview>;
+  createBranch(b: NewBranch): Promise<{ id: string; code: string }>;
+  updateBranch(id: string, b: Omit<BranchAdmin, 'id' | 'code' | 'isHeadOffice'>): Promise<void>;
+  createRegistrationToken(branchId: string): Promise<RegistrationToken>;
+  cancelRegistrationToken(id: string): Promise<void>;
+  revokeServer(id: string, reason: 'server_replaced' | 'key_compromise'): Promise<void>;
+  caRecoveryCopy(password: string, passphrase: string): Promise<string>;
+  licenceStatus(): Promise<LicenceBanner>;
+  licence(): Promise<LicenceDetails>;
+  importLicence(fileText: string): Promise<{ id: string; kind: string; validUntil: string }>;
+  licenceCheckin(): Promise<void>;
+  backups(): Promise<BackupStatus>;
+  runBackup(kind: 'logical' | 'base' | 'verify'): Promise<void>;
+  backupRecoveryKey(password: string): Promise<{ recoveryKey: string; keyId: string }>;
   /** Called when the session ends (refresh failed); the app returns to sign-in. */
   onSessionEnded?: () => void;
 }
@@ -184,8 +242,9 @@ export function createHttpApi(baseUrl = ''): KiteApi {
       const p = (await r.json().catch(() => null)) as Problem | null;
       throw new ApiError(p ?? { title: r.statusText || 'Request failed', status: r.status, code: `HTTP-${r.status}` });
     }
-    if (r.status === 204) return undefined as T;
+    if (r.status === 204 || r.status === 202) return undefined as T;
     const text = await r.text();
+    if (!(r.headers.get('Content-Type') ?? 'application/json').includes('json')) return text as T;
     return (text ? JSON.parse(text) : undefined) as T;
   }
 
@@ -234,6 +293,22 @@ export function createHttpApi(baseUrl = ''): KiteApi {
     accounts: () => get('/api/v1/accounting/accounts'),
     audit: (before?: number) => get(`/api/v1/audit?limit=50${before ? `&before=${before}` : ''}`),
     verifyAudit: () => post('/api/v1/audit/verify'),
+    joinInspect: (mainUrl: string, setupCode: string) => post('/api/v1/setup/join/inspect', { mainUrl, setupCode }),
+    join: (req: JoinRequest) => post('/api/v1/setup/join', req),
+    servers: () => get('/api/v1/servers'),
+    createBranch: (b: NewBranch) => post('/api/v1/branches', b),
+    updateBranch: (id: string, b: unknown) => put(`/api/v1/branches/${id}`, b),
+    createRegistrationToken: (branchId: string) => post(`/api/v1/branches/${branchId}/registration-tokens`),
+    cancelRegistrationToken: (id: string) => post(`/api/v1/registration-tokens/${id}/cancel`),
+    revokeServer: (id: string, reason: string) => post(`/api/v1/servers/${id}/revoke`, { reason }),
+    caRecoveryCopy: (password: string, passphrase: string) => post('/api/v1/pki/recovery-copy', { password, passphrase }),
+    licenceStatus: () => get('/api/v1/licence/status'),
+    licence: () => get('/api/v1/licence'),
+    importLicence: (fileText: string) => post('/api/v1/licence/import', { fileText }),
+    licenceCheckin: () => post('/api/v1/licence/checkin'),
+    backups: () => get('/api/v1/backups'),
+    runBackup: (kind: string) => post('/api/v1/backups/run', { kind }),
+    backupRecoveryKey: (password: string) => post('/api/v1/backups/recovery-key', { password }),
   });
   return api;
 }

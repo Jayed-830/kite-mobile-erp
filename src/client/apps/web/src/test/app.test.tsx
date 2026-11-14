@@ -98,6 +98,7 @@ describe('setup wizard', () => {
   it('validates each step, links module dependencies and reports a wrong setup code', async () => {
     const user = userEvent.setup();
     render(<App api={createMockApi({ configured: false })} initialPath="/setup" lang="en" />);
+    await user.click(await screen.findByRole('button', { name: /^A new business/ }));
     const next = await screen.findByRole('button', { name: 'Next' });
     expect(next).toBeDisabled();
 
@@ -170,5 +171,151 @@ describe('administration', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Add role' }));
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(await screen.findByText('cashier_amal')).toBeInTheDocument();
+  });
+});
+
+describe('branches and servers (Phase 3)', () => {
+  it('adds a branch and shows the one-time token with the security code to compare', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    await user.click(await screen.findByRole('link', { name: 'Branches and servers' }));
+    expect(await screen.findByTestId('ca-code')).toHaveTextContent('7F3A-91C2-04BD');
+    expect(screen.getByText('SOHAR-PC')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add branch' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText(/^Code/), 'b03');
+    await user.type(within(dialog).getByLabelText(/Branch name \(English\)/), 'Nizwa');
+    await user.type(within(dialog).getByLabelText(/Branch name \(Arabic\)/), 'نزوى');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    const row = (await screen.findByText('B03')).closest('tr')!;
+    expect(within(row).getByText('No server yet')).toBeInTheDocument();
+
+    await user.click(within(row).getByRole('button', { name: 'Register server' }));
+    const tokenDialog = await screen.findByRole('dialog', { name: 'Register the server of branch B03' });
+    expect(within(tokenDialog).getByTestId('registration-token')).toHaveTextContent('kite-reg-token-0123456789');
+    expect(tokenDialog).toHaveTextContent('7F3A-91C2-04BD');
+    expect(tokenDialog).toHaveTextContent('https://192.168.10.5:5443');
+    await user.click(within(tokenDialog).getByRole('button', { name: 'Close' }));
+    expect(await screen.findByText('Open registration tokens')).toBeInTheDocument();
+  });
+
+  it('revokes a branch server after asking for the reason', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    await user.click(await screen.findByRole('link', { name: 'Branches and servers' }));
+    const row = (await screen.findByText('SOHAR-PC')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: 'Revoke server' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.selectOptions(within(dialog).getByLabelText('Reason'), 'key_compromise');
+    await user.click(within(dialog).getByRole('button', { name: 'Revoke server' }));
+    await waitFor(() => expect(within(row).getByText('Revoked')).toBeInTheDocument());
+    expect(within(row).getByRole('button', { name: 'Register server' })).toBeInTheDocument();
+  });
+});
+
+describe('licence (Phase 3)', () => {
+  it('shows the warning banner before the end and the licence page with limits', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true, licence: 'expiring' })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    expect(await screen.findByTestId('licence-banner')).toHaveTextContent(/The licence ends on .* \(9 day\(s\) left\)/);
+    await user.click(screen.getByRole('link', { name: 'Open the licence page.' }));
+    expect(await screen.findByTestId('installation-id')).toHaveTextContent('1A2B-3C4D-5E6F-7A8B');
+    expect(screen.getByText('2 of 3')).toBeInTheDocument();
+    expect(screen.getByText('Ending soon')).toBeInTheDocument();
+  });
+
+  it('imports a licence file and refuses a changed one with its code', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true, licence: 'none' })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    expect(await screen.findByTestId('licence-banner')).toHaveTextContent('KITE has no licence yet');
+    await user.click(screen.getByRole('link', { name: 'Licence' }));
+    const lic = { id: 'kme-1', mid: '1A2B-3C4D-5E6F-7A8B', kind: 'subscription', customer: 'Al Noor Mobiles LLC', valid_until: '2027-11-13', branches: 3, terminals: 10, modules: ['core'], grace_days: 30 };
+    const box = await screen.findByLabelText('Or paste the licence text');
+    await user.click(box);
+    await user.paste(JSON.stringify({ type: 'KITE MOBILE ERP licence file', version: 1, licence: lic, sig: 'tampered' }));
+    await user.click(screen.getByRole('button', { name: 'Import licence file' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('LIC-011');
+
+    await user.clear(box);
+    await user.click(box);
+    await user.paste(JSON.stringify({ type: 'KITE MOBILE ERP licence file', version: 1, licence: lic, sig: 'mock-valid-signature' }));
+    await user.click(screen.getByRole('button', { name: 'Import licence file' }));
+    expect(await screen.findByText(/Licence imported: Subscription until/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('licence-banner')).not.toBeInTheDocument());
+  });
+
+  it('shows the Nextdab switch-off message in Arabic', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true, licence: 'suspended' })} initialPath="/login" lang="ar" />);
+    await user.type(await screen.findByLabelText(/اسم المستخدم/), 'owner');
+    await user.type(screen.getByLabelText(/^كلمة المرور/), OWNER_PW);
+    await user.click(screen.getByRole('button', { name: 'دخول' }));
+    // The owner's own language is English: the app follows it after sign-in, then the user switches to Arabic.
+    expect(await screen.findByTestId('licence-banner')).toHaveTextContent('KITE is switched off by Nextdab. Please contact Nextdab about the renewal.');
+    await user.click(screen.getByRole('button', { name: 'العربية' }));
+    expect(await screen.findByTestId('licence-banner')).toHaveTextContent('أوقفت نكستداب كايت. يرجى التواصل مع نكستداب بخصوص التجديد.');
+  });
+
+  it('marks modules that are not in the licence and does not let them be switched on', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true, licenceModules: ['core', 'catalog', 'inv', 'sales', 'tax', 'device', 'repair', 'purch', 'acct_ui'] })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    await user.click(await screen.findByRole('link', { name: 'Modules' }));
+    expect(await screen.findByRole('switch', { name: 'WhatsApp notifications' })).toBeDisabled();
+    expect(screen.getAllByText('Not in the licence').length).toBeGreaterThan(0);
+  });
+});
+
+describe('backups (Phase 3)', () => {
+  it('shows the last verified restore and the recovery key after the password', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    await user.click(await screen.findByRole('link', { name: 'Backups' }));
+    expect(await screen.findByText('Backups are running.')).toBeInTheDocument();
+    expect(screen.getByText(/Journals balanced, sync sequence gap-free, audit chain intact/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show recovery key' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Your password'), 'wrong-password');
+    await user.click(within(dialog).getByRole('button', { name: 'Show recovery key' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('AUTH-001');
+    await user.clear(within(dialog).getByLabelText('Your password'));
+    await user.type(within(dialog).getByLabelText('Your password'), OWNER_PW);
+    await user.click(within(dialog).getByRole('button', { name: 'Show recovery key' }));
+    expect(await screen.findByTestId('recovery-key')).toHaveTextContent('K4TE-7QXM');
+  });
+
+  it('says plainly when backups are not set up', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: true, backupsConfigured: false })} initialPath="/login" lang="en" />);
+    await signIn(user);
+    await user.click(await screen.findByRole('link', { name: 'Backups' }));
+    expect(await screen.findByText(/Backups are not set up on this server yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back up now' })).not.toBeInTheDocument();
+  });
+});
+
+describe('join as a branch server (Phase 3)', () => {
+  it('compares the security code before the token can be entered', async () => {
+    const user = userEvent.setup();
+    render(<App api={createMockApi({ configured: false })} initialPath="/setup" lang="en" />);
+    await user.click(await screen.findByRole('button', { name: /^A branch server of an existing business/ }));
+    await user.type(screen.getByLabelText(/Setup code/), 'ABCD2345');
+    await user.clear(screen.getByLabelText(/Head office address/));
+    await user.type(screen.getByLabelText(/Head office address/), 'https://192.168.10.5:5443');
+    await user.click(screen.getByRole('button', { name: 'Connect' }));
+    expect(await screen.findByTestId('join-code')).toHaveTextContent('7F3A-91C2-04BD');
+    expect(screen.getByText('Al Noor Mobiles LLC')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Registration token/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join' })).toBeDisabled();
+    await user.click(screen.getByLabelText('The codes are the same'));
+    await user.type(screen.getByLabelText(/Registration token/), 'kite-reg-token-0123456789');
+    await user.click(screen.getByRole('button', { name: 'Join' }));
+    expect(await screen.findByText('This server is now the branch server. Sign in with your usual account.')).toBeInTheDocument();
   });
 });

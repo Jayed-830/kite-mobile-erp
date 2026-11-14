@@ -3,6 +3,7 @@ import { can } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Button, useTheme } from '@kite/ui';
 import { useAuth } from './core';
+import { LicenceBanner } from './pages/Licence';
 
 /** Back-office shell (blueprint 21.1): sidebar by module, top bar with language, theme and user. */
 export function Shell() {
@@ -17,6 +18,9 @@ export function Shell() {
     { to: '/app/roles', label: t('nav.roles'), show: can(me, 'USERS.VIEW') },
     { to: '/app/terminals', label: t('nav.terminals'), show: can(me, 'TERMINALS.APPROVE') },
     { to: '/app/audit', label: t('nav.audit'), show: can(me, 'AUDIT.VIEW') },
+    { to: '/app/servers', label: t('nav.servers'), show: can(me, 'SETTINGS.VIEW') },
+    { to: '/app/licence', label: t('nav.licence'), show: can(me, 'LICENCE.MANAGE') },
+    { to: '/app/backups', label: t('nav.backups'), show: can(me, 'BACKUP.VIEW') },
     { to: '/app/settings/business', label: t('nav.business'), show: can(me, 'SETTINGS.VIEW'), section: t('nav.settings') },
     { to: '/app/settings/modules', label: t('nav.modules'), show: can(me, 'SETTINGS.VIEW') },
     { to: '/app/settings/tax', label: t('nav.tax'), show: can(me, 'SETTINGS.VIEW') },
@@ -53,6 +57,7 @@ export function Shell() {
           <Button size="sm" onClick={() => void signOut()}>{t('app.signOut')}</Button>
         </header>
         <main className="content">
+          <LicenceBanner />
           <Outlet />
         </main>
       </div>

@@ -63,6 +63,8 @@ try {
   await expectVisible('إعداد منشأتك');
 
   step('setup wizard in Arabic');
+  await shot('setup-choose-ar');
+  await page.getByRole('button', { name: /^منشأة جديدة/ }).click();
   await page.getByLabel(/^رمز الإعداد/).fill(setupCode.toLowerCase()); // the code is case-insensitive
   await page.getByLabel(/^الاسم القانوني \(بالإنجليزية\)/).fill('Al Noor Mobiles LLC');
   await page.getByLabel(/^الاسم القانوني \(بالعربية\)/).fill('شركة النور للهواتف');
