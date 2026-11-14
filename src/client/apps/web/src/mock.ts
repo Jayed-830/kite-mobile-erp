@@ -264,7 +264,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
       if (configured) throw problem(409, 'SET-001', 'This server is already set up.');
       if (setupCode !== 'ABCD2345') throw problem(403, 'SET-002', 'The setup code is not correct.');
       if (!mainUrl.startsWith('https://')) throw problem(400, 'SRV-006', 'Head office could not be reached at that address.');
-      return delay({ businessName: 'Al Noor Mobiles LLC', fingerprintCode: '7F3A-91C2-04BD', fingerprint: 'f'.repeat(64) });
+      return delay({ businessName: 'Al Noor Mobiles LLC', fingerprintCode: '4821-0937-5520-1764-3086', fingerprint: 'f'.repeat(64) });
     },
     async join(req) {
       if (req.token !== 'kite-reg-token-0123456789') throw problem(403, 'SRV-002', 'The registration token is not valid (wrong, used, cancelled or expired).');
@@ -274,7 +274,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
     async servers() {
       need('SETTINGS.VIEW');
       return delay({
-        self: { serverId: servers[0]!.id, role: 'main', installationId: '1A2B-3C4D-5E6F-7A8B', version: '0.3.0', ca: { fingerprintCode: '7F3A-91C2-04BD', hosts: ['192.168.10.5', 'ho-server'] } },
+        self: { serverId: servers[0]!.id, role: 'main', installationId: '1A2B-3C4D-5E6F-7A8B', version: '0.3.0', ca: { fingerprintCode: '4821-0937-5520-1764-3086', hosts: ['192.168.10.5', 'ho-server'] } },
         link: null, servers: servers.map((x) => ({ ...x })), tokens: regTokens.map((x) => ({ ...x })),
         branches: branches.map((b) => ({ ...b, status: b.status as 'active' | 'inactive', addressEn: null, addressAr: null, phone: null, ...branchExtra.get(b.id), version: branchVersions.get(b.id) ?? 1 })), syncPort: 5443,
       });
@@ -305,7 +305,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
       const tok: RegistrationTokenRow = { id: id(), branchId: bid, branchCode: b.code, expiresAt: iso(Date.now() + 864e5), createdAt: iso(Date.now()), usedAt: null, cancelledAt: null };
       regTokens.unshift(tok);
       log('server.registration_token_created', 'branch');
-      return delay({ id: tok.id, token: 'kite-reg-token-0123456789', expiresAt: tok.expiresAt, fingerprintCode: '7F3A-91C2-04BD', hosts: ['192.168.10.5', 'ho-server'], port: 5443 });
+      return delay({ id: tok.id, token: 'kite-reg-token-0123456789', expiresAt: tok.expiresAt, fingerprintCode: '4821-0937-5520-1764-3086', hosts: ['192.168.10.5', 'ho-server'], port: 5443 });
     },
     async cancelRegistrationToken(tid) { need('SERVERS.MANAGE'); regTokens.find((x) => x.id === tid)!.cancelledAt = iso(Date.now()); },
     async revokeServer(sid) { need('SERVERS.MANAGE'); const x = servers.find((y) => y.id === sid)!; x.status = 'revoked'; x.online = false; log('server.revoked', 'server'); },

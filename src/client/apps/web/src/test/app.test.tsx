@@ -180,7 +180,7 @@ describe('branches and servers (Phase 3)', () => {
     render(<App api={createMockApi({ configured: true })} initialPath="/login" lang="en" />);
     await signIn(user);
     await user.click(await screen.findByRole('link', { name: 'Branches and servers' }));
-    expect(await screen.findByTestId('ca-code')).toHaveTextContent('7F3A-91C2-04BD');
+    expect(await screen.findByTestId('ca-code')).toHaveTextContent('4821-0937-5520-1764-3086');
     expect(screen.getByText('SOHAR-PC')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Add branch' }));
@@ -195,7 +195,7 @@ describe('branches and servers (Phase 3)', () => {
     await user.click(within(row).getByRole('button', { name: 'Register server' }));
     const tokenDialog = await screen.findByRole('dialog', { name: 'Register the server of branch B03' });
     expect(within(tokenDialog).getByTestId('registration-token')).toHaveTextContent('kite-reg-token-0123456789');
-    expect(tokenDialog).toHaveTextContent('7F3A-91C2-04BD');
+    expect(tokenDialog).toHaveTextContent('4821-0937-5520-1764-3086');
     expect(tokenDialog).toHaveTextContent('https://192.168.10.5:5443');
     await user.click(within(tokenDialog).getByRole('button', { name: 'Close' }));
     expect(await screen.findByText('Open registration tokens')).toBeInTheDocument();
@@ -309,7 +309,7 @@ describe('join as a branch server (Phase 3)', () => {
     await user.clear(screen.getByLabelText(/Head office address/));
     await user.type(screen.getByLabelText(/Head office address/), 'https://192.168.10.5:5443');
     await user.click(screen.getByRole('button', { name: 'Connect' }));
-    expect(await screen.findByTestId('join-code')).toHaveTextContent('7F3A-91C2-04BD');
+    expect(await screen.findByTestId('join-code')).toHaveTextContent('4821-0937-5520-1764-3086');
     expect(screen.getByText('Al Noor Mobiles LLC')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Registration token/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Join' })).toBeDisabled();

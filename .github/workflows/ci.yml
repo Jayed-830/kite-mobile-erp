@@ -273,11 +273,13 @@ jobs:
             if sudo apt-get update -q 2>&1 | tee /tmp/apt.log && ! grep -qE "^(E|Err):.*pgdg" /tmp/apt.log; then break; fi
           done
           sudo apt-get install -y -q postgresql-17 postgresql-client-17
+          # The runner image has its own (newer) PostgreSQL cluster; KITE's production versions are 16/17, so a 17 cluster is made on its own port.
+          port=5435
+          sudo pg_lsclusters -h | awk '$1 == "17" && $2 == "main"' | grep -q . || sudo pg_createcluster 17 main --port "$port"
+          sudo pg_ctlcluster 17 main start
           sudo pg_lsclusters
-          port=$(sudo pg_lsclusters -h | awk '$1 == "17" && $2 == "main" {print $3}')
           echo "MAINPG_PORT=$port" >> "$GITHUB_ENV"
           sudo mkdir -p /var/lib/postgresql/wal-archive && sudo chown postgres:postgres /var/lib/postgresql/wal-archive
-          sudo pg_ctlcluster 17 main start || true
           sudo -u postgres psql -p "$port" -v ON_ERROR_STOP=1 -c "ALTER USER postgres PASSWORD 'postgres'" -c "ALTER SYSTEM SET wal_level = replica" \
             -c "ALTER SYSTEM SET archive_mode = on" -c "ALTER SYSTEM SET archive_command = 'cp %p /var/lib/postgresql/wal-archive/%f'"
           sudo pg_ctlcluster 17 main restart
