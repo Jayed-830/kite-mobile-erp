@@ -236,3 +236,136 @@ jobs:
         with:
           name: e2e-screenshots
           path: ${{ runner.temp }}/e2e-shots/
+
+  e2e-phase3:
+    name: End-to-end Phase 3 (head office + branch server, licence, backups with a verified restore)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5434:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGBIN: /usr/lib/postgresql/16/bin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Head office database - PostgreSQL 16 on the runner, with WAL archiving and replication for the backup agent
+        run: |
+          [ -x "$PGBIN/pg_basebackup" ] || { sudo apt-get update -q && sudo apt-get install -y -q postgresql-16; }
+          sudo mkdir -p /var/lib/postgresql/wal-archive && sudo chown postgres:postgres /var/lib/postgresql/wal-archive
+          sudo systemctl start postgresql
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER USER postgres PASSWORD 'postgres'" -c "ALTER SYSTEM SET wal_level = replica" \
+            -c "ALTER SYSTEM SET archive_mode = on" -c "ALTER SYSTEM SET archive_command = 'cp %p /var/lib/postgresql/wal-archive/%f'"
+          sudo systemctl restart postgresql
+          sleep 3
+          psql -p 5432 -c "SELECT version()" -c "SHOW archive_mode" -c "SHOW wal_level"
+          grep -E "^host +replication" /etc/postgresql/16/main/pg_hba.conf
+      - name: Create both KITE databases and roles (the installer's job in production)
+        run: |
+          for port in 5432 5434; do
+            createdb -p $port kite
+            psql -p $port -v ON_ERROR_STOP=1 -d kite -f db/bootstrap/00_bootstrap.sql
+            psql -p $port -v ON_ERROR_STOP=1 -d kite -c "ALTER ROLE kite_migrator PASSWORD 'e2e-migrator'; ALTER ROLE kite_app PASSWORD 'e2e-app'; ALTER ROLE kite_backup PASSWORD 'e2e-backup';"
+          done
+      - name: Build the web app into the server, and the server
+        run: |
+          bash scripts/build-web.sh
+          dotnet build src/server/Kite.Host -c Release
+      - name: Start the Nextdab stub (checks its signing against the Nextdab Admin vectors first)
+        working-directory: e2e
+        run: |
+          npm ci
+          STUB_KEY_FILE="$RUNNER_TEMP/stub-key.txt" nohup node nextdab-stub.mjs > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/stub-key.txt" ] && break; sleep 1; done
+          cat "$RUNNER_TEMP/stub.log"
+          test -s "$RUNNER_TEMP/stub-key.txt"
+      - name: Start the head office server (role main, sync TLS port 5443, backups on)
+        working-directory: src/server/Kite.Host
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development   # only so the test licence key below is accepted
+          export ASPNETCORE_URLS=http://localhost:5080
+          export ConnectionStrings__App="Host=localhost;Port=5432;Database=kite;Username=kite_app;Password=e2e-app"
+          export ConnectionStrings__Migrator="Host=localhost;Port=5432;Database=kite;Username=kite_migrator;Password=e2e-migrator"
+          export ConnectionStrings__Backup="Host=localhost;Port=5432;Database=kite;Username=kite_backup;Password=e2e-backup"
+          export Kite__DataDir="$RUNNER_TEMP/main-data" Kite__Sync__Port=5443 Kite__Sync__Hosts=localhost
+          export Kite__Licensing__ControlUrl=http://127.0.0.1:8799 Kite__Licensing__DevPublicKey="$(cat "$RUNNER_TEMP/stub-key.txt")"
+          export Kite__Backup__PgBin="$PGBIN" Kite__Backup__Folder="$RUNNER_TEMP/backups"
+          nohup dotnet bin/Release/net10.0/Kite.Host.dll > "$RUNNER_TEMP/main.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5080/health/ready > /dev/null && break; sleep 2; done
+          curl -sf http://localhost:5080/health/ready && test -s "$RUNNER_TEMP/main-data/setup-code.txt"
+      - name: Start the branch server (joins later from the browser, heartbeat every 5 s)
+        working-directory: src/server/Kite.Host
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development
+          export ASPNETCORE_URLS=http://localhost:5081
+          export ConnectionStrings__App="Host=localhost;Port=5434;Database=kite;Username=kite_app;Password=e2e-app"
+          export ConnectionStrings__Migrator="Host=localhost;Port=5434;Database=kite;Username=kite_migrator;Password=e2e-migrator"
+          export Kite__DataDir="$RUNNER_TEMP/branch-data" Kite__Sync__Port=0 Kite__Sync__HeartbeatSeconds=5
+          export Kite__Licensing__CheckinEnabled=false Kite__Licensing__DevPublicKey="$(cat "$RUNNER_TEMP/stub-key.txt")"
+          nohup dotnet bin/Release/net10.0/Kite.Host.dll > "$RUNNER_TEMP/branch.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5081/health/ready > /dev/null && break; sleep 2; done
+          curl -sf http://localhost:5081/health/ready && test -s "$RUNNER_TEMP/branch-data/setup-code.txt"
+      - name: Browser walk-through of the Phase 3 exit gate
+        working-directory: e2e
+        env:
+          MAIN_URL: http://localhost:5080
+          BRANCH_URL: http://localhost:5081
+          STUB_URL: http://127.0.0.1:8799
+          MAIN_SETUP_CODE_FILE: ${{ runner.temp }}/main-data/setup-code.txt
+          BRANCH_SETUP_CODE_FILE: ${{ runner.temp }}/branch-data/setup-code.txt
+          RECOVERY_KEY_FILE: ${{ runner.temp }}/recovery-key.txt
+          SHOTS_DIR: ${{ runner.temp }}/e2e-phase3-shots
+        run: node phase3.mjs
+      - name: Restore the latest backup by hand on a clean database with the printed recovery key (runbook 19.5)
+        run: |
+          set -e
+          file=$(ls -t "$RUNNER_TEMP"/backups/logical/*.kbak | head -1)
+          echo "backup file: $file ($(stat -c %s "$file") bytes)"
+          dotnet src/server/Kite.Host/bin/Release/net10.0/Kite.Host.dll backup-decrypt --in "$file" --out "$RUNNER_TEMP/restore.dump" --recovery-key "$(cat "$RUNNER_TEMP/recovery-key.txt")"
+          createdb -p 5432 kite_restore_check
+          "$PGBIN/pg_restore" -p 5432 --no-owner --no-acl --exit-on-error -d kite_restore_check "$RUNNER_TEMP/restore.dump"
+          psql -p 5432 -d kite_restore_check -v ON_ERROR_STOP=1 -c "SELECT (SELECT ok FROM audit.verify_chain()) AS audit_chain_ok, (SELECT count(*) FROM audit.audit_log) AS audit_rows, (SELECT count(*) FROM core.branch) AS branches, (SELECT count(*) FROM lic.licence) AS licences"
+          test "$(psql -p 5432 -d kite_restore_check -tAc "SELECT ok FROM audit.verify_chain()")" = "t"
+          test "$(psql -p 5432 -d kite_restore_check -tAc "SELECT count(*) FROM core.branch")" -ge 2
+          echo "wrong recovery key must fail:"
+          ! dotnet src/server/Kite.Host/bin/Release/net10.0/Kite.Host.dll backup-decrypt --in "$file" --out "$RUNNER_TEMP/wrong.dump" --recovery-key "AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA-AAAA"
+      - name: Databases after the walk-through
+        if: always()
+        run: |
+          psql -p 5432 -d kite -c "SELECT kind, status, trigger, size_bytes, checks->>'journals_balanced' AS balanced, checks->>'audit_chain_intact' AS chain, error FROM ops.backup_run ORDER BY started_at;" || true
+          psql -p 5432 -d kite -c "SELECT s.role, s.name, s.status, b.code FROM core.server s LEFT JOIN core.branch b ON b.id = s.branch_id;" || true
+          psql -p 5432 -d kite -c "SELECT serial, kind, revoked_at IS NOT NULL AS revoked, revoked_reason FROM pki.certificate ORDER BY issued_at;" || true
+          psql -p 5432 -d kite -c "SELECT id, kind, valid_until, source, is_current FROM lic.licence ORDER BY imported_at;" || true
+          psql -p 5434 -d kite -c "SELECT role, name, status FROM core.server;" || true
+          ls -la "$RUNNER_TEMP"/backups/* || true
+      - name: Print screenshots for review
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/e2e-phase3-shots/*.jpg; do
+            [ -f "$f" ] || continue
+            echo "SHOT-BEGIN $(basename "$f")"; base64 -w 40000 "$f"; echo "SHOT-END"
+          done
+      - name: Server logs
+        if: always()
+        run: |
+          echo "=== head office ==="; tail -n 150 "$RUNNER_TEMP/main.log" || true
+          echo "=== branch ==="; tail -n 100 "$RUNNER_TEMP/branch.log" || true
+          echo "=== stub ==="; cat "$RUNNER_TEMP/stub.log" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-phase3-screenshots
+          path: ${{ runner.temp }}/e2e-phase3-shots/

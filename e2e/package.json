@@ -1,11 +1,13 @@
 {
   "name": "kite-e2e",
   "private": true,
-  "version": "0.2.0",
-  "description": "Browser walk-through of a real KITE server: setup, roles, two-step sign-in and the audit chain, in English and Arabic.",
+  "version": "0.3.0",
+  "description": "Browser walk-throughs of real KITE servers: setup, roles, two-step sign-in, the audit chain (Phase 2); head office + branch server, licence, backups with a verified restore (Phase 3).",
   "type": "module",
   "scripts": {
-    "start": "node real-server.mjs"
+    "start": "node real-server.mjs",
+    "phase3": "node phase3.mjs",
+    "stub": "node nextdab-stub.mjs"
   },
   "dependencies": {
     "playwright-core": "1.56.1"
