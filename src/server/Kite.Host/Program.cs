@@ -3,7 +3,13 @@ using Kite.Host.Infrastructure;
 using Kite.Identity;
 using Kite.Persistence;
 using Kite.Platform;
+using System.Net;
+using System.Security.Authentication;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Npgsql;
+
+// Restore helper that needs no server: Kite.Host backup-decrypt --in X --out Y --recovery-key Z
+if (await BackupCli.TryRunAsync(args) is { } cliExit) return cliExit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +28,44 @@ builder.Services.AddSingleton<ServerContext>();
 builder.Services.AddSingleton<KiteDb>();
 builder.Services.AddSingleton<ModuleStateCache>();
 builder.Services.AddSingleton<IPasswordHasher>(new Argon2PasswordHasher(new Argon2Options(kite.Argon2.MemoryKiB, kite.Argon2.Iterations, kite.Argon2.Parallelism)));
-builder.Services.AddSingleton<ISecretProtector>(new AesGcmSecretProtector(KeyFile.LoadOrCreate(Path.Combine(dataDir, "secrets.key"))));
+// Keys at rest are wrapped with DPAPI (machine scope) on Windows servers (blueprint 18.4); the Phase 2
+// plain key file is upgraded in place the first time it is loaded.
+var keyStore = new KeyStore(dataDir, KeyProtectors.ForThisMachine());
+builder.Services.AddSingleton(keyStore);
+builder.Services.AddSingleton<ISecretProtector>(new AesGcmSecretProtector(keyStore.LoadOrCreate("secrets.key", "secrets")));
+builder.Services.AddSingleton(LicenceKeys.Create(kite.Licensing, builder.Environment.IsDevelopment()));
+builder.Services.AddSingleton<PkiService>();
+builder.Services.AddSingleton<LicenceService>();
+builder.Services.AddSingleton<BranchLinkService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BranchLinkService>());
+builder.Services.AddSingleton<NextdabCheckinService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<NextdabCheckinService>());
+builder.Services.AddSingleton<BackupService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BackupService>());
+builder.Services.AddHttpClient("nextdab", c => c.Timeout = TimeSpan.FromSeconds(30));
+
+// Kestrel: the web/API addresses from configuration ("urls"), plus the TLS sync port on which branch servers
+// register and send heartbeats with their client certificates (blueprint 18.1, 18.4).
+builder.WebHost.ConfigureKestrel(o =>
+{
+    var urls = (builder.Configuration["urls"] ?? "http://localhost:5000").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    foreach (var url in urls)
+    {
+        var a = BindingAddress.Parse(url);
+        if (a.Host is "localhost") o.ListenLocalhost(a.Port);
+        else if (a.Host is "*" or "+" or "0.0.0.0" or "[::]") o.ListenAnyIP(a.Port);
+        else if (IPAddress.TryParse(a.Host.Trim('[', ']'), out var ip)) o.Listen(ip, a.Port);
+        else o.ListenAnyIP(a.Port);
+    }
+    if (kite.Sync.Port > 0)
+        o.ListenAnyIP(kite.Sync.Port, lo => lo.UseHttps(new HttpsConnectionAdapterOptions
+        {
+            ServerCertificateSelector = (_, _) => o.ApplicationServices.GetRequiredService<PkiService>().SyncTlsCertificate,
+            ClientCertificateMode = ClientCertificateMode.AllowCertificate,
+            ClientCertificateValidation = (_, _, _) => true, // checked against the business CA and revocation records per request
+            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+        }));
+});
 builder.Services.AddSingleton(new SetupCodeStore(Path.Combine(dataDir, "setup-code.txt")));
 builder.Services.AddSingleton(SessionPolicy.Default);
 builder.Services.AddSingleton(new LockoutPolicy());
@@ -36,6 +79,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamin
 var app = builder.Build();
 
 app.UseKiteErrors();
+app.UseMiddleware<SuspensionMiddleware>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
@@ -51,11 +95,14 @@ TerminalEndpoints.Map(app);
 TaxEndpoints.Map(app);
 AccountingEndpoints.Map(app);
 AuditEndpoints.Map(app);
+ServerEndpoints.Map(app);
+LicenceEndpoints.Map(app);
+BackupEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>
 {
-    if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/health"))
+    if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/health") || ctx.Request.Path.StartsWithSegments("/sync"))
     {
         ctx.Response.StatusCode = StatusCodes.Status404NotFound;
         return;
@@ -81,6 +128,7 @@ if (kite.MigrateOnStartup)
 }
 var server = app.Services.GetRequiredService<ServerContext>();
 await server.LoadAsync(app.Services.GetRequiredService<NpgsqlDataSource>());
+await Phase3Startup.RunAsync(app);
 if (!server.IsConfigured)
 {
     var code = app.Services.GetRequiredService<SetupCodeStore>().GetOrCreate();
@@ -89,5 +137,6 @@ if (!server.IsConfigured)
 }
 
 await app.RunAsync();
+return 0;
 
 public partial class Program;

@@ -168,7 +168,7 @@ public static class AuthEndpoints
                     me.user.TotpEnabled, me.user.DefaultBranchId,
                 },
                 business = new { me.business.LegalNameEn, me.business.LegalNameAr, currency = me.business.BaseCurrency, decimals = me.business.CurrencyDecimals, me.business.PricesIncludeTax },
-                permissions = http.User.FindAll(KiteClaims.Permission).Select(c => c.Value).Order(StringComparer.Ordinal).ToArray(),
+                permissions = http.User.AllPermissions().Order(StringComparer.Ordinal).ToArray(),
                 allBranches = scope.AllBranches,
                 branches = me.branches.Where(b => scope.CanSee(b.Id)).ToArray(),
                 mfaPending = http.User.HasClaim(KiteClaims.MfaPending, "true"),

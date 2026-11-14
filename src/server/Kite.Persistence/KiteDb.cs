@@ -20,26 +20,30 @@ public sealed class ServerContext
     public Guid? BusinessId { get; private set; }
     public Guid? BranchId { get; private set; }
     public string Role { get; private set; } = "combined";
+    /// <summary>The Machine ID Nextdab knows this installation by (blueprint 24.5).</summary>
+    public string? InstallationId { get; private set; }
     public bool IsConfigured => ServerId is not null && BusinessId is not null;
+    /// <summary>Main or combined: holds the business CA, talks to Nextdab, receives branch heartbeats.</summary>
+    public bool IsHeadOffice => Role is "combined" or "main";
 
-    public void Set(Guid serverId, Guid businessId, Guid? branchId, string role)
+    public void Set(Guid serverId, Guid businessId, Guid? branchId, string role, string? installationId = null)
     {
-        ServerId = serverId; BusinessId = businessId; BranchId = branchId; Role = role;
+        ServerId = serverId; BusinessId = businessId; BranchId = branchId; Role = role; InstallationId = installationId;
     }
 
     /// <summary>Used if a setup transaction fails after Set was called.</summary>
     public void Reset()
     {
-        ServerId = null; BusinessId = null; BranchId = null; Role = "combined";
+        ServerId = null; BusinessId = null; BranchId = null; Role = "combined"; InstallationId = null;
     }
 
     public async Task LoadAsync(NpgsqlDataSource dataSource, CancellationToken ct = default)
     {
         await using var conn = await dataSource.OpenConnectionAsync(ct);
-        var row = await conn.QuerySingleOrDefaultAsync<(Guid Id, Guid? BusinessId, Guid? BranchId, string Role)>(
-            new CommandDefinition("SELECT id, business_id, branch_id, role FROM core.server WHERE is_self", cancellationToken: ct));
+        var row = await conn.QuerySingleOrDefaultAsync<(Guid Id, Guid? BusinessId, Guid? BranchId, string Role, string? InstallationId)>(
+            new CommandDefinition("SELECT id, business_id, branch_id, role, installation_id FROM core.server WHERE is_self", cancellationToken: ct));
         if (row.Id != Guid.Empty && row.BusinessId is not null)
-            Set(row.Id, row.BusinessId.Value, row.BranchId, row.Role);
+            Set(row.Id, row.BusinessId.Value, row.BranchId, row.Role, row.InstallationId);
     }
 }
 

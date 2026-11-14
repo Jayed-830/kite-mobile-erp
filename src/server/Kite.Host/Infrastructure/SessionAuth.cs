@@ -42,9 +42,9 @@ public sealed class SessionAuthHandler(
                   FROM iam.session s JOIN iam."user" u ON u.id = s.user_id
                  WHERE s.access_hash = @hash
                 """, new { hash });
-            if (s is null) return ((SessionRow?)null, Array.Empty<string>(), Array.Empty<Guid?>());
-            var p = (await t.QueryAsync<string>("""
-                SELECT DISTINCT rp.permission_code
+            if (s is null) return ((SessionRow?)null, Array.Empty<(string Permission, Guid? BranchId)>(), Array.Empty<Guid?>());
+            var p = (await t.QueryAsync<(string Permission, Guid? BranchId)>("""
+                SELECT DISTINCT rp.permission_code, ubr.branch_id
                   FROM iam.user_branch_role ubr JOIN iam.role_permission rp ON rp.role_id = ubr.role_id
                  WHERE ubr.user_id = @u
                 """, new { u = s.UserId })).ToArray();
@@ -67,9 +67,11 @@ public sealed class SessionAuthHandler(
         if (row.TerminalId is { } term) claims.Add(new Claim(KiteClaims.TerminalId, term.ToString()));
         if (row.TotpEnabled && !row.MfaSatisfied) claims.Add(new Claim(KiteClaims.MfaPending, "true"));
         if (row.MustChangePassword) claims.Add(new Claim(KiteClaims.MustChangePassword, "true"));
-        // Phase 2: permissions are the union of the user's roles across branches; per-branch
-        // evaluation arrives with branch-context requests in Phase 3 (see ADR 0006).
-        claims.AddRange(perms.Select(p => new Claim(KiteClaims.Permission, p)));
+        // Phase 3 (ADR 10): a role granted for all branches gives a business-wide permission; a role granted for
+        // one branch gives that permission in that branch only. Endpoints acting on a branch check it there
+        // (KiteClaims.Demand); endpoints with no branch context accept a grant in any branch.
+        claims.AddRange(perms.Where(p => p.BranchId is null).Select(p => p.Permission).Distinct().Select(p => new Claim(KiteClaims.Permission, p)));
+        claims.AddRange(perms.Where(p => p.BranchId is not null).Select(p => new Claim(KiteClaims.BranchPermission, $"{p.BranchId:D}|{p.Permission}")));
         if (branches.Any(b => b is null)) claims.Add(new Claim(KiteClaims.AllBranches, "true"));
         claims.AddRange(branches.Where(b => b is not null).Select(b => new Claim(KiteClaims.Branch, b!.Value.ToString())));
 

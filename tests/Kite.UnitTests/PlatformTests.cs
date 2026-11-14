@@ -180,8 +180,12 @@ public partial class PermissionCatalogTests
     [Fact]
     public void Code_permissions_match_the_database_seed_exactly()
     {
-        var sql = File.ReadAllText(Path.Combine(RepoRoot.Path, "db", "migrations", "V0009__seed_permissions.sql"));
-        var seeded = SeedCode().Matches(sql).Select(m => m.Groups[1].Value).Order(StringComparer.Ordinal).ToArray();
+        // Every migration that seeds permissions (V0009, V0011, ...): the INSERT INTO iam.permission statements only.
+        var seeded = Directory.GetFiles(Path.Combine(RepoRoot.Path, "db", "migrations"), "V*.sql")
+            .Select(File.ReadAllText)
+            .SelectMany(sql => Regex.Matches(sql, @"INSERT INTO iam\.permission[^;]*;", RegexOptions.Singleline).Select(m => m.Value))
+            .SelectMany(stmt => SeedCode().Matches(stmt).Select(m => m.Groups[1].Value))
+            .Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(seeded, Permissions.All);
     }
 

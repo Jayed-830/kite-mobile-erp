@@ -137,7 +137,6 @@ public static partial class UserEndpoints
     private static async Task CheckGrantable(DbTx t, HttpContext http, IReadOnlyCollection<RoleGrant> grants)
     {
         if (grants.Count == 0) return;
-        var held = http.User.FindAll(KiteClaims.Permission).Select(c => c.Value).ToHashSet(StringComparer.Ordinal);
         var roleIds = grants.Select(g => g.RoleId).Distinct().ToArray();
         var perms = await t.QueryAsync<(Guid RoleId, string? Permission)>("""
             SELECT r.id, rp.permission_code FROM iam.role r LEFT JOIN iam.role_permission rp ON rp.role_id = r.id
@@ -146,7 +145,10 @@ public static partial class UserEndpoints
         var found = perms.Select(p => p.RoleId).ToHashSet();
         if (roleIds.Any(r => !found.Contains(r)))
             throw new KiteException(ErrorCodes.Validation, "One of the roles does not exist.", 400, "roles");
-        var missing = perms.Where(p => p.Permission is not null && !held.Contains(p.Permission)).Select(p => p.Permission!).Distinct().ToArray();
+        // Each grant is checked where it applies: a role for one branch needs its permissions in that branch
+        // (or business-wide); a role for all branches needs them business-wide.
+        var byRole = perms.Where(p => p.Permission is not null).ToLookup(p => p.RoleId, p => p.Permission!);
+        var missing = grants.SelectMany(g => byRole[g.RoleId].Where(p => !http.User.HasIn(p, g.BranchId))).Distinct().ToArray();
         if (missing.Length > 0)
             throw new KiteException(ErrorCodes.Forbidden, $"You cannot grant a role with permissions you do not have ({string.Join(", ", missing.Take(3))}).", 403, "roles");
         var scope = http.User.ScopeOf();

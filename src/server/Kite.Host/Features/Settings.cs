@@ -13,7 +13,8 @@ public sealed record UpdateBusinessRequest(
     string LegalNameEn, string LegalNameAr, string? TradeNameEn, string? TradeNameAr, string? CrNumber, string? VatNumber,
     string? AddressEn, string? AddressAr, string? Phone, string? Email, bool PricesIncludeTax, int Version);
 
-public sealed record ModuleDto(string Code, string NameEn, string NameAr, bool AlwaysOn, bool Enabled, IReadOnlyList<string> DependsOn);
+/// <summary>Locked: null, "nextdab" (switched off by Nextdab) or "licence" (not in the licence).</summary>
+public sealed record ModuleDto(string Code, string NameEn, string NameAr, bool AlwaysOn, bool Enabled, IReadOnlyList<string> DependsOn, string? Locked = null);
 public sealed record UpdateModulesRequest(Dictionary<string, bool> Changes);
 
 /// <summary>Business profile, branches and module switches (blueprint 2.4, 19).</summary>
@@ -59,17 +60,20 @@ public static class SettingsEndpoints
             return Results.Ok(await LoadBusiness(db, server, ct));
         }).RequirePermission(Permissions.SetupBusinessEdit);
 
-        g.MapGet("/modules", async (ModuleStateCache cache, CancellationToken ct) =>
-        {
-            var states = await cache.GetAsync(ct);
-            return Results.Ok(ModuleCatalog.All.Select(m => new ModuleDto(m.Code, m.NameEn, m.NameAr, m.AlwaysOn, states[m.Code], m.DependsOn)));
-        }).RequirePermission(Permissions.SettingsView);
+        g.MapGet("/modules", async (ModuleStateCache cache, CancellationToken ct) => Results.Ok(await ModuleList(cache, ct)))
+            .RequirePermission(Permissions.SettingsView);
 
         g.MapPut("/modules", async (UpdateModulesRequest req, HttpContext http, KiteDb db, ServerContext server, ModuleStateCache cache, CancellationToken ct) =>
         {
             cache.Invalidate();
-            var current = await cache.GetAsync(ct);
+            var current = await cache.GetConfiguredAsync(ct);
             var next = ModuleCatalog.Apply(current, req.Changes ?? []);
+            var restrictions = await cache.RestrictionsAsync(ct);
+            foreach (var (code, on) in next)
+                if (on && !current[code] && restrictions.LockOf(code) is { } lockedBy)
+                    throw new KiteException(ErrorCodes.ModuleNotLicensed, lockedBy == "nextdab"
+                        ? $"The {ModuleCatalog.Get(code).NameEn} module was switched off by Nextdab."
+                        : $"The licence does not include the {ModuleCatalog.Get(code).NameEn} module. Ask Nextdab to add it.", 403, code);
             var changed = next.Where(kv => current[kv.Key] != kv.Value).ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
             if (changed.Count > 0)
             {
@@ -90,9 +94,15 @@ public static class SettingsEndpoints
                 }, ct);
             }
             cache.Invalidate();
-            var states = await cache.GetAsync(ct);
-            return Results.Ok(ModuleCatalog.All.Select(m => new ModuleDto(m.Code, m.NameEn, m.NameAr, m.AlwaysOn, states[m.Code], m.DependsOn)));
+            return Results.Ok(await ModuleList(cache, ct));
         }).RequirePermission(Permissions.SettingsModulesEdit);
+    }
+
+    private static async Task<IEnumerable<ModuleDto>> ModuleList(ModuleStateCache cache, CancellationToken ct)
+    {
+        var states = await cache.GetAsync(ct);
+        var restrictions = await cache.RestrictionsAsync(ct);
+        return ModuleCatalog.All.Select(m => new ModuleDto(m.Code, m.NameEn, m.NameAr, m.AlwaysOn, states[m.Code], m.DependsOn, m.AlwaysOn ? null : restrictions.LockOf(m.Code)));
     }
 
     private const string BusinessSql = """

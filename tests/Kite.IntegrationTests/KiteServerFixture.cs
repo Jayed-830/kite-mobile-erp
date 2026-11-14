@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Kite.Host.Infrastructure;
+using Kite.Identity;
 using Kite.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -79,6 +80,12 @@ public sealed class KiteServerFixture : IAsyncLifetime
             b.UseSetting("Kite:Argon2:MemoryKiB", "1024");
             b.UseSetting("Kite:Argon2:Iterations", "1");
             b.UseSetting("Kite:Argon2:Parallelism", "1");
+            // Phase 3: a test Nextdab key (honoured only in Development), no calls to Nextdab, no backup agent.
+            b.UseEnvironment("Development");
+            b.UseSetting("Kite:Licensing:DevPublicKey", Convert.ToHexString(NextdabSignature.PublicKeyOf(LicenceSeed)));
+            b.UseSetting("Kite:Licensing:CheckinEnabled", "false");
+            b.UseSetting("Kite:Backup:Enabled", "false");
+            b.UseSetting("Kite:Sync:Port", "0");
         });
 
         using var client = Factory.CreateClient();
@@ -104,6 +111,51 @@ public sealed class KiteServerFixture : IAsyncLifetime
         owner = new { username = OwnerUsername, displayNameEn = "Owner", displayNameAr = "المالك", password = OwnerPassword, preferredLanguage = "en" },
         serverRole = "combined",
     };
+
+    /// <summary>Test-only Nextdab signing key (stands in for Nextdab Admin's KITE MOBILE ERP key).</summary>
+    public static readonly byte[] LicenceSeed = System.Security.Cryptography.SHA256.HashData("KITE integration test licence key"u8);
+    private static long _issuedTick;
+
+    public string InstallationId => SetupResult.GetProperty("installationId").GetString()!;
+
+    /// <summary>A licence file exactly as Nextdab Admin makes it. Each call is issued later than the one before.</summary>
+    public string MakeLicence(string validUntil, int branches = 5, int terminals = 10, string[]? modules = null, string kind = "subscription",
+        int graceDays = 30, string? mid = null)
+    {
+        var issued = DateTimeOffset.UtcNow.AddSeconds(Interlocked.Increment(ref _issuedTick));
+        var lic = NextdabCanonicalJson.ParseObject(JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["id"] = "kme-test-" + Guid.NewGuid().ToString("N")[..12],
+            ["product"] = "kite-mobile-erp",
+            ["mid"] = mid ?? InstallationId,
+            ["customer"] = "Al Noor Mobiles LLC",
+            ["kind"] = kind,
+            ["modules"] = modules ?? Kite.Platform.ModuleCatalog.All.Select(m => m.Code).ToArray(),
+            ["branches"] = branches,
+            ["terminals"] = terminals,
+            ["issued"] = issued.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture),
+            ["valid_until"] = validUntil,
+            ["grace_days"] = graceDays,
+        }));
+        var file = new System.Text.Json.Nodes.JsonObject
+        {
+            ["type"] = "KITE MOBILE ERP licence file", ["version"] = 1, ["licence"] = lic, ["sig"] = NextdabSignature.Sign(LicenceSeed, lic),
+        };
+        return file.ToJsonString();
+    }
+
+    public System.Text.Json.Nodes.JsonObject MakeCommand(string type, object data, long seq, string? mid = null, string? id = null)
+    {
+        var c = NextdabCanonicalJson.ParseObject(JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["v"] = 1, ["id"] = id ?? $"{type[..3]}-{seq}-{Guid.NewGuid().ToString("N")[..6]}", ["product"] = "kite-mobile-erp", ["mid"] = mid ?? InstallationId,
+            ["type"] = type, ["data"] = data, ["seq"] = seq, ["issued"] = "2026-11-15T00:00:00Z",
+        }));
+        c["sig"] = NextdabSignature.Sign(LicenceSeed, c);
+        return c;
+    }
+
+    public static string FutureDate(int days) => DateTime.UtcNow.AddDays(days).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
     public HttpClient Client(string? token = null)
     {

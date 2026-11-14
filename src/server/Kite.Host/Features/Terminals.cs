@@ -53,12 +53,18 @@ public static partial class TerminalEndpoints
                 t => t.QueryAsync<TerminalDto>(Select + " ORDER BY code"), ct)))
             .RequirePermission(Permissions.TerminalsApprove);
 
-        g.MapPost("/{id:guid}/approve", async (Guid id, ApproveTerminalRequest? req, HttpContext http, KiteDb db, CancellationToken ct) =>
+        g.MapPost("/{id:guid}/approve", async (Guid id, ApproveTerminalRequest? req, HttpContext http, KiteDb db, LicenceService licence, CancellationToken ct) =>
         {
+            var allowed = (await licence.StatusAsync(ct)).TerminalsAllowed;
             var dto = await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
             {
                 var before = await t.QuerySingleOrDefaultAsync<TerminalDto>(Select + " WHERE id = @id FOR UPDATE", new { id })
                     ?? throw new KiteException(ErrorCodes.NotFound, "Terminal not found in your branches.", 404);
+                http.User.Demand(Permissions.TerminalsApprove, before.BranchId);
+                // The licence limit counts every active terminal of the business (blueprint 24.5).
+                var active = await t.ExecuteScalarAsync<long>("SELECT core.active_terminal_count()");
+                if (before.Status != "active" && active >= allowed)
+                    throw new KiteException(ErrorCodes.LicenceLimit, $"The licence allows {allowed} active terminal{(allowed == 1 ? "" : "s")}. Ask Nextdab to extend it, or revoke a terminal you no longer use.", 403);
                 await t.ExecuteAsync("""
                     UPDATE core.terminal SET status = 'active', approved_at = now(), approved_by = @actor,
                            emergency_enabled = @emergency, updated_by = @actor WHERE id = @id
@@ -76,6 +82,7 @@ public static partial class TerminalEndpoints
             {
                 var before = await t.QuerySingleOrDefaultAsync<TerminalDto>(Select + " WHERE id = @id FOR UPDATE", new { id })
                     ?? throw new KiteException(ErrorCodes.NotFound, "Terminal not found in your branches.", 404);
+                http.User.Demand(Permissions.TerminalsApprove, before.BranchId);
                 await t.ExecuteAsync("UPDATE core.terminal SET status = 'revoked', updated_by = @actor WHERE id = @id", new { id, actor = http.User.UserIdOf() });
                 await t.ExecuteAsync("UPDATE iam.session SET revoked_at = now(), revoked_reason = 'terminal_revoked' WHERE terminal_id = @id AND revoked_at IS NULL", new { id });
                 await t.AuditAsync(new AuditEntry("terminal.revoked", "terminal", id, Before: Json.Obj(before), BranchId: before.BranchId));

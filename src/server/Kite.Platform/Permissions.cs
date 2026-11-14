@@ -1,7 +1,7 @@
 namespace Kite.Platform;
 
 /// <summary>
-/// Permission codes. Must match db/migrations/V0009__seed_permissions.sql; a unit test
+/// Permission codes. Must match the iam.permission rows seeded by the migrations (V0009, V0011); a unit test
 /// compares the two so they cannot drift.
 /// </summary>
 public static class Permissions
@@ -37,6 +37,11 @@ public static class Permissions
     public const string RepairCredentialView = "REPAIR.CREDENTIAL.VIEW";
     public const string CreditOverride = "CREDIT.OVERRIDE";
     public const string CreditWriteOff = "CREDIT.WRITE_OFF";
+    // Phase 3 (V0011)
+    public const string ServersManage = "SERVERS.MANAGE";
+    public const string LicenceManage = "LICENCE.MANAGE";
+    public const string BackupView = "BACKUP.VIEW";
+    public const string BackupManage = "BACKUP.MANAGE";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -62,7 +67,7 @@ public static class RoleTemplates
             Permissions.PosSell, Permissions.PosDiscountAboveLimit, Permissions.PosPriceOverride, Permissions.PosSaleVoid,
             Permissions.PosRefund, Permissions.PosReturnNoReceipt, Permissions.PosCreditSale, Permissions.PosDrawerNoSale,
             Permissions.PosReceiptReprint, Permissions.PosShiftAcceptVariance, Permissions.PosEmergencyActivate,
-            Permissions.DeviceImeiManualEntry, Permissions.CreditOverride,
+            Permissions.DeviceImeiManualEntry, Permissions.CreditOverride, Permissions.BackupView,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint]),

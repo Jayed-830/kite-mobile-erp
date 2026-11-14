@@ -1,0 +1,21 @@
+{
+  "comment": "Made with the canon() of Nextdab Admin lib/rems.js and Node crypto Ed25519. TEST KEY ONLY.",
+  "seed_hex": "4b495445204d4f42494c45204552502074657374207665637465722073656564",
+  "public_key_hex": "de6f12d2736cdfabb09454fb138826d145715b7b4ade053c9c6d2ac350d18e8e",
+  "canonical_licence": "{\"branches\":3,\"customer\":\"شركة النور للهواتف — Al Noor \\\"Mobiles\\\" LLC\\n\",\"grace_days\":30,\"id\":\"kme-1763164800000-a1b2c3\",\"issued\":\"2026-11-15T00:00:00Z\",\"kind\":\"subscription\",\"mid\":\"1A2B-3C4D-5E6F-7A8B\",\"modules\":[\"core\",\"iam\",\"sales\",\"repair\"],\"product\":\"kite-mobile-erp\",\"terminals\":10,\"valid_until\":\"2027-11-14\"}",
+  "licence_file": "{\n  \"type\": \"KITE MOBILE ERP licence file\",\n  \"version\": 1,\n  \"licence\": {\n    \"id\": \"kme-1763164800000-a1b2c3\",\n    \"product\": \"kite-mobile-erp\",\n    \"mid\": \"1A2B-3C4D-5E6F-7A8B\",\n    \"customer\": \"شركة النور للهواتف — Al Noor \\\"Mobiles\\\" LLC\\n\",\n    \"kind\": \"subscription\",\n    \"modules\": [\n      \"core\",\n      \"iam\",\n      \"sales\",\n      \"repair\"\n    ],\n    \"branches\": 3,\n    \"terminals\": 10,\n    \"issued\": \"2026-11-15T00:00:00Z\",\n    \"valid_until\": \"2027-11-14\",\n    \"grace_days\": 30\n  },\n  \"sig\": \"a3383b5b2b968d254765e85d6a9c3bd9e67c20f23e72abe5792c8b882e7b12b8731fe49bd380c8cc1b4c5e1e22edf6f6a9b2062ac909f7052f1b9a2f73ded90a\",\n  \"how_to_import\": \"KITE > Licence > Import licence file.\"\n}\n",
+  "command": {
+    "v": 1,
+    "id": "sus-1763164800000-0a0b0c",
+    "product": "kite-mobile-erp",
+    "mid": "1A2B-3C4D-5E6F-7A8B",
+    "type": "suspend",
+    "data": {
+      "message": "Switched off",
+      "message_ar": "تم الإيقاف"
+    },
+    "seq": 1763164800000,
+    "issued": "2026-11-15T00:00:00Z",
+    "sig": "75572acb5189b616134990bdb238cfd50a41af5bed95bd48cabba7914909fa28d19ef14ca4c87c52a8ca236a50f78096504e27b638c9841643a2c549be726504"
+  }
+}

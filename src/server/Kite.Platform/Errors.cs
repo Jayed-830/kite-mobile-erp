@@ -53,4 +53,33 @@ public static class ErrorCodes
 
     public const string SystemRoleLocked = "IAM-001";
     public const string LastOwner = "IAM-002";
+
+    // Phase 3: servers and certificates
+    public const string NotHeadOffice = "SRV-001";
+    public const string RegistrationTokenInvalid = "SRV-002";
+    public const string BranchHasServer = "SRV-003";
+    public const string ServerVersionMismatch = "SRV-004";
+    public const string CertificateRejected = "SRV-005";
+    public const string HeadOfficeUnreachable = "SRV-006";
+    public const string FingerprintMismatch = "SRV-007";
+    public const string AuthorityNotReady = "SRV-008";
+    public const string ServerRevoked = "SRV-009";
+
+    // Phase 3: licence (blueprint 24.5)
+    public const string NoLicence = "LIC-001";
+    public const string LicenceExpired = "LIC-002";
+    public const string Suspended = "LIC-003";
+    public const string LicenceLimit = "LIC-004";
+    public const string ModuleNotLicensed = "LIC-005";
+    public const string LicenceFileInvalid = "LIC-010";
+    public const string LicenceSignatureInvalid = "LIC-011";
+    public const string LicenceOtherProduct = "LIC-012";
+    public const string LicenceOtherInstallation = "LIC-013";
+    public const string LicenceKeyMissing = "LIC-014";
+    public const string LicenceOlder = "LIC-015";
+
+    // Phase 3: backups (blueprint 19)
+    public const string BackupNotConfigured = "BAK-001";
+    public const string BackupBusy = "BAK-002";
+    public const string BackupFailed = "BAK-003";
 }

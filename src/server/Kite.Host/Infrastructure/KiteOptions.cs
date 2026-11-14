@@ -7,6 +7,9 @@ public sealed class KiteOptions
     public string DataDir { get; set; } = "data";
     public bool MigrateOnStartup { get; set; } = true;
     public Argon2Settings Argon2 { get; set; } = new();
+    public SyncSettings Sync { get; set; } = new();
+    public LicensingSettings Licensing { get; set; } = new();
+    public BackupSettings Backup { get; set; } = new();
 }
 
 public sealed class Argon2Settings

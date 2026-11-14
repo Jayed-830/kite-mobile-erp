@@ -40,7 +40,7 @@ public static class SetupEndpoints
             .AllowEveryone();
 
         app.MapPost("/api/v1/setup", async (SetupRequest req, HttpContext http, KiteDb db, ServerContext server,
-            SetupCodeStore codes, IPasswordHasher hasher, ModuleStateCache modules, IClock clock, CancellationToken ct) =>
+            SetupCodeStore codes, IPasswordHasher hasher, ModuleStateCache modules, IClock clock, PkiService pki, LicenceService licence, CancellationToken ct) =>
         {
             if (server.IsConfigured)
                 throw new KiteException(ErrorCodes.SetupAlreadyDone, "This server is already set up.", 409);
@@ -54,6 +54,7 @@ public static class SetupEndpoints
             var branchId = Ids.New();
             var serverId = Ids.New();
             var ownerId = Ids.New();
+            var installationId = MachineId.New();
             var tz = BusinessTimeZone();
             var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.UtcNow, tz).DateTime);
             var periods = FiscalCalendar.YearContaining(today, req.Business.FiscalYearStartMonth);
@@ -84,10 +85,12 @@ public static class SetupEndpoints
                         """, new { branchId, businessId, ownerId, Code = h.Code.ToUpperInvariant(), h.NameEn, h.NameAr });
 
                     await t.ExecuteAsync("""
-                        INSERT INTO core.server (id, business_id, branch_id, role, name, is_self, status)
-                        VALUES (@serverId, @businessId, @branchId, @role, @name, true, 'active')
-                        """, new { serverId, businessId, branchId, role = req.ServerRole, name = Environment.MachineName });
-                    server.Set(serverId, businessId, branchId, req.ServerRole);
+                        INSERT INTO core.server (id, business_id, branch_id, role, name, is_self, status, installation_id)
+                        VALUES (@serverId, @businessId, @branchId, @role, @name, true, 'active', @installationId)
+                        """, new { serverId, businessId, branchId, role = req.ServerRole, name = Environment.MachineName, installationId });
+                    await t.ExecuteAsync("INSERT INTO lic.control_state (checkin_key) VALUES (@k) ON CONFLICT (id) DO NOTHING",
+                        new { k = BranchLinkService.NewCheckinKey() });
+                    server.Set(serverId, businessId, branchId, req.ServerRole, installationId);
 
                     await t.ExecuteAsync("""
                         INSERT INTO core.warehouse (id, business_id, branch_id, code, name_en, name_ar, kind, created_by)
@@ -185,7 +188,13 @@ public static class SetupEndpoints
 
             codes.Consume();
             modules.Invalidate();
-            return Results.Created("/api/v1/setup/status", new { businessId, branchId, ownerUserId = ownerId, fiscalYear });
+            licence.Invalidate();
+            // The business CA and the sync certificate (blueprint 18.1). A failure here does not undo the setup:
+            // startup tries again, and branch registration waits until it works.
+            try { await pki.EnsureAsync(ct); }
+            catch (Exception e) when (e is not OperationCanceledException)
+            { http.RequestServices.GetRequiredService<ILogger<PkiService>>().LogError(e, "Could not create the business certificate authority"); }
+            return Results.Created("/api/v1/setup/status", new { businessId, branchId, ownerUserId = ownerId, fiscalYear, installationId });
         }).AllowEveryone();
     }
 

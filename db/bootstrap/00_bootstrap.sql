@@ -21,13 +21,18 @@ BEGIN
     CREATE ROLE kite_ro LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'kite_backup') THEN
-    CREATE ROLE kite_backup LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+    CREATE ROLE kite_backup LOGIN NOSUPERUSER NOCREATEROLE;
   END IF;
 END
 $$;
 
 -- pg_read_all_data exists from PostgreSQL 14 and lets the backup role dump everything.
 GRANT pg_read_all_data TO kite_backup;
+-- Phase 3 backup agent (blueprint 19): pg_dump must read every row (BYPASSRLS), pg_basebackup needs
+-- REPLICATION, and the weekly verification restores into a scratch database it creates (CREATEDB).
+-- Re-running this script on an upgraded installation applies these to the existing role.
+ALTER ROLE kite_backup BYPASSRLS REPLICATION CREATEDB;
+GRANT pg_monitor TO kite_backup;   -- pg_stat_archiver / WAL archiving status
 
 -- Extensions need elevated rights, so they are created here rather than in migrations.
 CREATE EXTENSION IF NOT EXISTS btree_gist;  -- exclusion constraints on effective-dated rows
