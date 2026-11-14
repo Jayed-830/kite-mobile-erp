@@ -34,7 +34,7 @@ public sealed class ServerCollection : ICollectionFixture<KiteServerFixture>;
 public sealed class KiteServerFixture : IAsyncLifetime
 {
     public const string OwnerUsername = "owner";
-    public const string OwnerPassword = "Owner-Pass-2026!";
+    public const string OwnerPassword = "Muscat-Ruwi-2026!";
     public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly string _dbName = "kite_it_" + Guid.NewGuid().ToString("N")[..12];
