@@ -51,6 +51,36 @@ public class NextdabSigningTests
         Assert.Equal("LIC-011", Assert.Throws<LicenceException>(() => LicenceFile.Read(text, new byte[32], "1A2B-3C4D-5E6F-7A8B")).Code);
     }
 
+    /// <summary>Made by running Nextdab Admin 5.14 itself (lib/kme.js through the real /api/kme/lic/make and /v1/kme/checkin, with a
+    /// scratch key): the licence file and the four signed commands of one check-in answer.</summary>
+    [Fact]
+    public void A_licence_and_check_in_commands_made_by_Nextdab_Admin_5_14_verify_and_read()
+    {
+        var v = JsonNode.Parse(File.ReadAllText(Path.Combine(RepoRoot.Path, "tests", "vectors", "nextdab-admin-5.14-vector.json")))!.AsObject();
+        var pub = Convert.FromHexString(v["public_key_hex"]!.GetValue<string>());
+        var terms = LicenceFile.Read(v["licence_file"]!.GetValue<string>(), pub, "1A2B-3C4D-5E6F-7A8B");
+        Assert.Equal("subscription", terms.Kind);
+        Assert.Equal(new DateOnly(2027, 11, 13), terms.ValidUntil);
+        Assert.Equal(3, terms.BranchesAllowed);
+        Assert.Equal(10, terms.TerminalsAllowed);
+        Assert.Contains("repair", terms.Modules);
+        Assert.Equal(30, terms.GraceDays);
+
+        var now = DateTimeOffset.Parse("2026-11-15T00:00:00Z");
+        var types = new List<string>();
+        foreach (var c in v["commands"]!.AsArray())
+        {
+            var cmd = NextdabCommand.Verify(NextdabCanonicalJson.ParseObject(c!.ToJsonString()), pub, "kite-mobile-erp", "1A2B-3C4D-5E6F-7A8B", now, out var why);
+            Assert.True(cmd is not null, why);
+            types.Add(cmd!.Type);
+            if (cmd.Type == "license")
+                Assert.Equal(terms.Id, LicenceFile.Read(cmd.Data["file"]!.GetValue<string>(), pub, "1A2B-3C4D-5E6F-7A8B").Id);
+            if (cmd.Type == "modules")
+                Assert.Equal(["notif", "repair"], cmd.Data["off"]!.AsArray().Select(x => x!.GetValue<string>()).Order().ToArray());
+        }
+        Assert.Equal(["suspend", "modules", "license", "message"], types);
+    }
+
     [Fact]
     public void A_signed_command_from_Nextdab_Admin_code_verifies_with_the_protocol_rules()
     {

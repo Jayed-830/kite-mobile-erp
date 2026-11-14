@@ -484,6 +484,13 @@ public static class LicenceEndpoints
     }
 
     private sealed record MessageDto(string Id, string? Title, string? Text, string? TitleAr, string? TextAr, string Level, string Audience, DateTime? Until, DateTime ReceivedAt);
-    private sealed record ConnDto(DateTime? LastCheckinAt, DateTime? LastCheckinOkAt, string? LastError, DateTime? NextCheckinAt, string[] ModulesOff);
+    private sealed class ConnDto   // a class, not a positional record: see LicenceRow
+    {
+        public DateTime? LastCheckinAt { get; init; }
+        public DateTime? LastCheckinOkAt { get; init; }
+        public string? LastError { get; init; }
+        public DateTime? NextCheckinAt { get; init; }
+        public string[] ModulesOff { get; init; } = [];
+    }
     private sealed record HistoryDto(string Id, string Kind, string Customer, DateTime ValidUntil, string Source, DateTime ImportedAt, bool IsCurrent);
 }

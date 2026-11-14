@@ -318,9 +318,12 @@ public sealed class Phase3Tests(KiteServerFixture fx)
             c.Request.Body = new MemoryStream(json);
             c.Request.ContentLength = json.Length;
             c.Connection.ClientCertificate = cert;
+            // TestServer reports "no body" for a hand-built request unless told otherwise; minimal APIs then refuse to bind it.
+            c.Features.Set<Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature>(new HasBody());
         });
         if (ctx.Response.Body.CanSeek) ctx.Response.Body.Position = 0;
         var text = await new StreamReader(ctx.Response.Body, Encoding.UTF8).ReadToEndAsync();
         return (ctx.Response.StatusCode, text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone());
     }
+    private sealed class HasBody : Microsoft.AspNetCore.Http.Features.IHttpRequestBodyDetectionFeature { public bool CanHaveBody => true; }
 }

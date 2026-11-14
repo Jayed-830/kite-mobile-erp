@@ -1,0 +1,72 @@
+{
+  "comment": "Made by Nextdab Admin 5.14 (scratch test key, test only): a licence file and the signed commands from a check-in answer.",
+  "public_key_hex": "b9e919e294320a33f59b4a84eb4aca07d95bfcd36ab8b4fe15584b3b83be5645",
+  "mid": "1A2B-3C4D-5E6F-7A8B",
+  "licence_file": "{\n  \"type\": \"KITE MOBILE ERP licence file\",\n  \"version\": 1,\n  \"licence\": {\n    \"id\": \"kme-1794697889215-06d0f3\",\n    \"product\": \"kite-mobile-erp\",\n    \"mid\": \"1A2B-3C4D-5E6F-7A8B\",\n    \"customer\": \"Al Noor Mobiles LLC\",\n    \"kind\": \"subscription\",\n    \"modules\": [\n      \"core\",\n      \"iam\",\n      \"catalog\",\n      \"inv\",\n      \"device\",\n      \"sales\",\n      \"repair\",\n      \"purch\",\n      \"tax\",\n      \"rpt\"\n    ],\n    \"branches\": 3,\n    \"terminals\": 10,\n    \"issued\": \"2026-11-14T23:11:29Z\",\n    \"valid_until\": \"2027-11-13\",\n    \"grace_days\": 30\n  },\n  \"sig\": \"0c475893c47aec180794cf94db3be5ec1e8832d99ce7032394ce3578678a6cc20e5146fe3499a30f366b934de70bc765b60d3a3b4dcb6198fe9f2105987a8e09\",\n  \"how_to_import\": \"KITE MOBILE ERP > Licence > Import licence file (on the main server). A newer licence replaces the older one.\"\n}\n",
+  "commands": [
+    {
+      "v": 1,
+      "id": "sus-1794697889247-6869d3",
+      "product": "kite-mobile-erp",
+      "mid": "1A2B-3C4D-5E6F-7A8B",
+      "type": "suspend",
+      "data": {
+        "message": "Please renew",
+        "message_ar": "يرجى التجديد"
+      },
+      "seq": 1794697889247,
+      "issued": "2026-11-14T23:11:29Z",
+      "sig": "74f9d8c769578281e76829efa582c94532e576993745c451b0a8852e0d57d8fe2f5c5ec3336249dbba1a612295ecca132e49799c629adf3e6ff4a70b16fd0209"
+    },
+    {
+      "v": 1,
+      "id": "mod-1794697889247-fda56b",
+      "product": "kite-mobile-erp",
+      "mid": "1A2B-3C4D-5E6F-7A8B",
+      "type": "modules",
+      "data": {
+        "off": [
+          "notif",
+          "repair"
+        ]
+      },
+      "seq": 1794697889247,
+      "issued": "2026-11-14T23:11:29Z",
+      "sig": "102ab57ed9b3478e24e9b37d5a9e7e4e8ef5bf907932007d066a7d8c7469ae7191a2e4d9d7845ad52bd1b9602df4e9f1925f90229200e60a78f37065e3013708"
+    },
+    {
+      "v": 1,
+      "id": "lic-1794697889216-99ecdd",
+      "product": "kite-mobile-erp",
+      "mid": "1A2B-3C4D-5E6F-7A8B",
+      "type": "license",
+      "data": {
+        "file": "{\n  \"type\": \"KITE MOBILE ERP licence file\",\n  \"version\": 1,\n  \"licence\": {\n    \"id\": \"kme-1794697889215-06d0f3\",\n    \"product\": \"kite-mobile-erp\",\n    \"mid\": \"1A2B-3C4D-5E6F-7A8B\",\n    \"customer\": \"Al Noor Mobiles LLC\",\n    \"kind\": \"subscription\",\n    \"modules\": [\n      \"core\",\n      \"iam\",\n      \"catalog\",\n      \"inv\",\n      \"device\",\n      \"sales\",\n      \"repair\",\n      \"purch\",\n      \"tax\",\n      \"rpt\"\n    ],\n    \"branches\": 3,\n    \"terminals\": 10,\n    \"issued\": \"2026-11-14T23:11:29Z\",\n    \"valid_until\": \"2027-11-13\",\n    \"grace_days\": 30\n  },\n  \"sig\": \"0c475893c47aec180794cf94db3be5ec1e8832d99ce7032394ce3578678a6cc20e5146fe3499a30f366b934de70bc765b60d3a3b4dcb6198fe9f2105987a8e09\",\n  \"how_to_import\": \"KITE MOBILE ERP > Licence > Import licence file (on the main server). A newer licence replaces the older one.\"\n}\n"
+      },
+      "seq": 1794697889216,
+      "issued": "2026-11-14T23:11:29Z",
+      "expires": "2027-01-13T23:11:29Z",
+      "sig": "a5f68a7b2cb5dac92414d69b505f7d42b8ac72ca81b92a2cd090cde9a64f5489ba9adaa1becde00e867b4f2c922272e873b4695b6416a31faded86e0c3e9440c"
+    },
+    {
+      "v": 1,
+      "id": "mes-1794697889256-d3b5d3",
+      "product": "kite-mobile-erp",
+      "mid": "1A2B-3C4D-5E6F-7A8B",
+      "type": "message",
+      "data": {
+        "title": "Hello",
+        "text": "Test message",
+        "title_ar": "",
+        "text_ar": "",
+        "level": "info",
+        "to": "all",
+        "until": ""
+      },
+      "seq": 1794697889256,
+      "issued": "2026-11-14T23:11:29Z",
+      "expires": "2027-01-13T23:11:29Z",
+      "sig": "0febd38f79f8208d0538656d7bd121671945efa22f7f8b32a60b337c389035a19828c96b296fc9615dbb6079886bcde889e976ecf6cfa30d1e2160db8987480a"
+    }
+  ]
+}
