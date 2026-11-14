@@ -1,0 +1,61 @@
+import { NavLink, Outlet } from 'react-router-dom';
+import { can } from '@kite/api';
+import { useI18n } from '@kite/i18n';
+import { Button, useTheme } from '@kite/ui';
+import { useAuth } from './core';
+
+/** Back-office shell (blueprint 21.1): sidebar by module, top bar with language, theme and user. */
+export function Shell() {
+  const { me, signOut } = useAuth();
+  const { t, lang, setLang, pick } = useI18n();
+  const { theme, setTheme } = useTheme();
+  if (!me) return null;
+
+  const links: { to: string; label: string; show: boolean; section?: string }[] = [
+    { to: '/app', label: t('nav.dashboard'), show: true },
+    { to: '/app/users', label: t('nav.users'), show: can(me, 'USERS.VIEW'), section: t('nav.administration') },
+    { to: '/app/roles', label: t('nav.roles'), show: can(me, 'USERS.VIEW') },
+    { to: '/app/terminals', label: t('nav.terminals'), show: can(me, 'TERMINALS.APPROVE') },
+    { to: '/app/audit', label: t('nav.audit'), show: can(me, 'AUDIT.VIEW') },
+    { to: '/app/settings/business', label: t('nav.business'), show: can(me, 'SETTINGS.VIEW'), section: t('nav.settings') },
+    { to: '/app/settings/modules', label: t('nav.modules'), show: can(me, 'SETTINGS.VIEW') },
+    { to: '/app/settings/tax', label: t('nav.tax'), show: can(me, 'SETTINGS.VIEW') },
+    { to: '/app/settings/accounts', label: t('nav.accounts'), show: can(me, 'SETTINGS.VIEW') },
+    { to: '/app/account', label: t('nav.account'), show: true, section: '' },
+  ];
+
+  return (
+    <div className="shell">
+      <nav className="sidebar" aria-label={t('app.name')}>
+        <div className="brand">
+          <div className="brand-mark" aria-hidden="true">K</div>
+          <div><strong>KITE</strong><small>{t('app.by')}</small></div>
+        </div>
+        {links.filter((l) => l.show).map((l) => (
+          <div key={l.to}>
+            {l.section !== undefined && l.section !== '' && <div className="nav-section">{l.section}</div>}
+            <NavLink to={l.to} end={l.to === '/app'} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>{l.label}</NavLink>
+          </div>
+        ))}
+      </nav>
+      <div className="main">
+        <header className="topbar">
+          <strong>{pick(me.business.legalNameEn, me.business.legalNameAr)}</strong>
+          <span className="muted">{me.allBranches ? t('app.allBranches') : me.branches.map((b) => pick(b.nameEn, b.nameAr)).join(lang === 'ar' ? '، ' : ', ')}</span>
+          <span className="spacer" />
+          <Button size="sm" variant="ghost" onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}>
+            {lang === 'en' ? 'العربية' : 'English'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+            {theme === 'light' ? t('app.dark') : t('app.light')}
+          </Button>
+          <span>{pick(me.user.displayNameEn, me.user.displayNameAr)}</span>
+          <Button size="sm" onClick={() => void signOut()}>{t('app.signOut')}</Button>
+        </header>
+        <main className="content">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

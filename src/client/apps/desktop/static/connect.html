@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+  <title>KITE MOBILE ERP: connect</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f6f7fb; color: #141a26; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #fff; border: 1px solid #dde1ea; border-radius: 10px; padding: 32px; width: min(460px, 92vw); }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    p { color: #4b556a; margin: 0 0 16px; }
+    label { font-weight: 600; font-size: 13px; display: block; margin-bottom: 4px; }
+    input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid #dde1ea; border-radius: 6px; font: inherit; direction: ltr; }
+    button { margin-top: 16px; min-height: 44px; width: 100%; border: 0; border-radius: 6px; background: #0b5fff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    .err { color: #c4231b; font-size: 13px; margin-top: 8px; min-height: 18px; }
+    .ar { direction: rtl; text-align: right; margin-top: 20px; border-top: 1px solid #dde1ea; padding-top: 12px; color: #4b556a; }
+  </style>
+</head>
+<body>
+  <form class="card" id="f">
+    <h1>KITE MOBILE ERP</h1>
+    <p>Enter the address of your shop's KITE server, for example https://kite.local</p>
+    <label for="url">Server address</label>
+    <input id="url" required autofocus placeholder="https://kite.local" />
+    <div class="err" id="err"></div>
+    <button type="submit">Connect</button>
+    <div class="ar">أدخل عنوان خادم كايت الخاص بمتجرك، مثل https://kite.local ثم اضغط اتصال.</div>
+  </form>
+  <script>
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const r = await window.kiteDesktop.setServerUrl(document.getElementById('url').value);
+      if (!r.ok) document.getElementById('err').textContent = 'That is not a valid server address.';
+    });
+  </script>
+</body>
+</html>

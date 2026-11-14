@@ -1,0 +1,24 @@
+# Windows installer for KITE Desktop (blueprint 24.1). Packaging, signing and auto-update are
+# completed in Phase 14. Signing uses the Nextdab code-signing certificate supplied through
+# CSC_LINK / CSC_KEY_PASSWORD (or a cloud signing service); it is never stored in the repository.
+appId: com.nextdab.kite.desktop
+productName: KITE MOBILE ERP
+copyright: © Nextdab
+directories:
+  output: release
+files:
+  - dist/**
+  - static/**
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  publisherName: Nextdab
+  artifactName: KITE-Desktop-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  shortcutName: KITE MOBILE ERP

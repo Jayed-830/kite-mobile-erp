@@ -1,0 +1,9 @@
+{
+  "name": "kite-poc-sqlcipher-store",
+  "private": true,
+  "version": "0.2.0",
+  "description": "PoC: encrypted SQLite (SQLCipher) emergency store for the Windows POS (blueprint 6.2)",
+  "type": "module",
+  "scripts": { "start": "node poc.mjs" },
+  "dependencies": { "better-sqlite3-multiple-ciphers": "^12.0.0" }
+}

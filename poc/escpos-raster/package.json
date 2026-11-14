@@ -1,0 +1,9 @@
+{
+  "name": "kite-poc-escpos-raster",
+  "private": true,
+  "version": "0.2.0",
+  "description": "PoC: bilingual EN/AR receipt rendered as a raster image and encoded as ESC/POS (blueprint 20.1)",
+  "type": "module",
+  "scripts": { "start": "node poc.mjs" },
+  "dependencies": { "@napi-rs/canvas": "^0.1.0", "qrcode": "^1.5.4" }
+}

@@ -79,3 +79,79 @@ jobs:
           global-json-file: global.json
       - run: dotnet build Kite.slnx -c Release
       - run: dotnet test tests/Kite.UnitTests -c Release --no-build
+
+  web:
+    name: Web app (typecheck, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: src/client/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: src/client/apps/web/dist
+
+  desktop:
+    name: Desktop shell (typecheck, build)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src/client/apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - run: npm run typecheck
+      - run: npm run build
+
+  pocs-linux:
+    name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: QuestPDF Arabic invoice
+        run: dotnet run --project poc/questpdf-arabic -c Release -- poc/questpdf-arabic/output/arabic-invoice.pdf
+      - name: Arabic raster receipt (ESC/POS bytes)
+        working-directory: poc/escpos-raster
+        run: npm ci && npm start
+      - name: SQLCipher encrypted emergency store
+        working-directory: poc/sqlcipher-store
+        run: npm ci && npm start
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: poc-output-linux
+          path: poc/**/output/
+
+  poc-windows-postgres:
+    name: Proof of concept (PostgreSQL as a Windows service)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL as a service, bootstrap and migrate
+        shell: pwsh
+        run: ./poc/postgres-windows-service/install-service-poc.ps1
+      - name: SQLCipher emergency store on Windows
+        working-directory: poc/sqlcipher-store
+        run: npm ci && npm start
