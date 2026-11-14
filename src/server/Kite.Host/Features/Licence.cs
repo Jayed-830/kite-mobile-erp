@@ -22,10 +22,32 @@ public sealed class LicenceService(KiteDb db, ServerContext server, LicenceKeys 
     private LicenceStatus? _cached;
     private DateTimeOffset _cachedAt;
 
-    private sealed record LicenceRow(string Id, string InstallationId, string Kind, string Customer, DateTime ValidUntil, int GraceDays,
-        int BranchesAllowed, int TerminalsAllowed, string[] Modules, DateTime IssuedAt);
-    private sealed record ControlRow(bool Suspended, string? SuspendMessage, string? SuspendMessageAr, long SuspendSeq, long ModulesSeq, string[] ModulesOff,
-        string? SuspendCmd, string? ModulesCmd);
+    // Classes with settable properties (not positional records): Npgsql reports text[] columns as System.Array, which Dapper's
+    // constructor matching does not accept for a string[] parameter; property assignment converts it.
+    private sealed class LicenceRow
+    {
+        public string Id { get; init; } = "";
+        public string InstallationId { get; init; } = "";
+        public string Kind { get; init; } = "";
+        public string Customer { get; init; } = "";
+        public DateTime ValidUntil { get; init; }
+        public int GraceDays { get; init; }
+        public int BranchesAllowed { get; init; }
+        public int TerminalsAllowed { get; init; }
+        public string[] Modules { get; init; } = [];
+        public DateTime IssuedAt { get; init; }
+    }
+    private sealed class ControlRow
+    {
+        public bool Suspended { get; init; }
+        public string? SuspendMessage { get; init; }
+        public string? SuspendMessageAr { get; init; }
+        public long SuspendSeq { get; init; }
+        public long ModulesSeq { get; init; }
+        public string[] ModulesOff { get; init; } = [];
+        public string? SuspendCmd { get; init; }
+        public string? ModulesCmd { get; init; }
+    }
 
     public void Invalidate() { _cached = null; modules.Invalidate(); }
 
