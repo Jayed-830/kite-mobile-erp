@@ -374,7 +374,7 @@ jobs:
       - name: Server logs
         if: always()
         run: |
-          echo "=== head office ==="; tail -n 150 "$RUNNER_TEMP/main.log" || true
+          echo "=== head office ==="; tail -n 300 "$RUNNER_TEMP/main.log" || true
           echo "=== branch ==="; tail -n 100 "$RUNNER_TEMP/branch.log" || true
           echo "=== stub ==="; cat "$RUNNER_TEMP/stub.log" || true
       - uses: actions/upload-artifact@v4

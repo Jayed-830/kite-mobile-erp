@@ -10,25 +10,34 @@ namespace Kite.Host.Infrastructure;
 /// </summary>
 public static class ErrorHandling
 {
-    public static IApplicationBuilder UseKiteErrors(this IApplicationBuilder app) =>
+    public static IApplicationBuilder UseKiteErrors(this IApplicationBuilder app)
+    {
         app.UseExceptionHandler(handler => handler.Run(async ctx =>
         {
             var ex = ctx.Features.Get<IExceptionHandlerFeature>()?.Error;
             var (status, code, title, field) = Map(ex);
             if (status >= 500)
                 ctx.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Kite.Errors").LogError(ex, "Unhandled error");
-            ctx.Response.StatusCode = status;
-            ctx.Response.ContentType = "application/problem+json";
-            await ctx.Response.WriteAsJsonAsync(new
-            {
-                type = "about:blank",
-                title,
-                status,
-                code,
-                field,
-                traceId = ctx.TraceIdentifier,
-            });
+            await WriteAsync(ctx, status, code, title, field);
         }));
+        // Expected refusals (sign in needed, no permission, licence, validation) are answers, not failures. They are written
+        // here so the exception handler middleware does not log every one of them as an unhandled error.
+        return app.Use(async (ctx, next) =>
+        {
+            try { await next(ctx); }
+            catch (KiteException k) when (k.HttpStatus < 500 && !ctx.Response.HasStarted)
+            {
+                await WriteAsync(ctx, k.HttpStatus, k.Code, k.Message, k.Field);
+            }
+        });
+    }
+
+    private static Task WriteAsync(HttpContext ctx, int status, string code, string title, string? field)
+    {
+        ctx.Response.StatusCode = status;
+        ctx.Response.ContentType = "application/problem+json";
+        return ctx.Response.WriteAsJsonAsync(new { type = "about:blank", title, status, code, field, traceId = ctx.TraceIdentifier });
+    }
 
     public static (int Status, string Code, string Title, string? Field) Map(Exception? ex) => ex switch
     {

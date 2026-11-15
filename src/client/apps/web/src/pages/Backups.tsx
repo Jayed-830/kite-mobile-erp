@@ -34,9 +34,9 @@ export function BackupsPage() {
       <PageHeader title={t('backups.title')}>
         {manage && d.configured && (
           <>
-            <Button variant="primary" busy={run.isPending && run.variables === 'logical'} disabled={!!d.running} onClick={() => run.mutate('logical')}>{t('backups.runNow')}</Button>
-            {d.schedule.baseBackups && <Button disabled={!!d.running} onClick={() => run.mutate('base')}>{t('backups.runBase')}</Button>}
-            <Button disabled={!!d.running} onClick={() => run.mutate('verify')}>{t('backups.verifyNow')}</Button>
+            <Button variant="primary" busy={run.isPending && run.variables === 'logical'} onClick={() => run.mutate('logical')}>{t('backups.runNow')}</Button>
+            {d.schedule.baseBackups && <Button onClick={() => run.mutate('base')}>{t('backups.runBase')}</Button>}
+            <Button onClick={() => run.mutate('verify')}>{t('backups.verifyNow')}</Button>
           </>
         )}
       </PageHeader>

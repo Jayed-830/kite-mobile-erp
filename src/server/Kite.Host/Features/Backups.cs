@@ -404,8 +404,8 @@ public static class BackupEndpoints
         {
             if (req.Kind is not ("logical" or "base" or "verify")) throw new KiteException(ErrorCodes.Validation, "Kind must be logical, base or verify.", 400, "kind");
             if (!backups.Configured) throw new KiteException(ErrorCodes.BackupNotConfigured, "Backups are not configured: ConnectionStrings:Backup (the kite_backup login) is missing.", 409);
-            if (backups.Running is not null) throw new KiteException(ErrorCodes.BackupBusy, $"A {backups.Running} backup is running. Try again when it has finished.", 409);
-            if (!backups.Request(req.Kind, http.User.UserIdOf())) throw new KiteException(ErrorCodes.BackupBusy, "Several backups are already waiting.", 409);
+            // A request while another backup runs waits its turn (the agent runs one at a time).
+            if (!backups.Request(req.Kind, http.User.UserIdOf())) throw new KiteException(ErrorCodes.BackupBusy, "Several backups are already waiting. Try again when they have finished.", 409);
             await db.InTransactionAsync(AccessScope.System, http.ActorOf(), t => t.AuditAsync(new AuditEntry("backup.requested", "backup_run", null, After: Json.Obj(new { req.Kind }))), ct);
             return Results.Accepted();
         }).RequirePermission(Permissions.BackupManage);
