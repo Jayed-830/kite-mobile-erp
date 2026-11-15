@@ -101,7 +101,7 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 ## ADR 18: The API client stays hand-written until Phase 4
 
 **Decision.** The typed API client (`@kite/api`) is still written by hand for the Phase 3 endpoints; generating it from the server's OpenAPI document moves to Phase 4.
-**Why.** Phase 3 added about 15 endpoints; minimal-API OpenAPI generation needs response types on every endpoint to be useful, and Phase 4 (catalog and inventory) roughly triples the API. Doing it once then, with a CI check that the generated client is current, costs less than doing it twice.
+**Why.** Phase 3 added about 15 endpoints; minimal-API OpenAPI generation needs response types on every endpoint to be useful, and Phase 4 starts the business modules (the Phase 2 report lists stock, sales and repairs), which grows the API several times over. Doing it once then, with a CI check that the generated client is current, costs less than doing it twice.
 **Cost.** Until then a server change can drift from the client unnoticed by the compiler; the web tests and the end-to-end runs against real servers catch it.
 
 ## ADR 19: Backups with the PostgreSQL tools, encrypted, and proven by restoring them
