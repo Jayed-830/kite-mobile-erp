@@ -82,7 +82,7 @@ try {
   await signIn(main, MAIN);
 
   step('without a licence: banner, and only one branch is allowed');
-  if (!(await bannerText(main)).includes('KITE has no licence yet')) throw new Error('no "no licence" banner');
+  await until(main, 'no-licence banner', async () => (await bannerText(main)).includes('KITE has no licence yet'), 20000);
   await nav(main, 'Branches and servers');
   await main.getByRole('button', { name: 'Add branch' }).click();
   let dlg = main.getByRole('dialog');
