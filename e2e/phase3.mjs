@@ -113,7 +113,11 @@ try {
   if (!st1.acks.some((a) => a.type === 'suspend' && a.ok)) throw new Error('suspend was not acknowledged');
   const rep = JSON.stringify(st1.lastReport);
   if (!st1.lastReport?.license || st1.lastReport.product !== 'kite-mobile-erp') throw new Error(`unexpected report ${rep.slice(0, 300)}`);
-  for (const bad of ['password', 'imei', 'customer_phone', 'argon2']) if (rep.toLowerCase().includes(bad)) throw new Error(`report contains ${bad}`);
+  // Only business-level facts go to Nextdab (NEXTDAB_PROTOCOL part 7): no customers, sales, devices or secrets.
+  const allowed = ['product', 'version', 'time', 'role', 'company', 'address', 'phone', 'email', 'cr_no', 'vatin', 'currency', 'admin_name', 'license', 'counts', 'modules', 'modules_off', 'suspended', 'backup', 'pc'];
+  const extra = Object.keys(st1.lastReport).filter((k) => !allowed.includes(k));
+  if (extra.length) throw new Error(`report has unexpected fields: ${extra.join(', ')}`);
+  for (const bad of ['password', 'argon2', '$argon', 'totp']) if (rep.toLowerCase().includes(bad)) throw new Error(`report contains ${bad}`);
   await stub('/stub/command', { mid, type: 'resume', data: {} });
   await main.getByRole('button', { name: 'Check in now' }).click();
   await until(main, 'switched-off banner gone', () => noLicenceWarning(main));
