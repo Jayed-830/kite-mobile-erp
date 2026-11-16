@@ -1,7 +1,7 @@
 {
   "name": "kite-desktop",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "KITE MOBILE ERP Windows desktop app (Electron shell). \u00a9 Nextdab",
   "author": "Nextdab",
   "main": "dist/main.js",

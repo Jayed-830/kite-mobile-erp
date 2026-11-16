@@ -4,6 +4,7 @@ import { can, type Business } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Card, Checkbox, DataTable, PageHeader, Spinner, Switch, TextField } from '@kite/ui';
 import { ErrorBox, formatDate, formatDateTime, useApi, useAuth } from '../core';
+import { MarginSchemeCard } from '../tradein/TradeInSettingsPage';
 
 export function BusinessPage() {
   const api = useApi();
@@ -113,6 +114,7 @@ export function TaxPage() {
             : <span><Badge tone="success">{t('tax.reviewed')}</Badge> <span className="muted" style={{ fontSize: 12 }}>{formatDateTime(c.reviewedAt, lang)}</span></span> },
         ]}
       />
+      <MarginSchemeCard />
     </div>
   );
 }

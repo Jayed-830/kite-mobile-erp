@@ -1,10 +1,13 @@
 // POS arithmetic, the same rules as the server's Kite.Sales.PosMath (shared test vectors keep the two equal). The
 // server prices every sale again; this copy lets the terminal show totals instantly and sell in emergency mode.
 import { abs, mulDiv, rateUnits, sum, toBaisa, type Baisa } from './money';
+import { marginLine } from './tradein';
 
 export interface Item {
   variantId: string; sku: string; productType: string; tracking: string; descriptionEn: string; descriptionAr: string;
   taxCodeId: string; taxKind: string; taxRate: number | string; listPrice: number | string | null; minPrice: number | string | null; warrantyDays: number; active: boolean;
+  /** A device bought under the profit margin scheme sells under it: the price it was bought for (12.3). */
+  marginCost?: number | string | null;
 }
 export interface CartLine { variantId: string; qty: string | number; unitPrice?: string | number | null; discount?: string | number | null; approvalId?: string | null; deviceUnitId?: string | null }
 export interface Limit { percent: number | string; amount: number | string; unlimited: boolean }
@@ -12,9 +15,8 @@ export interface Priced {
   lineNo: number; item: Item; qty: Baisa; listPrice: Baisa; unitPrice: Baisa; discount: Baisa; net: Baisa; tax: Baisa; gross: Baisa;
   needsPriceOverride: boolean; needsDiscountApproval: boolean;
 }
-export class PosError extends Error {
-  constructor(readonly code: string, message: string) { super(message); }
-}
+export { PosError } from './errors';
+import { PosError } from './errors';
 
 export const UNLIMITED: Limit = { percent: 100, amount: 0, unlimited: true };
 
@@ -40,7 +42,7 @@ export function priceLine(lineNo: number, line: CartLine, item: Item, inclusive:
   if (!item.active) throw new PosError('CAT-004', `${item.sku} is inactive.`);
   if (item.tracking !== 'none' && !line.deviceUnitId) throw new PosError('DEV-002', `${item.sku} is sold by IMEI or serial number: scan the device.`);
   if (line.deviceUnitId && toBaisa(line.qty) !== 1000n) throw new PosError('VAL-001', 'A device is sold one at a time.');
-  if (item.taxKind === 'margin') throw new PosError('VAL-001', `${item.sku} uses the margin scheme.`);
+  if (item.taxKind === 'margin' && item.marginCost == null) throw new PosError('VAL-001', `${item.sku}: the margin scheme taxes one device against the price it was bought for; choose the device.`);
   if (item.listPrice == null && line.unitPrice == null) throw new PosError('CAT-001', `${item.sku} has no price.`);
   const qty = toBaisa(line.qty);
   if (qty <= 0n) throw new PosError('VAL-001', 'Quantity must be above zero.');
@@ -50,7 +52,10 @@ export function priceLine(lineNo: number, line: CartLine, item: Item, inclusive:
   const unit = line.unitPrice != null ? toBaisa(line.unitPrice) : list;
   const lineAmount = mulDiv(unit, qty, 1000n);
   if (discount > lineAmount) throw new PosError('VAL-001', 'The discount is larger than the line.');
-  const { net, tax, gross } = lineTax(lineAmount - discount, item.taxRate, inclusive);
+  // Under the margin scheme the price is what the customer pays whether or not prices include tax: the VAT is inside the margin.
+  const { net, tax, gross } = item.taxKind === 'margin'
+    ? marginLine(lineAmount - discount, toBaisa(item.marginCost!), item.taxRate)
+    : lineTax(lineAmount - discount, item.taxRate, inclusive);
   const priceChanged = item.listPrice == null || unit !== list;
   // effective unit = (lineAmount - discount) / qty < min  ⇔  (lineAmount - discount) × 1000 < min × qty
   const belowMin = item.minPrice != null && (lineAmount - discount) * 1000n < toBaisa(item.minPrice) * qty;
@@ -69,7 +74,8 @@ export function roundCash(amount: Baisa, step: number | string): Baisa {
   return mulDiv(amount, 1n, s) * s;
 }
 
-export interface Tender { method: 'cash' | 'card' | 'bank_transfer'; amount: Baisa; tendered?: Baisa | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null }
+export type TenderMethod = 'cash' | 'card' | 'bank_transfer' | 'trade_in' | 'store_credit';
+export interface Tender { method: TenderMethod; amount: Baisa; tendered?: Baisa | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null; tradeInId?: string | null }
 
 /** Cash due after card/transfer, with the rounding it carries. */
 export function cashDue(gross: Baisa, nonCash: Baisa, step: number | string): { due: Baisa; rounding: Baisa } {
@@ -83,14 +89,19 @@ export function checkTenders(tenders: Tender[], gross: Baisa, step: number | str
   if (tenders.length === 0 && roundCash(gross, step) === 0n) return { rounding: -gross, paid: 0n };
   if (tenders.length === 0) throw new PosError('POS-005', 'Add a payment.');
   if (tenders.filter((t) => t.method === 'cash').length > 1) throw new PosError('POS-005', 'Use one cash payment.');
+  const seen = new Set<string>();
   for (const t of tenders) {
+    if (t.method === 'trade_in' && refund) throw new PosError('POS-011', 'A refund cannot go back as trade-in credit.');
+    if (t.method === 'trade_in' && !t.tradeInId) throw new PosError('VAL-001', 'Trade-in credit names its trade-in.');
+    if (t.method !== 'trade_in' && t.tradeInId) throw new PosError('VAL-001', 'Only trade-in credit names a trade-in.');
+    if (t.tradeInId) { if (seen.has(t.tradeInId)) throw new PosError('VAL-001', 'The same trade-in is applied twice.'); seen.add(t.tradeInId); }
     if (t.amount <= 0n) throw new PosError('VAL-001', 'Each payment must be above zero.');
     if (t.method === 'card' && !refund && (!t.cardTerminal?.trim() || !t.approvalCode?.trim())) throw new PosError('VAL-001', 'A card payment needs the bank terminal and approval code.');
     if (t.method === 'bank_transfer' && !t.reference?.trim()) throw new PosError('VAL-001', 'A bank transfer needs its reference.');
     if (t.tendered != null && (t.method !== 'cash' || t.tendered < t.amount)) throw new PosError('VAL-001', 'Cash tendered must cover the cash amount.');
   }
   const nonCash = sum(tenders.filter((t) => t.method !== 'cash').map((t) => t.amount));
-  if (nonCash > gross) throw new PosError('POS-005', 'Card and transfer payments are more than the total.');
+  if (nonCash > gross) throw new PosError('POS-005', 'Payments other than cash are more than the total.');
   const cash = tenders.find((t) => t.method === 'cash');
   if (!cash) {
     if (nonCash !== gross) throw new PosError('POS-005', 'Payments do not match the total.');

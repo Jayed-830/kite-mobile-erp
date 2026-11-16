@@ -52,6 +52,8 @@ export interface PosUnit {
   unitId: string; variantId: string; sku: string; productType: string; tracking: string; descriptionEn: string; descriptionAr: string; taxRate: number; listPrice: number | null;
   minPrice: number | null; condition: DeviceCondition; gradeCode: string | null; imei1: string | null; imei2: string | null; serial: string | null; warrantyDays: number; reservedUntil: string | null;
   centralState?: CentralState | null;
+  /** Bought under the profit margin scheme: the purchase price its VAT is worked out against, and the VAT-MARGIN code (12.3). */
+  marginCost?: number | null; taxCodeId?: string | null;
 }
 export interface InspectionQueueRow { id: string; branchCode: string; sku: string; descriptionEn: string; descriptionAr: string; status: DeviceStatus; condition: DeviceCondition; imei1: string | null; serial: string | null; accumulatedCost: number; receivedAt: string }
 export interface InspectionInput { answers: Record<string, string | null>; outcome: InspectionOutcome; condition: DeviceCondition; gradeId?: string | null; sellingPrice?: number | null; note?: string | null; technicianId?: string | null; version?: number }

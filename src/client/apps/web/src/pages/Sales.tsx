@@ -44,11 +44,14 @@ export function FiguresView({ f }: { f: ShiftFigures }) {
       {row(t('salesReports.payIns'), f.payIns)}
       {row(t('salesReports.payOuts'), f.payOuts)}
       {row(t('salesReports.drops'), f.drops)}
+      {!!f.tradeInPayouts && row(t('tradein.figures.tradeInPayouts'), f.tradeInPayouts)}
       {row(t('salesReports.expected'), f.expectedCash, true)}
       <hr />
       {row(t('salesReports.card'), f.cardPayments)}
       {f.cardByTerminal.map((c) => <div key={c.cardTerminal} className="fig sub"><span className="ltr">{c.cardTerminal || '—'}</span><span className="num">{fmt(c.total)}</span></div>)}
       {row(t('salesReports.transfer'), f.transferPayments)}
+      {!!f.tradeInCredit && row(t('tradein.figures.tradeInCredit'), f.tradeInCredit)}
+      {!!f.storeCreditPayments && row(t('tradein.figures.storeCreditPayments'), f.storeCreditPayments)}
       <div className="fig"><span>{t('salesReports.noSales')}</span><span className="num">{f.noSales}</span></div>
     </div>
   );

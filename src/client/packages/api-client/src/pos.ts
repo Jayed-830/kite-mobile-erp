@@ -28,6 +28,8 @@ export interface PriceRow { id: string; priceList: string; price: number; minPri
 export interface PosItem {
   variantId: string; sku: string; productType: ProductType; tracking: 'none' | 'imei' | 'serial'; descriptionEn: string; descriptionAr: string; taxCodeId: string;
   taxKind: string; taxRate: number; listPrice: number | null; minPrice: number | null; warrantyDays: number; active: boolean; stock: number; barcode: string | null;
+  /** Only on a device unit bought under the profit margin scheme (Phase 7). */
+  marginCost?: number | null;
 }
 export interface Customer {
   id: string; number: string; kind: 'individual' | 'company'; nameEn: string; nameAr: string | null; phoneE164: string | null; email: string | null;
@@ -65,10 +67,12 @@ export interface ShiftFigures {
   salesCount: number; salesGross: number; salesNet: number; salesTax: number; salesDiscount: number; creditNotesCount: number; creditNotesGross: number; cashRounding: number;
   cashPayments: number; cardPayments: number; transferPayments: number; payIns: number; payOuts: number; drops: number; noSales: number; openingFloat: number; expectedCash: number;
   cardByTerminal: { cardTerminal: string; total: number }[];
+  /** Phase 7: trade-in credit and store credit taken as payments, and trade-ins paid out of the drawer. */
+  tradeInCredit?: number; storeCreditPayments?: number; tradeInPayouts?: number;
 }
 export interface ShiftReport { shift: Shift; report: 'X' | 'Z'; figures: ShiftFigures; cardSettlements: { cardTerminal: string; batchTotal: number; recordedTotal: number; difference: number; reason: string | null }[]; cashEvents: { kind: string; amount: number; reason: string; createdAt: string }[] }
 export interface CartLineInput { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null; approvalId?: string | null; deviceUnitId?: string | null; damagedApprovalId?: string | null }
-export interface TenderInput { method: 'cash' | 'card' | 'bank_transfer'; amount: number; tendered?: number | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null }
+export interface TenderInput { method: 'cash' | 'card' | 'bank_transfer' | 'trade_in' | 'store_credit'; amount: number; tendered?: number | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null; tradeInId?: string | null }
 export interface SaleInput { lines: CartLineInput[]; payments?: TenderInput[]; docType?: 'simplified_invoice' | 'tax_invoice'; customerId?: string | null; expectedTotal?: number; note?: string; approvalId?: string | null }
 export interface Quote {
   lines: { lineNo: number; variantId: string; sku: string; descriptionEn: string; descriptionAr: string; qty: number; listPrice: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; needsPriceOverride: boolean; needsDiscountApproval: boolean }[];
@@ -84,12 +88,15 @@ export interface SaleLine {
   id: string; variantId: string; productType: ProductType; descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; listPrice: number; discount: number;
   net: number; taxRate: number; tax: number; gross: number; returnedQty: number; returnable: number;
   returnedNet?: number; returnedTax?: number; returnedGross?: number; returnedDiscount?: number; deviceUnitId?: string | null; identifier?: string | null;
+  /** Sold under the profit margin scheme: the purchase price its VAT was worked out against (Phase 7). */
+  marginPurchasePrice?: number | null;
 }
 export interface SaleDetail { sale: SaleHeader; lines: SaleLine[]; payments: { method: string; amount: number; tendered: number | null; changeGiven: number | null; cardTerminal: string | null }[]; creditNotes: { id: string; number: string; creditReason: string; grossTotal: number }[] }
 export interface SaleListRow { id: string; number: string; docType: string; creditReason: string | null; completedAt: string; grossTotal: number; cashRounding: number; isEmergency: boolean; customerName: string | null; cashierName: string; terminalCode: string; originalNumber: string | null }
 export interface ReturnInput { id: string; lines: { lineId: string; qty: number; restock: boolean; code?: string | null }[]; refunds: TenderInput[]; reason: string; approvalId?: string | null }
 export interface ParkedCart { id: string; label: string | null; parkedAt: string; parkedBy: string; terminalCode: string; cart: string }
-export type ApprovalAction = 'POS.DISCOUNT.ABOVE_LIMIT' | 'POS.PRICE.OVERRIDE' | 'POS.SALE.VOID' | 'POS.REFUND' | 'POS.CASH.PAY_OUT' | 'POS.DRAWER.NO_SALE' | 'POS.SHIFT.ACCEPT_VARIANCE' | 'DEVICE.SELL_DAMAGED';
+export type ApprovalAction = 'POS.DISCOUNT.ABOVE_LIMIT' | 'POS.PRICE.OVERRIDE' | 'POS.SALE.VOID' | 'POS.REFUND' | 'POS.CASH.PAY_OUT' | 'POS.DRAWER.NO_SALE' | 'POS.SHIFT.ACCEPT_VARIANCE' | 'DEVICE.SELL_DAMAGED'
+  | 'TRADEIN.APPROVE' | 'TRADEIN.STORE_CREDIT' | 'TRADEIN.PAYOUT';
 export interface ApprovalRow { id: string; branchId: string; branchCode: string; actionCode: ApprovalAction; method: string; status: string; reason: string | null; context: string; requesterName: string; terminalCode: string | null; createdAt: string; expiresAt: string }
 export interface Printer { id: string; branchId: string; name: string; host: string; port: number; paperWidthMm: number; hasDrawer: boolean; status: 'active' | 'inactive'; lastResult: string | null; lastUsedAt: string | null; version: number }
 export interface PrinterInput { branchId: string; name: string; host: string; port?: number; paperWidthMm?: 58 | 80; hasDrawer?: boolean; status?: 'active' | 'inactive'; version?: number }

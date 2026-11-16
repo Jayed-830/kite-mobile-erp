@@ -943,7 +943,8 @@ public static class PosEndpoints
             SELECT DISTINCT ON (device_unit_id) device_unit_id, value FROM device.imei_registry WHERE device_unit_id = ANY(@ids) ORDER BY device_unit_id, (status = 'active') DESC, kind, slot
             """, new { ids = lines.Where(l => l.DeviceUnitId is not null).Select(l => l.DeviceUnitId!.Value).ToArray() })).ToDictionary(x => x.Unit, x => x.Value);
         var payments = await t.RowsAsync("""
-            SELECT method, amount, tendered, change_given AS "changeGiven", card_terminal AS "cardTerminal", approval_code AS "approvalCode", reference
+            SELECT method, amount, tendered, change_given AS "changeGiven", card_terminal AS "cardTerminal", approval_code AS "approvalCode", reference,
+                   tradein_id AS "tradeInId"
               FROM sales.payment WHERE sale_id = @id ORDER BY created_at, id
             """, new { id });
         var credits = await t.RowsAsync("SELECT id, number, credit_reason AS \"creditReason\", gross_total AS \"grossTotal\" FROM sales.sale WHERE original_sale_id = @id ORDER BY completed_at", new { id });
@@ -953,7 +954,7 @@ public static class PosEndpoints
             lines = lines.Select(l => new { l.Id, l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount, l.Net,
                                             l.TaxRate, l.Tax, l.Gross, l.ReturnedQty, l.ReturnedNet, l.ReturnedTax, l.ReturnedGross, l.ReturnedDiscount,
                                             returnable = l.Qty - l.ReturnedQty, l.DeviceUnitId,
-                                            identifier = l.DeviceUnitId is { } du ? identifiers.GetValueOrDefault(du) : null }),
+                                            identifier = l.DeviceUnitId is { } du ? identifiers.GetValueOrDefault(du) : null, l.MarginPurchasePrice }),
             payments, creditNotes = credits,
         };
     }

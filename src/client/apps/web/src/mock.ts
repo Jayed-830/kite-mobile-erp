@@ -15,6 +15,7 @@ const PERMISSIONS: Permission[] = [
   ['AUDIT.VIEW', 'audit', 'View the audit log', 'عرض سجل التدقيق'],
   ['AUDIT.VERIFY', 'audit', 'Run the audit chain verification', 'تشغيل التحقق من سلسلة سجل التدقيق'],
   ['TAX.REVIEW', 'tax', 'Confirm tax codes as reviewed by the accountant', 'تأكيد مراجعة المحاسب للرموز الضريبية'],
+  ['TAX.MANAGE', 'tax', 'Manage tax codes and the margin scheme approval', 'إدارة الرموز الضريبية وموافقة نظام هامش الربح'],
   ['POS.SELL', 'sales', 'Make sales at the POS', 'إجراء المبيعات في نقطة البيع'],
   ['BRANCHES.MANAGE', 'core', 'Add and change branches', 'إضافة الفروع وتعديلها'],
   ['SERVERS.MANAGE', 'core', 'Register and revoke branch servers', 'تسجيل خوادم الفروع وإلغاؤها'],
@@ -53,6 +54,12 @@ const PERMISSIONS: Permission[] = [
   ['DEVICE.CONFLICTS', 'device', 'See IMEI conflicts and settle emergency phone sales', 'عرض تعارضات IMEI وتسوية مبيعات الهواتف في وضع الطوارئ'],
   ['DEVICE.BLOCKLIST', 'device', 'Add and remove IMEIs on the blocked list (head office)', 'إضافة أرقام IMEI إلى قائمة الحظر وإزالتها (المكتب الرئيسي)'],
   ['DEVICE.COUNT', 'device', 'Count devices by IMEI', 'جرد الأجهزة برقم IMEI'],
+  ['TRADEIN.CREATE', 'tradein', 'Take devices in as trade-ins: record, inspect, value and accept within the staff limit', 'استلام الأجهزة كاستبدال: تسجيلها وفحصها وتقييمها وقبولها ضمن حد الموظف'],
+  ['TRADEIN.APPROVE', 'tradein', 'Approve trade-in values above the staff limit or the price guide', 'اعتماد قيم الاستبدال التي تتجاوز حد الموظف أو دليل الأسعار'],
+  ['TRADEIN.STORE_CREDIT', 'tradein', "Settle a trade-in as the customer's store credit", 'تسوية الاستبدال كرصيد للعميل لدى المتجر'],
+  ['TRADEIN.PAYOUT', 'tradein', 'Pay a trade-in out in cash from the drawer (buy-back)', 'دفع قيمة الاستبدال نقدًا من الدرج (شراء)'],
+  ['TRADEIN.VIEW', 'tradein', 'View trade-ins, their documents and reports', 'عرض عمليات الاستبدال ومستنداتها وتقاريرها'],
+  ['TRADEIN.SETTINGS', 'tradein', 'Manage the price guide, deductions, limits and the declaration', 'إدارة دليل الأسعار والخصومات والحدود والإقرار'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -92,9 +99,10 @@ export function createMockApi(opts: MockOptions): KiteApi {
       'POS.DISCOUNT.ABOVE_LIMIT', 'POS.PRICE.OVERRIDE', 'POS.SALE.VOID', 'POS.REFUND', 'POS.DRAWER.NO_SALE', 'POS.RECEIPT.REPRINT', 'POS.SHIFT.ACCEPT_VARIANCE', 'POS.SHIFT.OPEN',
       'POS.CASH.PAY_OUT', 'POS.REPORTS.VIEW', 'APPROVALS.DECIDE', 'CATALOG.VIEW', 'CATALOG.MANAGE', 'CATALOG.PRICE.MANAGE', 'INV.VIEW', 'INV.ADJUST', 'INV.COUNT', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE',
       'DEVICE.VIEW', 'DEVICE.INSPECT', 'DEVICE.REFURBISH', 'DEVICE.PRICE', 'DEVICE.SELL_DAMAGED', 'DEVICE.WRITE_OFF', 'DEVICE.HOLD', 'DEVICE.SETTINGS',
-      'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT'] },
-    { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE'] },
-    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.REVIEW'] },
+      'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT',
+      'TRADEIN.CREATE', 'TRADEIN.APPROVE', 'TRADEIN.STORE_CREDIT', 'TRADEIN.PAYOUT', 'TRADEIN.VIEW', 'TRADEIN.SETTINGS'] },
+    { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE', 'TRADEIN.CREATE', 'TRADEIN.VIEW'] },
+    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW'] },
   ];
   const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!'], ['manager', 'Manager-Pass-2026'], ['cashier', 'Cashier-Pass-2026']]);
   const pins = new Map<string, string>([['manager', '1357'], ['cashier', '2468']]);
@@ -179,6 +187,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
   const pos = createMockPos({
     need, current: () => current, setCurrent: (u) => { current = u; mfaPending = false; }, permsOf, users, passwords, pins, terminals, branchId: branch.id,
     taxCodeId: taxCodes[0]!.id, business: () => business, tokens,
+    setMarginCode: (active) => { taxCodes.find((c) => c.kind === 'margin')!.status = active ? 'active' : 'inactive'; },
   });
 
   const api: KiteApi = {

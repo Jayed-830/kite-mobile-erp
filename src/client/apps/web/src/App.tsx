@@ -31,6 +31,8 @@ import { InspectPage } from './devices/InspectPage';
 import { RefurbPage } from './devices/RefurbPage';
 import { DeviceSettingsPage } from './devices/DeviceSettingsPage';
 import { useI18n } from '@kite/i18n';
+import { TradeInPage, TradeInsPage } from './tradein/TradeInsPage';
+import { TradeInSettingsPage } from './tradein/TradeInSettingsPage';
 
 function Guarded() {
   const { stage } = useAuth();
@@ -71,6 +73,9 @@ function AppRoutes() {
         <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="settings/pos" element={<PosSettingsPage />} />
+        <Route path="tradeins" element={<TradeInsPage />} />
+        <Route path="tradeins/:id" element={<TradeInPage />} />
+        <Route path="settings/tradein" element={<TradeInSettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

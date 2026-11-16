@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, can, type ApprovalAction, type Customer, type PosItem, type PosUnit, type ShiftFigures, type TenderInput } from '@kite/api';
+import { ApiError, can, type ApprovalAction, type Customer, type PosItem, type PosUnit, type ShiftFigures, type TenderInput, type TradeIn } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Modal, SelectField, Spinner, TextField, useTheme } from '@kite/ui';
 import { classifyCode, fromBaisa, PosError, priceLine, totals, UNLIMITED, type Item, type Priced, type ReceiptModel } from '@kite/pos';
@@ -12,6 +12,7 @@ import { desktop, isEmergencyMode, openDrawer, printReceipt, printRoute } from '
 import { ReceiptView } from './ReceiptView';
 import { ConditionBadge, Ident } from '../devices/bits';
 import { loadTerminal, newDeviceKey, saveTerminal, type StoredTerminal } from './terminalStore';
+import { TradeInWizard } from './TradeInWizard';
 
 /** The touch POS (10.1-10.5): this device as a terminal, sign-in, shift, selling, payments, receipts, returns, cash and close. */
 export function PosApp() {
@@ -137,14 +138,16 @@ function TerminalSignIn({ terminal, onForget }: { terminal: StoredTerminal; onFo
 
 // ------------------------------------------------------------------ the till
 interface CartRow { key: string; item: PosItem; qty: string; discount: string; unitPrice: string | null; unit?: PosUnit | null; damagedApprovalId?: string | null }
-type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | { pickUnits: PosItem };
+type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | 'tradein' | { pickUnits: PosItem };
 interface ApprovalAsk { action: ApprovalAction; retry: (approvalId: string) => void }
 
 const asItem = (i: PosItem): Item => ({ ...i, taxRate: i.taxRate, listPrice: i.listPrice, minPrice: i.minPrice });
-/** A device unit as a cart item: its own description (condition, grade), price and minimum (12.1). */
+/** A device unit as a cart item: its own description (condition, grade), price and minimum (12.1); a unit bought under the
+ * profit margin scheme carries its purchase price so its VAT is worked out on the margin (12.3). */
 const unitItem = (u: PosUnit, base?: PosItem): PosItem => ({
   variantId: u.variantId, sku: u.sku, productType: u.productType as PosItem['productType'], tracking: u.tracking as PosItem['tracking'], descriptionEn: u.descriptionEn, descriptionAr: u.descriptionAr,
-  taxCodeId: base?.taxCodeId ?? '', taxKind: base?.taxKind ?? 'standard', taxRate: u.taxRate, listPrice: u.listPrice, minPrice: u.minPrice, warrantyDays: u.warrantyDays, active: true, stock: 1, barcode: null,
+  taxCodeId: u.taxCodeId ?? base?.taxCodeId ?? '', taxKind: u.marginCost != null ? 'margin' : base?.taxKind ?? 'standard', taxRate: u.taxRate, listPrice: u.listPrice, minPrice: u.minPrice,
+  warrantyDays: u.warrantyDays, active: true, stock: 1, barcode: null, marginCost: u.marginCost ?? null,
 });
 
 function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (printerId: string | null) => void }) {
@@ -170,6 +173,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   const [payError, setPayError] = useState<unknown>(null);
   const [receipt, setReceipt] = useState<{ r: ReceiptModel; cash: boolean } | null>(null);
   const [zReport, setZReport] = useState<{ figures: ShiftFigures; counted: number; variance: number; number: string } | null>(null);
+  const [rest, setRest] = useState<TradeIn[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
   const route = printRoute(terminal.printerId);
   const emergency = isEmergencyMode();
@@ -209,6 +213,10 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   }, [cart, pricesIncludeTax, limit]);
   const okLines = priced.filter((p): p is Priced => !(p instanceof PosError));
   const sum = totals(okLines);
+  // Margin-scheme lines carry their VAT inside the price: the till, like the receipt, shows only standard-rated VAT (12.3).
+  const marginLines = okLines.filter((l) => l.item.taxKind === 'margin');
+  const shownTax = sum.tax - marginLines.reduce((a, l) => a + l.tax, 0n);
+  const tradeInsOn = can(me, 'TRADEIN.CREATE');
   const cartValid = cart.length > 0 && okLines.length === cart.length;
 
   const add = useCallback((item: PosItem, fromScan = false) => {
@@ -284,6 +292,12 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
       const r = await api.receipt(res.id);
       const cash = tenders.some((x) => x.method === 'cash');
       setReceipt({ r, cash });
+      // Trade-in credit that this sale did not use up is settled now, as store credit or cash (12.5).
+      const used = tenders.filter((x) => x.method === 'trade_in' && x.tradeInId).map((x) => x.tradeInId!);
+      if (used.length) {
+        const left = (await Promise.all(used.map((id) => api.tradeIn(id).catch(() => null)))).filter((d) => d && (d.tradeIn.outstanding ?? 0) > 0).map((d) => d!.tradeIn);
+        setRest(left);
+      }
       const err = await printReceipt(api, r, route, cash);
       if (err) setNotice(t('pos.printFailed', { error: err }));
       void qc.invalidateQueries({ queryKey: ['currentShift'] });
@@ -302,6 +316,14 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
     }
     catch (e) { setError(e); }
   };
+
+  // F6 opens the trade-in wizard at the till.
+  useEffect(() => {
+    if (!tradeInsOn) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'F6' && !dialog) { e.preventDefault(); setDialog('tradein'); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tradeInsOn, dialog]);
 
   if (shift.isLoading || policy.isLoading) return <div className="center-page"><Spinner label={t('app.loading')} /></div>;
   if (zReport) {
@@ -328,6 +350,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         <Badge tone="success"><span className="ltr">{s.number}</span></Badge>
         {emergency && <Badge tone="danger">{t('pos.emergencyMode')}</Badge>}
         <span className="spacer" />
+        {tradeInsOn && !emergency && <Button size="sm" onClick={() => setDialog('tradein')}>{t('tradein.start')}</Button>}
         <Button size="sm" onClick={() => setDialog('parked')}>{t('pos.recall')}</Button>
         <Button size="sm" onClick={() => setDialog('return')}>{t('pos.return')}</Button>
         <Button size="sm" onClick={() => setDialog('cash')}>{t('pos.cashMenu')}</Button>
@@ -386,8 +409,9 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
           })}
         </div>
         <div className="totals">
-          <div className="fig"><span>{t('pos.subtotal')}</span><span className="num">{fmtB(sum.net)}</span></div>
-          <div className="fig"><span>{t('pos.vat')}</span><span className="num">{fmtB(sum.tax)}</span></div>
+          <div className="fig"><span>{t('pos.subtotal')}</span><span className="num">{fmtB(sum.gross - shownTax)}</span></div>
+          <div className="fig"><span>{t('pos.vat')}</span><span className="num">{fmtB(shownTax)}</span></div>
+          {marginLines.length > 0 && <div className="fig muted"><span>{t('tradein.detail.margin')}</span><span className="num">{fmtB(marginLines.reduce((a, l) => a + l.gross, 0n))}</span></div>}
           {sum.discount > 0n && <div className="fig"><span>{t('pos.discounts')}</span><span className="num">{fmtB(sum.discount)}</span></div>}
           <div className="fig grand"><span>{t('pos.total')}</span><span className="num">{fmtB(sum.gross)}</span></div>
         </div>
@@ -398,7 +422,16 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         </div>
       </section>
 
-      {dialog === 'pay' && policy.data && <PayDialog gross={sum.gross} policy={policy.data} busy={paying} error={payError} onClose={() => setDialog(null)} onPay={(x) => void complete(x)} />}
+      {dialog === 'pay' && policy.data && <PayDialog gross={sum.gross} policy={policy.data} busy={paying} error={payError} onClose={() => setDialog(null)} onPay={(x) => void complete(x)}
+        customer={customer} cartId={cartId} tradeIns={tradeInsOn && !emergency} />}
+      {dialog === 'tradein' && <TradeInWizard cartId={cartId} cartCustomer={customer} cartHasItems={cart.length > 0} onClose={() => setDialog(null)} ask={ask}
+        onAccepted={(d, kind, c) => {
+          if (kind === 'sale') setCustomer(c);
+          if (kind === 'cash') void openDrawer(api, route);
+          void qc.invalidateQueries({ queryKey: ['currentShift'] });
+          setNotice(t('tradein.done.title', { number: d.tradeIn.number }));
+        }} />}
+      {rest.length > 0 && <RestDialog items={rest} ask={ask} onDone={(cash) => { setRest([]); if (cash) void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
       {dialog === 'customer' && <CustomerDialog onClose={() => setDialog(null)} onPick={(c) => { setCustomer(c); setDialog(null); }} />}
       {dialog === 'cash' && <CashDialog onClose={() => setDialog(null)} onApproval={(a, retry) => ask(a, (id) => { setApproval(null); retry(id); })}
         onDone={(kind) => { setDialog(null); setNotice(t(`pos.cashDone.${kind}`)); if (kind !== 'drop') void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
@@ -413,7 +446,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
       {dialog && typeof dialog === 'object' && <UnitPicker item={dialog.pickUnits} inCart={cart.filter((r) => r.unit).map((r) => r.unit!.unitId)} onClose={() => setDialog(null)} onPick={(u) => void addUnit(u)} />}
       {dialog === 'x' && <XReport id={s.id} onClose={() => setDialog(null)} />}
       {dialog === 'printer' && <PrinterDialog current={terminal.printerId} onClose={() => setDialog(null)} onPick={(p) => { onPrinter(p); setDialog(null); }} />}
-      {approval && <ApprovalDialog action={approval.action} onClose={() => setApproval(null)} onApproved={(id) => approval.retry(id)} />}
+      {approval && <ApprovalDialog action={approval.action} onClose={() => setApproval(null)} onApproved={(id) => { const retry = approval.retry; setApproval(null); retry(id); }} />}
       {receipt && (
         <Modal open title={receipt.r.number} onClose={() => { setReceipt(null); newSale(); }}
           footer={<>
@@ -425,6 +458,32 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         </Modal>
       )}
     </div>
+  );
+}
+
+/** Trade-in value a sale did not use up: settled at once as store credit or in cash, or left for later (12.5). */
+function RestDialog({ items, ask, onDone }: { items: TradeIn[]; ask: (a: ApprovalAction, retry: (id: string) => void) => void; onDone: (cash: boolean) => void }) {
+  const api = useApi();
+  const { t } = useI18n();
+  const [i, setI] = useState(0);
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  const [paidCash, setPaidCash] = useState(false);
+  const ti = items[i]!;
+  const nextOne = (cash: boolean) => { const c = paidCash || cash; setPaidCash(c); if (i + 1 < items.length) setI(i + 1); else onDone(c); };
+  const settle = async (kind: 'store_credit' | 'cash', approvalId?: string) => {
+    setBusy(true); setError(null);
+    try { await api.settleTradeIn(ti.id, { kind, approvalId }); nextOne(kind === 'cash'); }
+    catch (e) { if (e instanceof ApiError && e.code === 'AUTH-403') ask(kind === 'cash' ? 'TRADEIN.PAYOUT' : 'TRADEIN.STORE_CREDIT', (id) => void settle(kind, id)); else setError(e); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Modal open title={t('tradein.rest.title')} onClose={() => nextOne(false)}
+      footer={<><Button onClick={() => nextOne(false)}>{t('tradein.rest.later')}</Button><Button busy={busy} onClick={() => void settle('cash')}>{t('tradein.rest.cash')}</Button>
+        <Button variant="primary" busy={busy} onClick={() => void settle('store_credit')}>{t('tradein.rest.storeCredit')}</Button></>}>
+      <p>{t('tradein.rest.help', { number: ti.number, amount: fmt(ti.outstanding) })}</p>
+      <ErrorBox error={error} />
+    </Modal>
   );
 }
 

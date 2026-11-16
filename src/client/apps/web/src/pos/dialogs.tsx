@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ApiError, type ApprovalAction, type Customer, type PosPolicy, type SaleDetail, type ShiftFigures, type TenderInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Badge, Button, Checkbox, Modal, SelectField, TextField } from '@kite/ui';
@@ -59,10 +60,28 @@ export function ApprovalDialog({ action, reason, onApproved, onClose }: { action
 }
 
 // ------------------------------------------------------------------ payment
-export function PayDialog({ gross, policy, onPay, onClose, busy, error }: {
+export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer, cartId, tradeIns: tradeInsOn }: {
   gross: Baisa; policy: PosPolicy; busy: boolean; error: unknown; onClose: () => void; onPay: (tenders: TenderInput[]) => void;
+  /** Phase 7: the cart's customer, for their trade-in credit and store credit. */
+  customer?: Customer | null; cartId?: string; tradeIns?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, pick } = useI18n();
+  const api = useApi();
+  const credits = useQuery({ queryKey: ['payCredits', customer?.id, cartId], enabled: !!customer && !!tradeInsOn, retry: false,
+    queryFn: async () => ({ open: await api.openTradeIns({ customerId: customer!.id }).catch(() => []), balance: (await api.storeCredit(customer!.id).catch(() => null))?.balance ?? 0 }) });
+  const [useTi, setUseTi] = useState<Record<string, string>>({});
+  const [storeCredit, setStoreCredit] = useState('');
+  // A trade-in taken in for this very cart is applied at once, up to the total.
+  useEffect(() => {
+    if (!credits.data) return;
+    let left = gross;
+    const init: Record<string, string> = {};
+    for (const x of credits.data.open.filter((o) => o.saleId === cartId)) {
+      const take = toBaisa(x.outstanding) < left ? toBaisa(x.outstanding) : left;
+      if (take > 0n) { init[x.id] = fromBaisa(take); left -= take; }
+    }
+    setUseTi(init);
+  }, [credits.data, cartId, gross]);
   const [card, setCard] = useState('');
   const [cardTerminal, setCardTerminal] = useState('BANK-1');
   const [approvalCode, setApprovalCode] = useState('');
@@ -70,13 +89,18 @@ export function PayDialog({ gross, policy, onPay, onClose, busy, error }: {
   const [reference, setReference] = useState('');
   const [tendered, setTendered] = useState('');
   const amount = (s: string) => (/^\d+(\.\d{1,3})?$/.test(s.trim()) ? toBaisa(s.trim()) : 0n);
-  const nonCash = amount(card) + amount(transfer);
+  const tiTotal = Object.values(useTi).reduce((a, v) => a + amount(v), 0n);
+  const nonCash = amount(card) + amount(transfer) + tiTotal + amount(storeCredit);
+  const tiValid = Object.entries(useTi).every(([k, v]) => { const o = credits.data?.open.find((x) => x.id === k); return !v.trim() || (o != null && amount(v) <= toBaisa(o.outstanding)); })
+    && amount(storeCredit) <= toBaisa(credits.data?.balance ?? 0);
   const { due } = cashDue(gross, nonCash > gross ? gross : nonCash, policy.cashRounding);
   const given = tendered.trim() ? amount(tendered) : due;
   const change = given - due;
-  const valid = nonCash <= gross && (due === 0n || given >= due) && (amount(card) === 0n || (cardTerminal.trim() && approvalCode.trim())) && (amount(transfer) === 0n || reference.trim());
+  const valid = tiValid && nonCash <= gross && (due === 0n || given >= due) && (amount(card) === 0n || (cardTerminal.trim() && approvalCode.trim())) && (amount(transfer) === 0n || reference.trim());
   const pay = () => {
     const tenders: TenderInput[] = [];
+    for (const [tradeInId, v] of Object.entries(useTi)) if (amount(v) > 0n) tenders.push({ method: 'trade_in', amount: b2n(amount(v)), tradeInId });
+    if (amount(storeCredit) > 0n) tenders.push({ method: 'store_credit', amount: b2n(amount(storeCredit)) });
     if (amount(card) > 0n) tenders.push({ method: 'card', amount: b2n(amount(card)), cardTerminal: cardTerminal.trim(), approvalCode: approvalCode.trim() });
     if (amount(transfer) > 0n) tenders.push({ method: 'bank_transfer', amount: b2n(amount(transfer)), reference: reference.trim() });
     if (due > 0n || tenders.length === 0) tenders.push({ method: 'cash', amount: b2n(due), tendered: b2n(given) });
@@ -87,6 +111,25 @@ export function PayDialog({ gross, policy, onPay, onClose, busy, error }: {
     <Modal open title={t('pos.payTitle')} onClose={onClose}
       footer={<><Button onClick={onClose}>{t('app.cancel')}</Button><Button variant="primary" busy={busy} disabled={!valid} onClick={pay}>{t('pos.complete')}</Button></>}>
       <div className="pay-total"><span>{t('pos.total')}</span><strong className="num">{fmtB(gross)}</strong></div>
+      {tradeInsOn && !customer && <p className="muted">{t('tradein.pay.needCustomer')}</p>}
+      {credits.data && credits.data.open.length > 0 && (
+        <fieldset className="pay-credits"><legend>{t('tradein.pay.tradeIns')}</legend>
+          {credits.data.open.map((o) => (
+            <div key={o.id} className="grid-2">
+              <TextField label={`${o.number} · ${pick(o.descriptionEn, o.descriptionAr)}`} help={t('tradein.pay.left', { amount: fmt(o.outstanding) })} value={useTi[o.id] ?? ''} inputMode="decimal" dir="ltr" placeholder="0.000"
+                onChange={(e) => setUseTi({ ...useTi, [o.id]: e.target.value })} error={useTi[o.id] && amount(useTi[o.id]!) > toBaisa(o.outstanding) ? t('tradein.pay.left', { amount: fmt(o.outstanding) }) : undefined} />
+              <Button onClick={() => { const rest = gross - (nonCash - amount(useTi[o.id] ?? '')); const take = toBaisa(o.outstanding) < rest ? toBaisa(o.outstanding) : rest; setUseTi({ ...useTi, [o.id]: fromBaisa(take > 0n ? take : 0n) }); }}>{t('tradein.pay.use')}</Button>
+            </div>
+          ))}
+        </fieldset>
+      )}
+      {credits.data && credits.data.balance > 0 && (
+        <div className="grid-2">
+          <TextField label={t('tradein.pay.storeCredit')} help={t('tradein.pay.balance', { amount: fmt(credits.data.balance) })} value={storeCredit} onChange={(e) => setStoreCredit(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0.000"
+            error={amount(storeCredit) > toBaisa(credits.data.balance) ? t('tradein.pay.balance', { amount: fmt(credits.data.balance) }) : undefined} />
+          <Button onClick={() => { const rest = gross - (nonCash - amount(storeCredit)); const bal = toBaisa(credits.data!.balance); setStoreCredit(fromBaisa(bal < rest ? bal : rest > 0n ? rest : 0n)); }}>{t('tradein.pay.useAll')}</Button>
+        </div>
+      )}
       <div className="grid-2">
         <TextField label={t('pos.card')} value={card} onChange={(e) => setCard(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0.000" />
         <Button onClick={() => setCard(fromBaisa(gross))}>{t('pos.allOnCard')}</Button>

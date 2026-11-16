@@ -17,6 +17,8 @@ export interface MockUnit {
   sellingPrice: number | null; warrantyDays: number | null; imei1: string | null; imei2: string | null; serial: string | null; receivedAt: string; soldSaleId: string | null;
   events: DeviceEvent[]; version: number;
   holds: DeviceHold[]; central: CentralState; retired: { kind: 'imei' | 'serial'; slot: number; value: string; reason: string; at: string }[];
+  /** Bought under the profit margin scheme (Phase 7): the price it was bought for. */
+  marginCost?: bigint | null;
 }
 
 export interface DeviceHooks {
@@ -27,6 +29,9 @@ export interface DeviceHooks {
   partStock: (variantId: string) => bigint;
   next: (kind: string, prefix: string) => string;
   reservedBy: () => { terminalCode: string } | null;
+  /** Phase 7: whether the profit margin scheme is approved, and the VAT-MARGIN code. */
+  marginOn?: () => boolean;
+  marginCodeId?: () => string;
 }
 
 const COND_EN: Record<DeviceCondition, string> = { brand_new: 'New', used: 'Used', refurbished: 'Refurbished', damaged: 'Damaged', for_parts: 'For parts' };
@@ -40,6 +45,7 @@ const TRANSITIONS: Record<string, [DeviceStatus, DeviceStatus][]> = {
   held: IN_STOCK.map((s) => [s, 'quarantined'] as [DeviceStatus, DeviceStatus]), released: IN_STOCK.map((s) => ['quarantined', s] as [DeviceStatus, DeviceStatus]),
   identifier_corrected: ([...IN_STOCK, 'quarantined', 'sold'] as DeviceStatus[]).map((s) => [s, s] as [DeviceStatus, DeviceStatus]),
   receipt_reversed: [['quarantined', 'reversed']],
+  traded_in: [['sold', 'under_inspection']],
 };
 
 export const DEFAULT_CHECKLIST: ChecklistItemDef[] = [
@@ -103,7 +109,8 @@ export function createMockDevices(h: DeviceHooks) {
     const lease = leases.get(u.id);
     return { unitId: u.id, variantId: u.variantId, sku: i.sku, productType: i.productType, tracking: i.tracking, descriptionEn: i.descriptionEn + suffix[0], descriptionAr: i.descriptionAr + suffix[1],
       taxRate: 5, listPrice: listPrice(u), minPrice: u.condition === 'brand_new' ? i.minPrice : null, condition: u.condition, gradeCode: g?.code ?? null, imei1: u.imei1, imei2: u.imei2, serial: u.serial,
-      warrantyDays: u.warrantyDays ?? i.warrantyDays, reservedUntil: lease && lease.until > Date.now() ? new Date(lease.until).toISOString() : null, centralState: u.central };
+      warrantyDays: u.warrantyDays ?? i.warrantyDays, reservedUntil: lease && lease.until > Date.now() ? new Date(lease.until).toISOString() : null, centralState: u.central,
+      ...(u.marginCost != null && h.marginOn?.() ? { marginCost: num(u.marginCost), taxCodeId: h.marginCodeId?.() ?? null } : {}) };
   };
   const sellable = (u: MockUnit) => {
     if (u.status !== 'in_stock') throw problem(409, 'DEV-004', `${ident(u)} is ${u.status.replace(/_/g, ' ')}, so it cannot be sold.`);
@@ -558,5 +565,30 @@ export function createMockDevices(h: DeviceHooks) {
     identifier: (uid: string) => { const u = units.find((x) => x.id === uid); return u ? (u.imei1 ? `IMEI ${u.imei1}` : u.serial ? `S/N ${u.serial}` : null) : null; },
     condition: (uid: string) => unit(uid).condition,
     gradeId: (code: string) => grades.find((g) => g.code === code)?.id ?? null,
+    grades: () => grades.filter((g) => g.status === 'active'),
+    checklistItems: () => checklist.items,
+    /** Phase 7: whether a device may be taken in, and the unit the business sold if it comes back (blocked → DEV-014; in stock → TRD-004). */
+    tradeInCheck: (code: string) => {
+      const c = classifyCode(code);
+      if (c.kind === 'invalid_imei') throw problem(400, 'DEV-001', `${c.value} is not a valid IMEI. Scan it again.`);
+      if (blocked.some((b) => b.status === 'active' && b.value === c.value)) throw problem(409, 'DEV-014', `IMEI ${c.value} is on the blocked list. Do not take this device in.`);
+      const u = units.find((x) => x.imei1 === c.value || x.imei2 === c.value || x.serial === c.value) ?? null;
+      if (u && u.status !== 'sold') throw problem(409, 'TRD-004', `${c.value} belongs to a device the business still has (${u.status.replace(/_/g, ' ')}): it cannot be traded in.`);
+      return u;
+    },
+    /** Takes a traded-in device into stock under inspection: back into its own record when the business sold it, else a new one. */
+    acquire: (a: { variantId: string; imei: string | null; serial: string | null; cost: bigint; condition: DeviceCondition; gradeId: string | null; reconnectId: string | null; margin: boolean }) => {
+      if (a.reconnectId) {
+        const u = unit(a.reconnectId);
+        const delta = a.cost - u.cost;
+        event(u, 'traded_in', 'under_inspection', a.condition, { costDelta: num(delta) });
+        u.cost = a.cost; u.gradeId = a.gradeId; u.sellingPrice = null; u.soldSaleId = null; u.marginCost = a.margin ? a.cost : null;
+        return u.id;
+      }
+      const u = receive(a.variantId, { imei1: a.imei, serial: a.serial, unitCost: num(a.cost), condition: a.condition, status: 'under_inspection', gradeId: a.gradeId }, num(a.cost));
+      u.marginCost = a.margin ? a.cost : null;
+      return u.id;
+    },
+    costOf: (uid: string) => unit(uid).cost,
   };
 }

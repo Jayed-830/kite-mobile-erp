@@ -82,7 +82,9 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
     const base = itemOf(l.variantId);
     if (!l.deviceUnitId) return base;
     const u = unitOf(l.deviceUnitId);
-    return { ...base, listPrice: u.listPrice ?? base.listPrice, minPrice: u.minPrice ?? base.minPrice, warrantyDays: u.warrantyDays, taxRate: u.taxRate } as Item;
+    // A phone bought under the profit margin scheme sells under it offline too: VAT on the margin only (12.3).
+    const margin = u.marginCost != null ? { taxKind: 'margin', taxCodeId: u.taxCodeId ?? base.taxCodeId, marginCost: u.marginCost } : {};
+    return { ...base, listPrice: u.listPrice ?? base.listPrice, minPrice: u.minPrice ?? base.minPrice, warrantyDays: u.warrantyDays, taxRate: u.taxRate, ...margin } as Item;
   };
   const soldHere = async () => new Set((await records()).filter((r) => r.kind === 'sale')
     .flatMap((r) => ((r.payload.lines ?? []) as { deviceUnitId?: string | null }[]).map((l) => l.deviceUnitId).filter((x): x is string => !!x)));
@@ -170,11 +172,14 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
       const t = totals(lines);
       const tenders: Tender[] = (req.payments ?? []).map((p) => ({ ...p, amount: toBaisa(p.amount), tendered: p.tendered == null ? null : toBaisa(p.tendered) }));
       const paid = wrap(() => checkTenders(tenders, t.gross, s.policy.cashRounding));
+      // Trade-in credit and store credit need the server's balances: emergency mode takes neither (12.5).
+      if (tenders.some((x) => x.method === 'trade_in' || x.method === 'store_credit')) throw new ApiError({ status: 400, code: 'POS-005', title: 'Emergency mode takes cash, card or transfer only.' });
       const rec = (await bridge.append('sale', {
         saleId, shiftId: shift.shiftId, cashierId: u.id, cashRounding: n(paid.rounding),
         lines: lines.map((l) => ({ variantId: l.item.variantId, qty: n(l.qty), unitPrice: n(l.unitPrice), listPrice: n(l.listPrice), discount: n(l.discount), net: n(l.net), tax: n(l.tax), gross: n(l.gross),
           taxRate: Number(l.item.taxRate), taxCodeId: l.item.taxCodeId, productType: l.item.productType, descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, warrantyDays: l.item.warrantyDays,
-          deviceUnitId: req.lines[l.lineNo - 1]!.deviceUnitId ?? null, identifier: req.lines[l.lineNo - 1]!.deviceUnitId ? ident(unitOf(req.lines[l.lineNo - 1]!.deviceUnitId!)) : null })),
+          deviceUnitId: req.lines[l.lineNo - 1]!.deviceUnitId ?? null, identifier: req.lines[l.lineNo - 1]!.deviceUnitId ? ident(unitOf(req.lines[l.lineNo - 1]!.deviceUnitId!)) : null,
+          taxScheme: l.item.taxKind === 'margin' ? 'margin' : 'standard' })),
         payments: (req.payments ?? []).map((p) => ({ method: p.method, amount: p.amount, tendered: p.tendered ?? null, cardTerminal: p.cardTerminal ?? null, approvalCode: p.approvalCode ?? null, reference: p.reference ?? null })),
       })) as StoredRecord;
       const change = tenders.reduce((a, p) => a + (p.tendered == null ? 0n : p.tendered - p.amount), 0n);
@@ -184,9 +189,12 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
       const s = await load();
       const rec = (await records()).find((r) => r.kind === 'sale' && r.payload.saleId === saleId);
       if (!rec) throw new ApiError({ status: 404, code: 'GEN-404', title: 'That sale was not found on this till.' });
-      const p = rec.payload as { number: string; cashRounding: number; cashierId: string; lines: { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; identifier?: string | null }[]; payments: { method: string; amount: number; tendered: number | null; cardTerminal: string | null }[] };
-      const net = p.lines.reduce((a, l) => a + toBaisa(l.net), 0n), tax = p.lines.reduce((a, l) => a + toBaisa(l.tax), 0n), gross = p.lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
-      const rates = [...new Set(p.lines.map((l) => l.taxRate))];
+      const p = rec.payload as { number: string; cashRounding: number; cashierId: string; lines: { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; identifier?: string | null; taxScheme?: string }[]; payments: { method: string; amount: number; tendered: number | null; cardTerminal: string | null }[] };
+      // Margin-scheme lines show no VAT: their price includes it (12.3).
+      const std = p.lines.filter((l) => l.taxScheme !== 'margin');
+      const marginGross = p.lines.filter((l) => l.taxScheme === 'margin').reduce((a, l) => a + toBaisa(l.gross), 0n);
+      const net = std.reduce((a, l) => a + toBaisa(l.net), 0n), tax = std.reduce((a, l) => a + toBaisa(l.tax), 0n), gross = p.lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
+      const rates = [...new Set(std.map((l) => l.taxRate))];
       const cashier = s.users.find((x) => x.id === p.cashierId);
       const r: ReceiptModel = {
         saleId, number: p.number, docType: 'simplified_invoice', titleEn: 'Simplified tax invoice', titleAr: 'فاتورة ضريبية مبسطة', originalNumber: null, creditReason: null,
@@ -194,9 +202,13 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
         customerName: null, customerVat: null,
         business: { nameEn: s.business.tradeNameEn ?? s.business.legalNameEn, nameAr: s.business.tradeNameAr ?? s.business.legalNameAr, vatNumber: s.business.vatNumber, crNumber: s.business.crNumber, addressEn: s.business.addressEn, addressAr: s.business.addressAr, phone: s.business.phone },
         branch: { nameEn: s.terminal.branchNameEn, nameAr: s.terminal.branchNameAr, vatNumber: null, crNumber: null, addressEn: null, addressAr: null, phone: null },
-        lines: p.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.net, tax: l.tax, gross: l.gross, taxRate: l.taxRate, serial: l.identifier ?? null })),
+        lines: p.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.taxScheme === 'margin' ? l.gross : l.net,
+          tax: l.taxScheme === 'margin' ? 0 : l.tax, gross: l.gross, taxRate: l.taxRate, serial: l.identifier ?? null, margin: l.taxScheme === 'margin' })),
+        marginGross: n(marginGross),
+        marginNoteEn: marginGross > 0n ? 'Second-hand goods sold under the profit margin scheme: VAT is included in the price and not shown separately.' : null,
+        marginNoteAr: marginGross > 0n ? 'سلع مستعملة مباعة وفق نظام هامش الربح: الضريبة مشمولة في السعر ولا تظهر بشكل منفصل.' : null,
         net: n(net), discount: n(p.lines.reduce((a, l) => a + toBaisa(l.discount), 0n)), tax: n(tax), gross: n(gross), cashRounding: p.cashRounding, total: n(gross + toBaisa(p.cashRounding)),
-        taxBreakdown: rates.map((rate) => ({ rate, net: n(p.lines.filter((l) => l.taxRate === rate).reduce((a, l) => a + toBaisa(l.net), 0n)), tax: n(p.lines.filter((l) => l.taxRate === rate).reduce((a, l) => a + toBaisa(l.tax), 0n)) })),
+        taxBreakdown: rates.map((rate) => ({ rate, net: n(std.filter((l) => l.taxRate === rate).reduce((a, l) => a + toBaisa(l.net), 0n)), tax: n(std.filter((l) => l.taxRate === rate).reduce((a, l) => a + toBaisa(l.tax), 0n)) })),
         payments: p.payments.map((x) => ({ method: x.method, amount: x.amount, tendered: x.tendered, change: x.tendered == null ? null : n(toBaisa(x.tendered) - toBaisa(x.amount)), cardTerminal: x.cardTerminal })),
         // The server makes the official QR when the sale is uploaded; this one carries the same fields for the customer now.
         qrPayload: qrPayload(s.business.tradeNameEn ?? s.business.legalNameEn, s.business.vatNumber, new Date(rec.recordedAt), gross, tax, saleId, fromBaisa),

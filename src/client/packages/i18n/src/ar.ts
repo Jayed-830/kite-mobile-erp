@@ -2,12 +2,14 @@ import type { Dictionary } from './en';
 import { posAr } from './ar.pos';
 import { devicesAr } from './ar.devices';
 import { imeiAr } from './ar.imei';
+import { tradeinAr } from './ar.tradein';
 
 // Arabic strings: first draft for professional review (blueprint 20.1).
 export const ar: Dictionary = {
   ...posAr,
   ...devicesAr,
   ...imeiAr,
+  ...tradeinAr,
   app: {
     name: 'كايت موبايل ERP',
     by: 'من نكستداب',
@@ -52,6 +54,8 @@ export const ar: Dictionary = {
     inventory: 'المخزون والجرد',
     devices: 'الأجهزة',
     deviceSettings: 'إعدادات الأجهزة',
+    tradeins: 'الاستبدال',
+    tradeinSettings: 'إعدادات الاستبدال',
     posSettings: 'نقطة البيع والطابعات',
     dashboard: 'لوحة التحكم',
     users: 'المستخدمون',

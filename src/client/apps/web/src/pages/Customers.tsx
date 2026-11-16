@@ -4,6 +4,7 @@ import { can, type Customer, type CustomerInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Badge, Button, DataTable, Modal, PageHeader, SelectField, TextField } from '@kite/ui';
 import { ErrorBox, useApi, useAuth } from '../core';
+import { StoreCreditButton } from '../tradein/TradeInSettingsPage';
 
 /** Customers (Phase 4 basics; credit accounts arrive with Phase 10). */
 export function CustomersPage() {
@@ -34,7 +35,8 @@ export function CustomersPage() {
           { key: 'v', header: t('customers.vat'), render: (c) => <span className="ltr">{c.vatNumber ?? '—'}</span> },
           { key: 'k', header: t('customers.kind'), render: (c) => t(`customers.kinds.${c.kind}`) },
           { key: 's', header: t('app.status'), render: (c) => <Badge tone={c.status === 'active' ? 'success' : 'default'}>{t(`app.${c.status}`)}</Badge> },
-          { key: 'a', header: t('app.actions'), render: (c) => can(me, 'CUSTOMERS.MANAGE') && <Button size="sm" onClick={() => { save.reset(); setEdit(toInput(c)); }}>{t('app.edit')}</Button> },
+          { key: 'a', header: t('app.actions'), render: (c) => <span className="row">{can(me, 'CUSTOMERS.MANAGE') && <Button size="sm" onClick={() => { save.reset(); setEdit(toInput(c)); }}>{t('app.edit')}</Button>}
+            <StoreCreditButton customerId={c.id} /></span> },
         ]} />
       {edit && (
         <Modal open title={edit.id ? t('customers.edit') : t('customers.new')} onClose={() => setEdit(null)}

@@ -5,13 +5,16 @@
 import QRCode from 'qrcode';
 
 export interface ReceiptParty { nameEn: string; nameAr: string; vatNumber: string | null; crNumber: string | null; addressEn: string | null; addressAr: string | null; phone: string | null }
-export interface ReceiptLine { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; serial?: string | null; warrantyUntil?: string | null }
+/** A margin-scheme line (12.3) shows no VAT: `tax` is 0 and `net` is the price paid. */
+export interface ReceiptLine { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; serial?: string | null; warrantyUntil?: string | null; margin?: boolean }
 export interface ReceiptModel {
   saleId: string; number: string; docType: string; titleEn: string; titleAr: string; originalNumber: string | null; creditReason: string | null;
   localTime: string; terminalCode: string; cashierName: string; customerName: string | null; customerVat: string | null;
   business: ReceiptParty; branch: ReceiptParty; lines: ReceiptLine[]; net: number; discount: number; tax: number; gross: number; cashRounding: number; total: number;
   taxBreakdown: { rate: number; net: number; tax: number }[]; payments: { method: string; amount: number; tendered: number | null; change: number | null; cardTerminal: string | null }[];
   qrPayload: string; footerEn: string | null; footerAr: string | null; isCopy: boolean; isEmergency: boolean; paperWidthMm: number;
+  /** Margin-scheme items: their total, and the wording printed in place of their VAT. */
+  marginGross?: number; marginNoteEn?: string | null; marginNoteAr?: string | null;
 }
 
 export interface Ctx2D {
@@ -24,7 +27,9 @@ export interface CanvasLike { width: number; height: number; getContext(kind: '2
 const FONT = 'Tahoma, "Segoe UI", "Noto Sans Arabic", "DejaVu Sans", sans-serif';
 export const money = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const qtyText = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(3).replace(/0+$/, ''));
-const METHOD: Record<string, [string, string]> = { cash: ['Cash', 'نقداً'], card: ['Card', 'بطاقة'], bank_transfer: ['Bank transfer', 'تحويل بنكي'] };
+export const METHOD: Record<string, [string, string]> = {
+  cash: ['Cash', 'نقداً'], card: ['Card', 'بطاقة'], bank_transfer: ['Bank transfer', 'تحويل بنكي'], trade_in: ['Trade-in', 'جهاز مستبدل'], store_credit: ['Store credit', 'رصيد المتجر'],
+};
 
 /** Printable width in dots at 203 dpi: 576 for 80 mm paper, 384 for 58 mm. */
 export const dotsFor = (paperMm: number) => (paperMm === 58 ? 384 : 576);
@@ -75,11 +80,13 @@ export function drawReceipt(r: ReceiptModel, make: (w: number, h: number) => Can
     text(l.descriptionAr, 24, 'right', true);
     pair(`${qtyText(l.qty)} x ${money(l.unitPrice)}${l.discount ? `  -${money(l.discount)}` : ''}`, money(l.gross), 22);
     if (l.serial) text(l.serial, 18, 'left');
+    if (l.margin) pair('Margin scheme', 'نظام الهامش', 18);
     if (l.warrantyUntil) pair(`Warranty until ${l.warrantyUntil.slice(0, 10)}`, 'الضمان', 18);
     y += px(4);
   }
   rule();
   for (const b of r.taxBreakdown) pair(`VAT ${qtyText(b.rate)}%`, `${money(b.tax)}  ضريبة ${qtyText(b.rate)}%`, 20);
+  if (r.marginGross) pair('Margin scheme items', `${money(r.marginGross)}  سلع الهامش`, 20);
   if (r.cashRounding) pair('Cash rounding', `${money(r.cashRounding)}  تقريب`, 20);
   pair(r.docType === 'credit_note' ? 'REFUND' : 'TOTAL', `${money(r.total)}  ${r.docType === 'credit_note' ? 'المسترد' : 'الإجمالي'}`, 30, true);
   text('OMR  ر.ع.', 18, 'center');
@@ -88,6 +95,8 @@ export function drawReceipt(r: ReceiptModel, make: (w: number, h: number) => Can
     pair(`${en}${p.cardTerminal ? ` (${p.cardTerminal})` : ''}`, `${money(p.amount)}  ${ar}`, 20);
     if (p.change) pair('Change', `${money(p.change)}  الباقي`, 20);
   }
+  if (r.marginNoteEn) text(r.marginNoteEn, 16, 'left');
+  if (r.marginNoteAr) text(r.marginNoteAr, 18, 'right', true);
   rule();
   const qr = QRCode.create(r.qrPayload, { errorCorrectionLevel: 'M' });
   const cell = Math.max(2, Math.floor((W * 0.55) / qr.modules.size));

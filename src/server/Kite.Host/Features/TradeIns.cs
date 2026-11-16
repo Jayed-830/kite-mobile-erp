@@ -353,21 +353,9 @@ public static class TradeInEndpoints
             }, ct)));
         }).RequireSignedIn().RequireModule("tradein");
 
-        g.MapPost("/{id:guid}/{action:regex(^(reject|cancel)$)}", async (Guid id, string action, TradeInCloseRequest req, HttpContext http, KiteDb db, CancellationToken ct) =>
-            Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
-            {
-                var ti = await TradeInCore.LoadAsync(t, id, forUpdate: true);
-                http.User.Demand(Permissions.TradeInCreate, ti.BranchId);
-                if (ti.Status != "open") throw new KiteException(ErrorCodes.TradeInState, $"Trade-in {ti.Number} is {ti.Status}; only an open trade-in is {action}ed.", 409);
-                if (action == "reject" && string.IsNullOrWhiteSpace(req.Reason))
-                    throw new KiteException(ErrorCodes.Validation, "Say why the trade-in is rejected (for example: the customer declined the offer).", 400, "reason");
-                var uid = http.User.UserIdOf();
-                await t.ExecuteAsync("""
-                    UPDATE tradein.tradein SET status = @to, reject_reason = @reason, closed_at = now(), closed_by = @uid, updated_by = @uid WHERE id = @id
-                    """, new { id, to = action == "reject" ? "rejected" : "cancelled", reason = Clean(req.Reason), uid });
-                await t.AuditAsync(new AuditEntry($"tradein.{action}ed", "tradein", id, After: Json.Obj(new { ti.Number, req.Reason }), BranchId: ti.BranchId));
-                return await DetailAsync(t, http, id);
-            }, ct))).RequirePermission(Permissions.TradeInCreate).RequireModule("tradein");
+        foreach (var close in new[] { "reject", "cancel" })
+            g.MapPost($"/{{id:guid}}/{close}", (Guid id, TradeInCloseRequest req, HttpContext http, KiteDb db, CancellationToken ct) => CloseAsync(id, close, req, http, db, ct))
+                .RequirePermission(Permissions.TradeInCreate).RequireModule("tradein");
 
         // The full civil ID, for a manager, audited.
         g.MapPost("/{id:guid}/civil-id", async (Guid id, HttpContext http, KiteDb db, ISecretProtector secrets, CancellationToken ct) =>
@@ -413,6 +401,22 @@ public static class TradeInEndpoints
             return Results.File(DocumentPdf(ti, biz, settlements), "application/pdf", $"{ti.SelfInvoiceNumber ?? ti.Number}.pdf");
         }).RequireSignedIn().RequireModule("tradein");
     }
+
+    private static async Task<IResult> CloseAsync(Guid id, string action, TradeInCloseRequest req, HttpContext http, KiteDb db, CancellationToken ct) =>
+        Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
+            {
+                var ti = await TradeInCore.LoadAsync(t, id, forUpdate: true);
+                http.User.Demand(Permissions.TradeInCreate, ti.BranchId);
+                if (ti.Status != "open") throw new KiteException(ErrorCodes.TradeInState, $"Trade-in {ti.Number} is {ti.Status}; only an open trade-in is {action}ed.", 409);
+                if (action == "reject" && string.IsNullOrWhiteSpace(req.Reason))
+                    throw new KiteException(ErrorCodes.Validation, "Say why the trade-in is rejected (for example: the customer declined the offer).", 400, "reason");
+                var uid = http.User.UserIdOf();
+                await t.ExecuteAsync("""
+                    UPDATE tradein.tradein SET status = @to, reject_reason = @reason, closed_at = now(), closed_by = @uid, updated_by = @uid WHERE id = @id
+                    """, new { id, to = action == "reject" ? "rejected" : "cancelled", reason = Clean(req.Reason), uid });
+                await t.AuditAsync(new AuditEntry($"tradein.{action}ed", "tradein", id, After: Json.Obj(new { ti.Number, req.Reason }), BranchId: ti.BranchId));
+                return await DetailAsync(t, http, id);
+            }, ct));
 
     private static async Task<(ShiftRow Shift, decimal ExpectedCash)> DrawerAsync(DbTx t, PosTerminal term, HttpContext http)
     {

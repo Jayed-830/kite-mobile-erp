@@ -1,9 +1,10 @@
 // In-memory Phase 4 server for tests, `npm run dev:mock` and design review: catalog, stock, customers, shifts, sales,
 // returns, approvals, printers. Prices and totals use the same arithmetic as the real server (@kite/pos), but the real
 // server is the source of truth and checks everything again.
-import { ApiError, type DeviceApi, type DeviceIdentityApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
+import { ApiError, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
   type SaleDetail, type SaleLine, type SaleListRow, type Shift, type ShiftFigures, type TenderInput, type Terminal, type Tokens, type User } from '@kite/api';
 import { createMockDevices } from './mockDevices';
+import { createMockTradeIn } from './mockTradeIn';
 import { apportionReturn, checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
 
 export interface MockPosContext {
@@ -19,6 +20,8 @@ export interface MockPosContext {
   taxCodeId: string;
   business: () => { legalNameEn: string; legalNameAr: string; vatNumber: string | null; crNumber: string | null; pricesIncludeTax: boolean };
   tokens: (u: User) => Tokens;
+  /** Phase 7: the margin scheme approval switches VAT-MARGIN on or off. */
+  setMarginCode?: (active: boolean) => void;
 }
 
 const problem = (status: number, code: string, title: string) => new ApiError({ status, code, title });
@@ -28,9 +31,9 @@ const delay = <T>(v: T): Promise<T> => new Promise((r) => setTimeout(() => r(v),
 const n = (b: bigint) => toNumber(b);
 
 interface StockRow { qty: bigint; value: bigint }
-interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null }[] }
+interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null; tradeInId: string | null }[] }
 
-export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi {
+export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi {
   const products: ProductView[] = [];
   const stock = new Map<string, StockRow>();
   const customers: Customer[] = [];
@@ -94,7 +97,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       active: f.p.product.status === 'active' && f.v.variant.status === 'active', stock: f.p.product.tracking === 'none' ? n(stock.get(vid)?.qty ?? 0n) : dev.inStock(vid) * 1, barcode: f.v.barcodes[0]?.code ?? null,
     };
   };
-  const posItem = (vid: string): PosItem => { const i = itemOf(vid); return { ...i, productType: i.productType as PosItem['productType'], tracking: i.tracking as PosItem['tracking'], taxRate: 5, listPrice: i.listPrice as number | null, minPrice: i.minPrice as number | null }; };
+  const posItem = (vid: string): PosItem => { const i = itemOf(vid); return { ...i, productType: i.productType as PosItem['productType'], tracking: i.tracking as PosItem['tracking'], taxRate: 5, listPrice: i.listPrice as number | null, minPrice: i.minPrice as number | null, marginCost: undefined }; };
   const wrap = <T>(f: () => T): T => { try { return f(); } catch (e) { if (e instanceof PosError) throw problem(e.code === 'POS-010' ? 409 : 400, e.code, e.message); throw e; } };
   const terminal = () => {
     const u = ctx.need();
@@ -117,6 +120,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     const sold = mine.filter((x) => x.detail.sale.docType !== 'credit_note');
     const credit = mine.filter((x) => x.detail.sale.docType === 'credit_note');
     const cash = sumOf('cash');
+    const payouts = ev('tradein_payout');
     const cards = new Map<string, bigint>();
     for (const p of pays.filter((p) => p.method === 'card')) cards.set(p.cardTerminal ?? '', (cards.get(p.cardTerminal ?? '') ?? 0n) + p.amount);
     const g = (xs: MockSale[], k: 'grossTotal' | 'netTotal' | 'taxTotal' | 'discountTotal' | 'cashRounding') => xs.reduce((a, x) => a + toBaisa(x.detail.sale[k]), 0n);
@@ -125,7 +129,8 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       salesDiscount: n(g(sold, 'discountTotal')), creditNotesCount: credit.length, creditNotesGross: n(g(credit, 'grossTotal')), cashRounding: n(g(sold, 'cashRounding') - g(credit, 'cashRounding')),
       cashPayments: n(cash), cardPayments: n(sumOf('card')), transferPayments: n(sumOf('bank_transfer')), payIns: n(ev('pay_in')), payOuts: n(ev('pay_out')), drops: n(ev('drop')),
       noSales: cashEvents.filter((e) => e.shiftId === s.id && e.kind === 'no_sale').length, openingFloat: s.openingFloat,
-      expectedCash: n(toBaisa(s.openingFloat) + cash + ev('pay_in') - ev('pay_out') - ev('drop')), cardByTerminal: [...cards].map(([cardTerminal, total]) => ({ cardTerminal, total: n(total) })),
+      expectedCash: n(toBaisa(s.openingFloat) + cash + ev('pay_in') - ev('pay_out') - ev('drop') - payouts), cardByTerminal: [...cards].map(([cardTerminal, total]) => ({ cardTerminal, total: n(total) })),
+      tradeInCredit: n(sumOf('trade_in')), storeCreditPayments: n(sumOf('store_credit')), tradeInPayouts: n(payouts),
     };
   };
   const useApproval = (aid: string | null | undefined, action: ApprovalAction, requester: string) => {
@@ -146,6 +151,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
   const dev = createMockDevices({
     need: ctx.need, can, next, partMove: (vid, q) => move(vid, q), partStock: (vid) => stock.get(vid)?.qty ?? 0n,
     reservedBy: () => (currentTerminal ? { terminalCode: currentTerminal.code } : null),
+    marginOn: () => ti.marginOn(), marginCodeId: () => 'vat-margin',
     item: (vid) => { const f = variantOf(vid)!; return { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, tracking: f.p.product.tracking, listPrice: f.v.variant.price, minPrice: f.v.variant.minPrice, warrantyDays: f.p.product.defaultWarrantyDays, categoryId: f.p.product.categoryId }; },
   });
   // Seeded device units: two new phones, a used one waiting for inspection, a refurbished grade-A and a damaged one.
@@ -165,7 +171,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     const b = ctx.business();
     const sale = { ...detail, qrPayload: qrPayload(b.legalNameEn, b.vatNumber, new Date(), toBaisa(detail.grossTotal), toBaisa(detail.taxTotal), uuid, fromBaisa), einvoiceUuid: uuid };
     const full: SaleDetail = { sale, lines, payments: tenders.map((p) => ({ method: p.method, amount: n(refund ? -p.amount : p.amount), tendered: p.tendered == null ? null : n(p.tendered), changeGiven: p.tendered == null ? null : n(p.tendered - p.amount), cardTerminal: p.cardTerminal ?? null })), creditNotes: [] };
-    sales.push({ detail: full, shiftId, terminalId: t.id, payments: tenders.map((p) => ({ method: p.method, amount: refund ? -p.amount : p.amount, cardTerminal: p.cardTerminal ?? null, tendered: p.tendered ?? null, change: p.tendered == null ? null : p.tendered - p.amount })) });
+    sales.push({ detail: full, shiftId, terminalId: t.id, payments: tenders.map((p) => ({ method: p.method, amount: refund ? -p.amount : p.amount, cardTerminal: p.cardTerminal ?? null, tendered: p.tendered ?? null, change: p.tendered == null ? null : p.tendered - p.amount, tradeInId: p.tradeInId ?? null })) });
     return full;
   };
   const toTenders = (xs: TenderInput[] | undefined): Tender[] => (xs ?? []).map((p) => ({ ...p, amount: toBaisa(p.amount), tendered: p.tendered == null ? null : toBaisa(p.tendered) }));
@@ -177,15 +183,27 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       let item: Item = itemOf(l.variantId);
       if (l.deviceUnitId) {
         const p = dev.priced(l.deviceUnitId).item;
-        item = { ...item, descriptionEn: p.descriptionEn, descriptionAr: p.descriptionAr, listPrice: p.listPrice, minPrice: p.minPrice, warrantyDays: p.warrantyDays };
+        item = { ...item, descriptionEn: p.descriptionEn, descriptionAr: p.descriptionAr, listPrice: p.listPrice, minPrice: p.minPrice, warrantyDays: p.warrantyDays,
+          ...(p.marginCost != null ? { taxKind: 'margin', marginCost: p.marginCost } : {}) };
       }
       return priceLine(i + 1, l, item, ctx.business().pricesIncludeTax, limit);
     });
   });
 
+  const ti = createMockTradeIn({
+    need: ctx.need, can, next, branchId: ctx.branchId, terminal: () => terminal(), shift: () => myShift().s,
+    drawerCash: (sid) => toBaisa(figures(shifts.find((x) => x.id === sid)!).expectedCash),
+    payOut: (sid, amount, reason) => cashEvents.push({ shiftId: sid, kind: 'tradein_payout', amount, reason, createdAt: now() }),
+    customers: () => customers, item: (vid) => { const f = variantOf(vid)!; return { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, tracking: f.p.product.tracking }; },
+    dev, useApproval, marginCodeStatus: (active) => ctx.setMarginCode?.(active),
+  });
+  // A walk-in customer for trade-ins (design review).
+  customers.push({ id: id(), number: 'C-000002', kind: 'individual', nameEn: 'Maryam Al Hinai', nameAr: 'مريم الهنائية', phoneE164: '+96899112233', email: null, vatNumber: null, crNumber: null, addressEn: null, addressAr: null, status: 'active', version: 1 });
+
   return {
     ...dev.api,
     ...dev.identity,
+    ...ti.api,
     async brands() { ctx.need('CATALOG.VIEW'); return delay([]); },
     async createBrand(b) { ctx.need('CATALOG.MANAGE'); return delay({ id: id(), ...b, status: 'active', version: 1 }); },
     async categories() { ctx.need('CATALOG.VIEW'); return delay([]); },
@@ -373,6 +391,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       if (req.expectedTotal != null && toBaisa(req.expectedTotal) !== tt.gross) throw problem(409, 'POS-015', 'Prices changed. Check the cart and try again.');
       const tenders = toTenders(req.payments);
       const paid = wrap(() => checkTenders(tenders, tt.gross, policy.cashRounding));
+      ti.checkPayments(tenders, req.customerId ?? null, false);
       const unitOf = (l: { lineNo: number }) => req.lines[l.lineNo - 1]!.deviceUnitId ?? null;
       for (const l of lines) {
         const uid = unitOf(l);
@@ -389,8 +408,10 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       for (const l of lines) if (!unitOf(l) && l.item.productType !== 'service') move(l.item.variantId, -l.qty);
       const cust = customers.find((c) => c.id === req.customerId);
       const d = write({ id: saleId, branchId: t.branchId, number: next('inv', 'INV'), docType: req.docType ?? 'simplified_invoice', creditReason: null, originalSaleId: null, originalNumber: null, saleDate: now().slice(0, 10), completedAt: now(), netTotal: n(tt.net), discountTotal: n(tt.discount), taxTotal: n(tt.tax), grossTotal: n(tt.gross), cashRounding: n(paid.rounding), isEmergency: false, note: req.note ?? null, customerId: cust?.id ?? null, customerName: cust?.nameEn ?? null, customerVat: cust?.vatNumber ?? null, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id },
-        lines.map((l) => ({ id: id(), variantId: l.item.variantId, productType: l.item.productType as SaleLine['productType'], descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, qty: n(l.qty), unitPrice: n(l.unitPrice), listPrice: n(l.listPrice), discount: n(l.discount), net: n(l.net), taxRate: 5, tax: n(l.tax), gross: n(l.gross), returnedQty: 0, returnable: n(l.qty), deviceUnitId: unitOf(l), identifier: unitOf(l) ? dev.identifier(unitOf(l)!) : null })),
+        lines.map((l) => ({ id: id(), variantId: l.item.variantId, productType: l.item.productType as SaleLine['productType'], descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, qty: n(l.qty), unitPrice: n(l.unitPrice), listPrice: n(l.listPrice), discount: n(l.discount), net: n(l.net), taxRate: 5, tax: n(l.tax), gross: n(l.gross), returnedQty: 0, returnable: n(l.qty), deviceUnitId: unitOf(l), identifier: unitOf(l) ? dev.identifier(unitOf(l)!) : null,
+          marginPurchasePrice: l.item.taxKind === 'margin' && l.item.marginCost != null ? Number(l.item.marginCost) : null })),
         tenders, false, s.id, t);
+      ti.applyPayments(tenders, cust?.id ?? null, saleId, d.sale.number, false, u.displayNameEn);
       for (const l of lines) { const uid = unitOf(l); if (uid) dev.sold(uid, saleId, d.sale.number, l.net, l.gross, l.tax); }
       return delay(summary(d, paid.paid, tenders.reduce((a, p) => a + (p.tendered == null ? 0n : p.tendered - p.amount), 0n)));
     },
@@ -410,11 +431,13 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       const gross = lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
       const tenders = toTenders(r.refunds);
       const paid = wrap(() => checkTenders(tenders, gross, policy.cashRefundCap ? policy.cashRounding : 0, true));
+      ti.checkPayments(tenders, o.detail.sale.customerId, true);
       const cash = tenders.filter((x) => x.method === 'cash').reduce((a, x) => a + x.amount, 0n);
       if (cash > toBaisa(policy.cashRefundCap) && !can(u, 'POS.REFUND')) { if (!r.approvalId) throw problem(403, 'POS-012', 'This return needs a manager\'s approval.'); useApproval(r.approvalId, 'POS.REFUND', u.id); }
       const tax = lines.reduce((a, l) => a + toBaisa(l.tax), 0n);
       const d = write({ ...o.detail.sale, id: r.id, number: next('cn', 'CN'), docType: 'credit_note', creditReason: 'return', originalSaleId: originalId, originalNumber: o.detail.sale.number, completedAt: now(), netTotal: n(gross - tax), discountTotal: 0, taxTotal: n(tax), grossTotal: n(gross), cashRounding: n(paid.rounding), note: r.reason, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id }, lines, tenders, true, s.id, t);
       o.detail.creditNotes.push({ id: d.sale.id, number: d.sale.number, creditReason: 'return', grossTotal: d.sale.grossTotal });
+      ti.applyPayments(tenders, o.detail.sale.customerId, d.sale.id, d.sale.number, true, u.displayNameEn);
       return delay(summary(d, paid.paid, 0n));
     },
     async voidSale(originalId, v) {
@@ -424,9 +447,10 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       if (o.shiftId !== s.id || o.detail.lines.some((l) => l.returnedQty > 0)) throw problem(409, 'POS-013', 'This sale can no longer be voided; use a return.');
       if (!can(u, 'POS.SALE.VOID')) { if (!v.approvalId) throw problem(403, 'AUTH-403', "Voiding a sale needs a manager's approval."); useApproval(v.approvalId, 'POS.SALE.VOID', u.id); }
       for (const l of o.detail.lines) { l.returnedQty = l.qty; l.returnable = 0; if (l.deviceUnitId) dev.returned(l.deviceUnitId, v.id, 'CN', null, true); else if (l.productType !== 'service') move(l.variantId, toBaisa(l.qty)); }
-      const tenders: Tender[] = o.payments.map((p) => ({ method: p.method as Tender['method'], amount: p.amount, cardTerminal: p.cardTerminal }));
+      const tenders: Tender[] = o.payments.map((p) => ({ method: p.method as Tender['method'], amount: p.amount, cardTerminal: p.cardTerminal, tradeInId: p.tradeInId }));
       const d = write({ ...o.detail.sale, id: v.id, number: next('cn', 'CN'), docType: 'credit_note', creditReason: 'void', originalSaleId: originalId, originalNumber: o.detail.sale.number, completedAt: now(), note: v.reason, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id }, o.detail.lines.map((l) => ({ ...l, id: id() })), tenders, true, s.id, t);
       o.detail.creditNotes.push({ id: d.sale.id, number: d.sale.number, creditReason: 'void', grossTotal: d.sale.grossTotal });
+      ti.applyPayments(tenders, o.detail.sale.customerId, d.sale.id, d.sale.number, true, u.displayNameEn);
       return delay(summary(d, tenders.reduce((a, p) => a + p.amount, 0n), 0n));
     },
     async sales(f) {
@@ -444,14 +468,20 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       const x = sales.find((y) => y.detail.sale.id === sid);
       if (!x) throw problem(404, 'GEN-404', 'That sale was not found.');
       const b = ctx.business(); const s = x.detail.sale;
+      const marginGross = x.detail.lines.filter((l) => l.marginPurchasePrice != null).reduce((a, l) => a + toBaisa(l.gross), 0n);
+      const stdLines = x.detail.lines.filter((l) => l.marginPurchasePrice == null);
+      const std = { net: stdLines.reduce((a, l) => a + toBaisa(l.net), 0n), tax: stdLines.reduce((a, l) => a + toBaisa(l.tax), 0n), gross: stdLines.reduce((a, l) => a + toBaisa(l.gross), 0n) };
       const [titleEn, titleAr] = s.docType === 'credit_note' ? ['Credit note', 'إشعار دائن'] : s.docType === 'tax_invoice' ? ['Tax invoice', 'فاتورة ضريبية'] : ['Simplified tax invoice', 'فاتورة ضريبية مبسطة'];
       const r: ReceiptModel = {
         saleId: s.id, number: s.number, docType: s.docType, titleEn, titleAr, originalNumber: s.originalNumber, creditReason: s.creditReason, localTime: s.completedAt, terminalCode: s.terminalCode, cashierName: s.cashierName,
         customerName: s.customerName, customerVat: s.customerVat, business: { nameEn: b.legalNameEn, nameAr: b.legalNameAr, vatNumber: b.vatNumber, crNumber: b.crNumber, addressEn: null, addressAr: null, phone: '+968 2400 0000' },
         branch: { nameEn: 'Muscat - Ruwi', nameAr: 'مسقط - روي', vatNumber: null, crNumber: null, addressEn: null, addressAr: null, phone: null },
-        lines: x.detail.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.net, tax: l.tax, gross: l.gross, taxRate: l.taxRate, serial: l.deviceUnitId ? dev.identifier(l.deviceUnitId) : null })),
-        net: s.netTotal, discount: s.discountTotal, tax: s.taxTotal, gross: s.grossTotal, cashRounding: s.cashRounding, total: n(toBaisa(s.grossTotal) + toBaisa(s.cashRounding)),
-        taxBreakdown: [{ rate: 5, net: s.netTotal, tax: s.taxTotal }], payments: x.detail.payments.map((p) => ({ method: p.method, amount: Math.abs(p.amount), tendered: p.tendered, change: p.changeGiven, cardTerminal: p.cardTerminal })),
+        lines: x.detail.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.marginPurchasePrice != null ? l.gross : l.net,
+          tax: l.marginPurchasePrice != null ? 0 : l.tax, gross: l.gross, taxRate: l.taxRate, serial: l.deviceUnitId ? dev.identifier(l.deviceUnitId) : null, margin: l.marginPurchasePrice != null })),
+        net: n(std.net), discount: s.discountTotal, tax: n(std.tax), gross: s.grossTotal, cashRounding: s.cashRounding, total: n(toBaisa(s.grossTotal) + toBaisa(s.cashRounding)),
+        taxBreakdown: std.gross === 0n && marginGross > 0n ? [] : [{ rate: 5, net: n(std.net), tax: n(std.tax) }],
+        marginGross: n(marginGross), marginNoteEn: marginGross > 0n ? 'Second-hand goods sold under the profit margin scheme: VAT is included in the price and not shown separately.' : null,
+        marginNoteAr: marginGross > 0n ? 'سلع مستعملة مباعة وفق نظام هامش الربح: الضريبة مشمولة في السعر ولا تظهر بشكل منفصل.' : null, payments: x.detail.payments.map((p) => ({ method: p.method, amount: Math.abs(p.amount), tendered: p.tendered, change: p.changeGiven, cardTerminal: p.cardTerminal })),
         qrPayload: s.qrPayload, footerEn: policy.receiptFooterEn, footerAr: policy.receiptFooterAr, isCopy: !!reprint, isEmergency: false, paperWidthMm: 80,
       };
       return delay(r);

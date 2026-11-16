@@ -33,6 +33,7 @@ export const posEn = {
     actions: {
       POS_DISCOUNT_ABOVE_LIMIT: 'Discount above the limit', POS_PRICE_OVERRIDE: 'Price change or below minimum', POS_SALE_VOID: 'Void a sale', POS_REFUND: 'Refund (late or large)',
       POS_CASH_PAY_OUT: 'Pay cash out', POS_DRAWER_NO_SALE: 'Open the drawer (no sale)', POS_SHIFT_ACCEPT_VARIANCE: 'Accept a cash difference', DEVICE_SELL_DAMAGED: 'Sell a damaged device',
+      TRADEIN_APPROVE: 'Trade-in value above the limit or the guide', TRADEIN_STORE_CREDIT: 'Leave a trade-in as store credit', TRADEIN_PAYOUT: 'Pay a trade-in out in cash',
     },
   },
   salesReports: {

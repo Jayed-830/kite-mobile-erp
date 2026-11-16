@@ -1,11 +1,13 @@
 import { posEn } from './en.pos';
 import { devicesEn } from './en.devices';
 import { imeiEn } from './en.imei';
+import { tradeinEn } from './en.tradein';
 // English strings. Arabic (ar.ts) must have exactly the same keys; a test enforces it.
 export const en = {
   ...posEn,
   ...devicesEn,
   ...imeiEn,
+  ...tradeinEn,
   app: {
     name: 'KITE MOBILE ERP',
     by: 'by Nextdab',
@@ -50,6 +52,8 @@ export const en = {
     inventory: 'Inventory',
     devices: 'Devices',
     deviceSettings: 'Device settings',
+    tradeins: 'Trade-ins',
+    tradeinSettings: 'Trade-in settings',
     posSettings: 'POS and printers',
     dashboard: 'Dashboard',
     users: 'Users',

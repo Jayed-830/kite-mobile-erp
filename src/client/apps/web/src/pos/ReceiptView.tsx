@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import type { ReceiptModel } from '@kite/pos';
+import { METHOD, type ReceiptModel } from '@kite/pos';
 import { fmt, qty } from '../money';
 
-const METHOD: Record<string, [string, string]> = { cash: ['Cash', 'نقداً'], card: ['Card', 'بطاقة'], bank_transfer: ['Bank transfer', 'تحويل بنكي'] };
 
 /** The 80 mm receipt as HTML: preview on screen and browser printing (bilingual, QR). The thermal raster uses the same model. */
 export function ReceiptView({ r }: { r: ReceiptModel }) {
@@ -35,11 +34,13 @@ export function ReceiptView({ r }: { r: ReceiptModel }) {
           <div dir="rtl">{l.descriptionAr}</div>
           <div className="r-pair"><span className="ltr">{qty(l.qty)} × {fmt(l.unitPrice)}{l.discount ? `  −${fmt(l.discount)}` : ''}</span><span className="ltr">{fmt(l.gross)}</span></div>
           {l.serial && <div className="r-small ltr r-serial">{l.serial}</div>}
+          {l.margin && <div className="r-pair r-small"><span>Margin scheme</span><span dir="rtl">نظام الهامش</span></div>}
           {l.warrantyUntil && <div className="r-pair r-small"><span>Warranty until <span className="ltr">{l.warrantyUntil.slice(0, 10)}</span></span><span dir="rtl">الضمان حتى</span></div>}
         </div>
       ))}
       <hr />
       {r.taxBreakdown.map((b) => <div key={b.rate} className="r-pair"><span>VAT {b.rate}%</span><span><span className="ltr">{fmt(b.tax)}</span> ضريبة</span></div>)}
+      {!!r.marginGross && <div className="r-pair"><span>Margin scheme items</span><span><span className="ltr">{fmt(r.marginGross)}</span> سلع الهامش</span></div>}
       {r.cashRounding !== 0 && <div className="r-pair"><span>Cash rounding</span><span><span className="ltr">{fmt(r.cashRounding)}</span> تقريب</span></div>}
       <div className="r-pair r-strong r-big"><span>{credit ? 'REFUND' : 'TOTAL'} OMR</span><span><span className="ltr">{fmt(r.total)}</span> {credit ? 'المسترد' : 'الإجمالي'}</span></div>
       {r.payments.map((p, i) => {
@@ -51,6 +52,8 @@ export function ReceiptView({ r }: { r: ReceiptModel }) {
           </div>
         );
       })}
+      {r.marginNoteEn && <div className="r-small r-note">{r.marginNoteEn}</div>}
+      {r.marginNoteAr && <div className="r-small r-note" dir="rtl">{r.marginNoteAr}</div>}
       <hr />
       {qr && <img className="r-qr" src={qr} alt="QR" />}
       {r.footerEn && <div className="r-center">{r.footerEn}</div>}
