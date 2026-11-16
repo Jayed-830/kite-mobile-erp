@@ -64,6 +64,16 @@ public sealed class Phase8ExitGateTests(KiteServerFixture fx, ITestOutputHelper 
         return new Till(no, branch, pos);
     }
 
+    /// <summary>Where an estimate's WhatsApp round trip stands, for a failure message.</summary>
+    private async Task<string> WhereAsync(Guid est) =>
+        await fx.QueryDbAsync<string>($"""
+            SELECT concat('estimate ', (SELECT status FROM repair.estimate WHERE id = '{est}'),
+                          '; outbound ', (SELECT string_agg(o.status, ',') FROM notif.outbound_message o WHERE o.source_doc_id = '{est}'),
+                          '; gateway ', (SELECT string_agg(g.status || ' ' || coalesce(g.wamid, '-'), ',') FROM notif.gateway_message g JOIN notif.outbound_message o ON o.id = g.id WHERE o.source_doc_id = '{est}'),
+                          '; events ', (SELECT count(*) FROM notif.gateway_event), ' applied to ', (SELECT events_seq FROM notif.relay_state),
+                          '; relay error ', coalesce((SELECT last_error FROM notif.relay_state), 'none'))
+            """);
+
     private async Task CycleAsync()
     {
         var relay = fx.Factory.Services.GetRequiredService<NotifRelay>();
@@ -261,21 +271,27 @@ public sealed class Phase8ExitGateTests(KiteServerFixture fx, ITestOutputHelper 
                     break;
                 case "whatsapp":
                     await SendAsync(t.Pos, job, est); m.History.AddOrUpdate(job, 2, (_, v) => v + 1);
-                    // Other workers drive the same gateway: wait until this estimate's message has reached the phone.
-                    for (var i = 0; i < 100 && await fx.QueryDbAsync<string>($"SELECT status FROM notif.outbound_message WHERE source_doc_id = '{est}'") is not ("delivered" or "read"); i++)
+                    // Other workers drive the same gateway at the same time, so wait by the clock (not by a count of cycles) until this
+                    // estimate's own message has been sent, then tap Approve on that message by its id, and wait for the approval to come
+                    // back through the relay. If it does not, say where it stopped.
+                    var deadline = DateTime.UtcNow.AddSeconds(90);
+                    var wamidSql = $"SELECT g.wamid FROM notif.gateway_message g JOIN notif.outbound_message o ON o.id = g.id WHERE o.source_doc_id = '{est}' AND g.wamid IS NOT NULL";
+                    string? wamid = null;
+                    while (DateTime.UtcNow < deadline && (wamid = await fx.QueryDbAsync<string?>(wamidSql)) is null)
                     {
                         await CycleAsync();
-                        await Task.Delay(20);
+                        await Task.Delay(50);
                     }
+                    Assert.True(wamid is not null, $"estimate {est}: its WhatsApp message was not sent in 90 s; {await WhereAsync(est)}");
                     var phone = await fx.QueryDbAsync<string>($"SELECT phone_e164 FROM crm.customer WHERE id = '{c}'");
-                    await Ok(await owner.PostAsJsonAsync("/api/v1/whatsapp/test-chat", new { phone, action = "button", button = 0 }));
-                    for (var i = 0; i < 100 && await fx.QueryDbAsync<string>($"SELECT status FROM repair.estimate WHERE id = '{est}'") != "approved"; i++)
+                    await Ok(await owner.PostAsJsonAsync("/api/v1/whatsapp/test-chat", new { phone, action = "button", button = 0, wamid }));
+                    while (DateTime.UtcNow < deadline && await fx.QueryDbAsync<string>($"SELECT status FROM repair.estimate WHERE id = '{est}'") != "approved")
                     {
                         await CycleAsync();
-                        await Task.Delay(20);
+                        await Task.Delay(50);
                     }
                     var e = (await DetailAsync(t.Pos, job)).GetProperty("estimates")[0];
-                    Assert.Equal("whatsapp", e.GetProperty("approvalMethod").GetString());
+                    Assert.True(e.GetProperty("approvalMethod").GetString() == "whatsapp", $"estimate {est}: the Approve tap on {wamid} did not approve it in time; {await WhereAsync(est)}");
                     await Move(t, job, "in_progress");
                     m.Count("approved by WhatsApp");
                     break;
