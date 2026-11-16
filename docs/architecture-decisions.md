@@ -260,3 +260,63 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Why.** TAC tables are incomplete and change; a missing or wrong row must not stop a sale. A serial format is set by the shop for its own brands and is exact.
 **Cost.** The TAC table is imported by hand from a CSV file; there is no subscription feed.
 
+
+## ADR 44: A trade-in is a document; accepting it puts the phone in used stock in the same step
+
+**Decision.** `tradein.tradein` is a numbered document (TI-) that moves open → accepted → settled, or open → rejected / cancelled. While open, the device, inspection, grade, deductions and agreed value can change; once accepted, a trigger freezes everything except its status and its link to a sale. Accepting does in one transaction: checks the IMEI again (blocked list, this business's devices, head office online), records the consent, brings the phone into stock under inspection at the agreed value, records how it was acquired (`device.acquisition`: trade-in or buy-back, cost, margin scheme), and posts Dr used-device inventory / Cr 2320 trade-in clearing.
+**Why.** The business owns the phone from the moment the customer hands it over, whatever happens to the value afterwards. Splitting "take the phone" and "pay for it" lets a cashier take the phone now and settle the value in any of the four ways.
+**Cost.** An open trade-in can be left behind; it holds no stock and no money, and the list shows it as open until it is rejected or cancelled.
+
+## ADR 45: The four settlement types are three kinds of settlement against one clearing account
+
+**Decision.** A trade-in is settled by any mix of three kinds of `tradein.settlement`: as a payment on a sale (`sale`), as the customer's store credit (`store_credit`, Dr 2320 / Cr 2310) or in cash from the drawer (`cash`, Dr 2320 / Cr 1100, a `tradein_payout` cash event). The blueprint's four types are: (1) applied to a sale, the customer pays the rest; (2) applied to a sale, the excess left as store credit or paid in cash; (3) store credit only; (4) cash buy-back. A trigger keeps the settled total between zero and the agreed value and sets the status. A void of a sale paid with trade-in credit writes a negative settlement, so the value can be used again. Account 2320 always equals what accepted trade-ins still owe.
+**Why.** One clearing account and one rule cover every mix the shop meets (half on a sale, the rest as credit), and the exit gate can check the whole thing with one equation.
+**Cost.** A trade-in credit cannot be refunded back to the trade-in after a return; a return refunds in cash, to the card, by transfer or as store credit.
+
+## ADR 46: Store credit is pulled forward from Phase 10 as a signed ledger that never goes below zero
+
+**Decision.** `crm.credit_ledger` (balance type `store_credit`) holds signed lines: + when a trade-in is left as credit or a refund goes to credit, − when a sale uses it. A trigger takes an advisory lock per customer and refuses a line that would take the balance below zero (`TRD-006`). Lines are never changed. Account 2310 is the liability. Store credit is a payment method at the till for a named customer, at any branch of the server.
+**Why.** Trade-ins need store credit now; building it as the ledger Phase 10 will extend avoids a second migration of balances.
+**Cost.** No expiry, no manual adjustment screen and no statement until Phase 10.
+
+## ADR 47: The profit margin scheme follows the Tax Authority's approval, and its VAT is never shown
+
+**Decision.** `tax.margin_scheme` records the approval (reference and date). VAT-MARGIN is active only while an approval is recorded; recording or withdrawing it switches the code. A trade-in accepted while the approval is in force, from a seller with no VAT number, is a margin purchase: it gets a self-invoice number (SI-) and the device remembers its purchase price. When such a device is sold, its line is taxed on the margin only: VAT = (price − purchase price) × rate / (100 + rate), never below zero, and the price is VAT-inclusive even for a business whose prices exclude VAT. The receipt and the A4 invoice show no VAT amount for that line, a "Margin scheme items" total and a note in English and Arabic; the QR code carries only the standard-rated VAT. The arithmetic is in C#, TypeScript and an independent Python implementation, checked against shared vectors (166 cases).
+**Why.** In Oman the margin scheme for second-hand goods is used only with the Tax Authority's approval, and a margin-scheme invoice does not show the VAT amount (our reading of the rules). Tying the code to the recorded approval stops margin pricing before the business may use it.
+**Cost.** The receipt and self-invoice wording are our reading of the rules and must be confirmed by the business's accountant. The VAT return boxes for margin sales come with the VAT return (Phase 11).
+
+## ADR 48: Valuation is a price guide less deductions; above the limit a manager approves
+
+**Decision.** `tradein.price_guide` gives the value of a model in each grade; `tradein.deduction` is a fixed amount or a percentage of the guide, and may be tied to a checklist item so that a failed item suggests it. The offer is the guide less every deduction, never below zero. A cashier without `TRADEIN.APPROVE` may agree up to the staff limit (default 50.000) and up to a percentage over the offer (default 10%); above either, or when there is no guide value, a manager approves with a PIN or remotely, and the approval is used once.
+**Why.** Values must be consistent between staff and branches, and large or generous values need a second person.
+**Cost.** The guide is kept by hand per model and grade; there is no price feed.
+
+## ADR 49: A phone the business sold comes back to its own record
+
+**Decision.** When a traded-in IMEI belongs to a device this business sold, accepting it reconnects that device (`device.reacquire`: sold → under inspection, at the new cost, with event "traded in") instead of creating a second device. At head office, a sold device whose IMEI is claimed again is retired as "superseded", not reported as a conflict. A device still in stock, on hold or under repair is refused (`TRD-004`).
+**Why.** One IMEI is one phone (ADR 34); its history — sold, traded back, refurbished, sold again — stays on one page.
+**Cost.** The device's earlier cost is replaced by the trade-in value; the earlier sale keeps its own cost of sale.
+
+## ADR 50: The civil ID is encrypted on the server that took it, and only managers see it
+
+**Decision.** The seller's civil ID is stored encrypted with the server's own key (`ISecretProtector`), with the last four characters kept in clear for display. A manager (`TRADEIN.APPROVE`) can show the full number; every view is audited. The business can switch off the requirement.
+**Why.** A purchase from the public must be traceable to the seller, but a civil ID is personal data that most staff never need.
+**Cost.** Head office cannot read a branch's civil IDs until data sync (Phase 12) re-encrypts them for head office.
+
+## ADR 51: Consent is recorded with the declaration that was shown
+
+**Decision.** The customer confirms the seller's declaration (kept in English and Arabic in the settings) either by typing their name on screen or on a signed paper form whose number is recorded. The declaration in force is copied onto the trade-in and printed on its document.
+**Why.** If the device later turns out to be stolen, the business must show exactly what the seller declared.
+**Cost.** None beyond storage.
+
+## ADR 52: Trade-ins and credit payments need the server; emergency mode refuses them
+
+**Decision.** The trade-in wizard is not offered in emergency mode, and an emergency sale paid with trade-in credit or store credit is refused at the till and again when uploaded. Margin-scheme phones still sell offline: the snapshot carries each phone's purchase price and the VAT-MARGIN code, and the upload checks the line against the phone actually sold.
+**Why.** A trade-in checks the IMEI with head office and a credit balance must be locked while it is spent; an offline till can do neither safely.
+**Cost.** During an outage the shop can sell, but not take phones in or let customers spend credit.
+
+## ADR 53: One lock order for trade-ins and store credit
+
+**Decision.** Every transaction that touches trade-in credit or store credit takes its locks in one order: the shift (when cash moves), the trade-ins by id, the customer's store credit, then document numbers and journals. Accepting and settling retry on a deadlock, as sales do.
+**Why.** The first exit-gate run at 20 tills deadlocked: accepting a trade-in as store credit held the journal-number lock and waited for the customer's credit lock, while a settlement held the credit lock and waited for the journal number. With the fixed order the same run had no deadlock at all.
+**Cost.** Locks are held a little longer in the busiest transactions.
