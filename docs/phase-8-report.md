@@ -15,7 +15,7 @@ Phase 8 lets a shop repair its customers' phones and keep them informed on Whats
 7. **Uncollected devices.** Reminders go at 30, 60 and 90 days after the device is ready.
 8. **WhatsApp.** The main server is the gateway: every server queues messages, the gateway sends them through Meta's WhatsApp Cloud API (or a test chat that never leaves the server), with consent, STOP, the 24-hour reply window, a daily cap and stale messages dropped. Meta reaches the gateway through an internet address that Nextdab makes for the main server.
 
-The exit gate passed on GitHub Actions. CI run `43960518185` on commit `71e4f87` has all twenty-one jobs green. That includes the new Phase 8 exit gate and the Phase 8 browser walk-through (`e2e/phase8.mjs`, 36 checks against a real server, PostgreSQL and Chrome).
+The exit gate passed on GitHub Actions. CI run `43963821715` on commit `7954d55` has all twenty-one jobs green. That includes the new Phase 8 exit gate and the Phase 8 browser walk-through (`e2e/phase8.mjs`, 36 checks against a real server, PostgreSQL and Chrome).
 
 ## Exit gate (blueprint section 25, row 8)
 
@@ -91,7 +91,8 @@ All in English and Arabic. The till's repair arithmetic (`@kite/pos` `repair.ts`
 6. **The part search on the job page found nothing for the owner** (who sees all branches). It now searches the job's branch.
 7. **The till's quick tiles showed the repair charge services.** They are charged only through a job and are now left out.
 8. **The board's sixth lane was cut off in Arabic.** The lanes now wrap instead of scrolling sideways.
-9. Smaller fixes: an invalid regular expression in setup, a JSON property clash in the deposit response, two test counts.
+9. **The exit gate's WhatsApp step failed once on CI** (run `43961893429`): it waited a fixed number of short cycles and then tapped the phone's latest message, so on a busy runner it looked before the approval had come back. It now waits by the clock, taps Approve on that estimate's own message, and on failure reports where the round trip stopped.
+10. Smaller fixes: an invalid regular expression in setup, a JSON property clash in the deposit response, the labour rows' wording, two test counts.
 
 ## Decisions and departures from the blueprint
 
