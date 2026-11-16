@@ -97,15 +97,31 @@ public static class Posting
 {
     private sealed record RuleRow(string Definition);
 
-    /// <summary>Inserts any default rule the business does not have yet (version 1, effective from 2000-01-01).</summary>
+    /// <summary>
+    /// Inserts any default rule the business does not have yet (version 1, effective from 2000-01-01), and upgrades a
+    /// rule that is still exactly an older default to the current default as a new version. A rule the business has
+    /// changed is never touched.
+    /// </summary>
     public static async Task EnsureDefaultRulesAsync(DbTx t, Guid businessId)
     {
+        var older = PostingRuleTemplates.Version1.ToDictionary(r => r.EventType, r => r.Definition.ToJson(), StringComparer.Ordinal);
         foreach (var (eventType, def) in PostingRuleTemplates.All)
+        {
             await t.ExecuteAsync("""
                 INSERT INTO acct.posting_rule (id, business_id, event_type, rule_version, effective_from, definition)
                 SELECT @id, @businessId, @eventType, 1, DATE '2000-01-01', @def::jsonb
                  WHERE NOT EXISTS (SELECT 1 FROM acct.posting_rule WHERE business_id = @businessId AND event_type = @eventType)
                 """, new { id = t.NewId(), businessId, eventType, def = def.ToJson() });
+            if (!older.TryGetValue(eventType, out var old)) continue;
+            await t.ExecuteAsync("""
+                INSERT INTO acct.posting_rule (id, business_id, event_type, rule_version, effective_from, definition)
+                SELECT @id, @businessId, @eventType, r.rule_version + 1, r.effective_from, @def::jsonb
+                  FROM (SELECT rule_version, effective_from, definition FROM acct.posting_rule
+                         WHERE business_id = @businessId AND event_type = @eventType
+                         ORDER BY effective_from DESC, rule_version DESC LIMIT 1) r
+                 WHERE r.definition = @old::jsonb AND r.definition <> @def::jsonb
+                """, new { id = t.NewId(), businessId, eventType, def = def.ToJson(), old });
+        }
     }
 
     /// <summary>Posts one journal for a document; returns its id, or null when the rule yields no lines.</summary>
@@ -209,6 +225,7 @@ public static class Phase4Seed
             INSERT INTO core.number_series (id, business_id, branch_id, doc_type, prefix, fiscal_year)
             VALUES (@id, @businessId, NULL, 'customer', 'C-', 2000) ON CONFLICT DO NOTHING
             """, new { id = t.NewId(), businessId });
+        await Phase5Seed.EnsureAsync(t, businessId);
     }
 }
 

@@ -16,7 +16,7 @@ public class PostingEngineTests
     [Fact]
     public void Every_default_rule_is_valid_and_survives_a_round_trip_as_data()
     {
-        Assert.Equal(7, PostingRuleTemplates.All.Count);
+        Assert.Equal(9, PostingRuleTemplates.All.Count);   // Phase 5 added refurbishment costs and the used-device reclass
         foreach (var (_, def) in PostingRuleTemplates.All)
         {
             def.Check();
@@ -171,7 +171,7 @@ public class PosMathTests
     {
         KiteException Err(Kite.Sales.PricedItem i, Kite.Sales.CartLine? l = null) =>
             Assert.Throws<KiteException>(() => Kite.Sales.PosMath.PriceLine(1, l ?? new(i.VariantId, 1m), i, true, Cashier));
-        Assert.Equal(ErrorCodes.SerializedNotYet, Err(Item(100m, tracking: "imei", type: "device")).Code);
+        Assert.Equal(ErrorCodes.DeviceUnitRequired, Err(Item(100m, tracking: "imei", type: "device")).Code);   // a phone needs its IMEI scanned (Phase 5)
         Assert.Equal(ErrorCodes.NoPrice, Err(Item(null)).Code);
         Assert.Equal(ErrorCodes.Validation, Err(Item(100m, kind: "margin")).Code);
         Assert.Equal(ErrorCodes.Validation, Err(Item(1m), new(Guid.NewGuid(), 1m, Discount: 2m)).Code);

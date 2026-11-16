@@ -1,7 +1,7 @@
 namespace Kite.Platform;
 
 /// <summary>
-/// Permission codes. Must match the iam.permission rows seeded by the migrations (V0009, V0011, V0012); a unit test
+/// Permission codes. Must match the iam.permission rows seeded by the migrations (V0009, V0011, V0012, V0014); a unit test
 /// compares the two so they cannot drift.
 /// </summary>
 public static class Permissions
@@ -56,6 +56,15 @@ public static class Permissions
     public const string PosReportsView = "POS.REPORTS.VIEW";
     public const string PosPolicyManage = "POS.POLICY.MANAGE";
     public const string ApprovalsDecide = "APPROVALS.DECIDE";
+    // Phase 5 (V0014)
+    public const string DeviceView = "DEVICE.VIEW";
+    public const string DeviceInspect = "DEVICE.INSPECT";
+    public const string DeviceRefurbish = "DEVICE.REFURBISH";
+    public const string DevicePrice = "DEVICE.PRICE";
+    public const string DeviceSellDamaged = "DEVICE.SELL_DAMAGED";
+    public const string DeviceWriteOff = "DEVICE.WRITE_OFF";
+    public const string DeviceHold = "DEVICE.HOLD";
+    public const string DeviceSettings = "DEVICE.SETTINGS";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -86,23 +95,27 @@ public static class RoleTemplates
             Permissions.CatalogView, Permissions.CatalogManage, Permissions.CatalogPriceManage, Permissions.InvView, Permissions.InvAdjust,
             Permissions.InvCount, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen, Permissions.PosCashPayOut,
             Permissions.PosReportsView, Permissions.ApprovalsDecide,
+            Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.DevicePrice, Permissions.DeviceSellDamaged,
+            Permissions.DeviceWriteOff, Permissions.DeviceHold, Permissions.DeviceSettings,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
              Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen,
-             Permissions.PosCashPayOut], 10m, 10.000m),
+             Permissions.PosCashPayOut, Permissions.DeviceView], 10m, 10.000m),
         new("cashier", "Cashier", "أمين صندوق",
             [Permissions.PosSell, Permissions.PosReceiptReprint, Permissions.CatalogView, Permissions.CustomersView, Permissions.CustomersManage,
              Permissions.PosShiftOpen], 5m, 2.000m),
-        new("technician", "Technician", "فني", [Permissions.RepairCredentialView]),
+        new("technician", "Technician", "فني",
+            [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
-            [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount]),
+            [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount,
+             Permissions.DeviceView, Permissions.DeviceInspect]),
         new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry]),
         new("accountant", "Accountant", "المحاسب",
         [
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
             Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
-            Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView,
+            Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView, Permissions.DeviceView,
         ]),
     ];
 }

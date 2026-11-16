@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Phase 5: device arithmetic and rules with no I/O (IMEI check digits, labour cost, grade prices, inspection results). -->
+  <PropertyGroup>
+    <RootNamespace>Kite.Devices</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kite.Platform\Kite.Platform.csproj" />
+  </ItemGroup>
+</Project>

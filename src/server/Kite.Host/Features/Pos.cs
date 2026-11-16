@@ -1,3 +1,4 @@
+using Kite.Devices;
 using System.Text.Json;
 using Kite.Accounting;
 using Kite.Host.Infrastructure;
@@ -14,14 +15,15 @@ public sealed record CashEventRequest(string Kind, decimal Amount, string Reason
 public sealed record CardSettlementInput(string CardTerminal, decimal BatchTotal, string? Reason);
 public sealed record CloseShiftRequest(Dictionary<string, int>? ClosingCount, decimal? CountedCash, List<CardSettlementInput>? CardSettlements,
     string? VarianceReason, Guid? ApprovalId = null);
-public sealed record CartLineInput(Guid VariantId, decimal Qty, decimal? UnitPrice = null, decimal? Discount = null, Guid? ApprovalId = null);
+public sealed record CartLineInput(Guid VariantId, decimal Qty, decimal? UnitPrice = null, decimal? Discount = null, Guid? ApprovalId = null,
+    Guid? DeviceUnitId = null, Guid? DamagedApprovalId = null);
 public sealed record CompleteSaleRequest(List<CartLineInput> Lines, List<TenderInput>? Payments, string? DocType = null, Guid? CustomerId = null,
     decimal? ExpectedTotal = null, string? Note = null, Guid? ApprovalId = null);
-public sealed record ReturnLineInput(Guid LineId, decimal Qty, bool Restock = true);
+public sealed record ReturnLineInput(Guid LineId, decimal Qty, bool Restock = true, string? Code = null);
 public sealed record ReturnRequest(Guid Id, List<ReturnLineInput> Lines, List<TenderInput> Refunds, string? Reason, Guid? ApprovalId = null,
     Guid? ExchangeGroupId = null);
 public sealed record VoidRequest(Guid Id, string Reason, Guid? ApprovalId = null);
-public sealed record ParkRequest(Guid Id, string? Label, JsonElement Cart);
+public sealed record ParkRequest(Guid Id, string? Label, JsonElement Cart, List<Guid>? DeviceUnitIds = null);
 public sealed record PinApprovalRequest(string Action, string ApproverUsername, string Pin, JsonElement? Context = null, string? Reason = null);
 public sealed record RemoteApprovalRequest(string Action, JsonElement? Context = null, string? Reason = null);
 public sealed record DecideApprovalRequest(string? Reason);
@@ -47,7 +49,7 @@ public static class PosEndpoints
     public static readonly string[] ApprovableActions =
     [
         Permissions.PosDiscountAboveLimit, Permissions.PosPriceOverride, Permissions.PosSaleVoid, Permissions.PosRefund,
-        Permissions.PosCashPayOut, Permissions.PosDrawerNoSale, Permissions.PosShiftAcceptVariance,
+        Permissions.PosCashPayOut, Permissions.PosDrawerNoSale, Permissions.PosShiftAcceptVariance, Permissions.DeviceSellDamaged,
     ];
 
     private const string ShiftSelect = """
@@ -502,7 +504,7 @@ public static class PosEndpoints
                 http.User.Demand(Permissions.PosSell, term.BranchId);
                 var biz = await BusinessInfo.LoadAsync(t);
                 var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
-                var lines = await PriceAsync(t, http, biz, term, policy, req.Lines, BusinessDay.Today(biz.TimeZone, t.Clock));
+                var (lines, _) = await PriceAsync(t, http, biz, term, policy, req.Lines, BusinessDay.Today(biz.TimeZone, t.Clock));
                 var totals = PosMath.Totals(lines);
                 return new
                 {
@@ -580,6 +582,13 @@ public static class PosEndpoints
                     ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, cart = EXCLUDED.cart, terminal_id = EXCLUDED.terminal_id,
                                                    parked_by = EXCLUDED.parked_by, parked_at = now()
                     """, new { req.Id, b = server.BusinessId, branch = term.BranchId, terminal = term.Id, uid = http.User.UserIdOf(), req.Label, cart = req.Cart.GetRawText() });
+                // Devices in a parked sale stay held for it (11.3), for the parked lease.
+                if (req.DeviceUnitIds is { Count: > 0 } ids)
+                {
+                    var settings = await DeviceUnits.SettingsAsync(t, server.BusinessId!.Value);
+                    foreach (var unitId in ids.Distinct().Order())
+                        await DeviceEndpoints.ReserveAsync(t, server.BusinessId!.Value, await DeviceUnits.LoadAsync(t, unitId), term, req.Id, http.User.UserIdOf(), settings.ParkedReservationMinutes);
+                }
             }, ct);
             return Results.NoContent();
         }).RequireSignedIn();
@@ -621,20 +630,33 @@ public static class PosEndpoints
         }
     }
 
-    private static async Task<IReadOnlyList<PricedLine>> PriceAsync(DbTx t, HttpContext http, BusinessInfo biz, PosTerminal term, PosPolicy policy,
-        IReadOnlyList<CartLineInput>? input, DateOnly date)
+    /// <summary>Prices a cart; a device line is priced as its own unit (12.1) and the units are returned with it.</summary>
+    private static async Task<(IReadOnlyList<PricedLine> Lines, Dictionary<Guid, DeviceUnitRow> Units)> PriceAsync(DbTx t, HttpContext http, BusinessInfo biz,
+        PosTerminal term, PosPolicy policy, IReadOnlyList<CartLineInput>? input, DateOnly date)
     {
         if (input is null || input.Count == 0) throw new KiteException(ErrorCodes.Validation, "The cart is empty.", 400, "lines");
         if (input.Count > 500) throw new KiteException(ErrorCodes.Validation, "A sale can have at most 500 lines.", 400, "lines");
         var items = await ItemPricing.LoadAsync(t, term.BranchId, input.Select(l => l.VariantId), date);
         var limit = await PosPermissions.DiscountLimitAsync(t, http, term.BranchId);
-        var lines = input.Select((l, i) =>
+        var units = new Dictionary<Guid, DeviceUnitRow>();
+        var lines = new List<PricedLine>();
+        for (var i = 0; i < input.Count; i++)
         {
+            var l = input[i];
             if (!items.TryGetValue(l.VariantId, out var item))
                 throw new KiteException(ErrorCodes.BarcodeUnknown, "An item in the cart is not in the catalog.", 400, $"lines[{i}].variantId");
-            return PosMath.PriceLine(i + 1, new CartLine(l.VariantId, l.Qty, l.UnitPrice, l.Discount ?? 0m, l.ApprovalId), item, biz.PricesIncludeTax, limit);
-        }).ToArray();
-        return policy.RoundingLevel == "invoice" ? PosMath.ApplyInvoiceRounding(lines, biz.PricesIncludeTax) : lines;
+            if (l.DeviceUnitId is { } unitId)
+            {
+                if (units.ContainsKey(unitId)) throw new KiteException(ErrorCodes.Validation, "The same device is in the cart twice.", 400, $"lines[{i}].deviceUnitId");
+                var u = await DeviceUnits.LoadAsync(t, unitId);
+                if (u.VariantId != l.VariantId) throw new KiteException(ErrorCodes.DeviceMismatch, $"{u.Identifier} is a {u.Sku}, not the item on this line.", 400, $"lines[{i}].deviceUnitId");
+                DeviceEndpoints.CheckSellable(u, term);
+                units[unitId] = u;
+                item = await DeviceEndpoints.PricedItemAsync(t, biz, u, term.BranchId, date);
+            }
+            lines.Add(PosMath.PriceLine(i + 1, new CartLine(l.VariantId, l.Qty, l.UnitPrice, l.Discount ?? 0m, l.ApprovalId, l.DeviceUnitId), item, biz.PricesIncludeTax, limit));
+        }
+        return (policy.RoundingLevel == "invoice" ? PosMath.ApplyInvoiceRounding(lines, biz.PricesIncludeTax) : lines, units);
     }
 
     private static async Task<SaleSummary> CompleteAsync(DbTx t, HttpContext http, Guid id, CompleteSaleRequest req)
@@ -656,7 +678,21 @@ public static class PosEndpoints
         var biz = await BusinessInfo.LoadAsync(t);
         var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
         var now = t.Clock.UtcNow;
-        var lines = await PriceAsync(t, http, biz, term, policy, req.Lines, BusinessDay.DateOf(now, biz.TimeZone));
+        var (lines, units) = await PriceAsync(t, http, biz, term, policy, req.Lines, BusinessDay.DateOf(now, biz.TimeZone));
+
+        // Devices (11.5): not in another cart's lease; a damaged one only with DEVICE.SELL_DAMAGED or a manager's approval (12.1).
+        foreach (var (u, i) in req.Lines.Select((l, i) => (l, i)).Where(x => x.l.DeviceUnitId is not null).Select(x => (units[x.l.DeviceUnitId!.Value], x.i)))
+        {
+            var holder = await t.ExecuteScalarAsync<Guid?>("SELECT cart_id FROM device.reservation WHERE device_unit_id = @id AND expires_at > now()", new { id = u.Id });
+            if (holder is { } cart && cart != id)
+                throw new KiteException(ErrorCodes.DeviceReserved, $"{u.Identifier} is in another cart. Remove it, or wait until that cart lets it go.", 409, $"lines[{i}].deviceUnitId");
+            if (u.Condition == "damaged" && !http.User.HasIn(Permissions.DeviceSellDamaged, term.BranchId))
+            {
+                var approval = req.Lines[i].DamagedApprovalId ?? throw new KiteException(ErrorCodes.DeviceDamaged,
+                    $"{u.Identifier} is damaged: selling it needs a manager's approval and telling the customer.", 403, $"lines[{i}].damagedApprovalId");
+                await Approvals.UseAsync(t, approval, http.User.UserIdOf(), term.BranchId, Permissions.DeviceSellDamaged, "sale", id);
+            }
+        }
 
         // Approvals: a price change or a price under the minimum needs POS.PRICE.OVERRIDE; a discount above the cashier's
         // limit needs POS.DISCOUNT.ABOVE_LIMIT. Held by the cashier, or given by a manager for this sale.
@@ -677,7 +713,8 @@ public static class PosEndpoints
                     throw new KiteException(ErrorCodes.ApprovalInvalid, "One approval cannot cover both a price change and a discount.", 400, $"lines[{l.LineNo - 1}].approvalId");
                 uses[approval.Value] = action;
             }
-            draft.Add(DraftLine.From(l, approval));
+            var unitId = req.Lines[l.LineNo - 1].DeviceUnitId;
+            draft.Add(DraftLine.From(l, approval, unitId, unitId is { } uid2 ? units[uid2].Condition : null));
         }
         foreach (var (aid, action) in uses) await Approvals.UseAsync(t, aid, uid, term.BranchId, action, "sale", id);
 
@@ -712,14 +749,14 @@ public static class PosEndpoints
     private sealed record OriginalSale(Guid Id, Guid BranchId, Guid ShiftId, string Number, string DocType, Guid? CustomerId, DateTime SaleDate, decimal CashRounding);
     private sealed record OriginalLine(Guid Id, Guid VariantId, string ProductType, string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice,
         decimal ListPrice, decimal Discount, decimal Net, Guid TaxCodeId, decimal TaxRate, decimal Tax, decimal Gross, decimal CostValue,
-        decimal ReturnedQty, decimal ReturnedNet, decimal ReturnedTax, decimal ReturnedGross, decimal ReturnedDiscount);
+        decimal ReturnedQty, decimal ReturnedNet, decimal ReturnedTax, decimal ReturnedGross, decimal ReturnedDiscount, Guid? DeviceUnitId);
 
     private const string OriginalLinesSql = """
         SELECT l.id, l.variant_id AS VariantId, l.product_type AS ProductType, l.description_en AS DescriptionEn, l.description_ar AS DescriptionAr,
                l.qty, l.unit_price AS UnitPrice, l.list_price AS ListPrice, l.discount_amount AS Discount, l.net_amount AS Net, l.tax_code_id AS TaxCodeId,
                l.tax_rate AS TaxRate, l.tax_amount AS Tax, l.gross_amount AS Gross, l.cost_value AS CostValue,
                coalesce(r.qty, 0) AS ReturnedQty, coalesce(r.net, 0) AS ReturnedNet, coalesce(r.tax, 0) AS ReturnedTax, coalesce(r.gross, 0) AS ReturnedGross,
-               coalesce(r.discount, 0) AS ReturnedDiscount
+               coalesce(r.discount, 0) AS ReturnedDiscount, l.device_unit_id AS DeviceUnitId
           FROM sales.sale_line l
           LEFT JOIN LATERAL (SELECT sum(x.qty) AS qty, sum(x.net_amount) AS net, sum(x.tax_amount) AS tax, sum(x.gross_amount) AS gross,
                                     sum(x.discount_amount) AS discount
@@ -766,6 +803,18 @@ public static class PosEndpoints
             var o = lines.FirstOrDefault(x => x.Id == r.LineId) ?? throw new KiteException(ErrorCodes.Validation, "That line is not on the sale.", 400, $"lines[{i}].lineId");
             if (draft.Any(d => d.ReturnedLineId == o.Id)) throw new KiteException(ErrorCodes.Validation, "A line appears twice.", 400, $"lines[{i}].lineId");
             var a = PosMath.ApportionReturn(new ReturnableLine(o.Qty, o.Net, o.Tax, o.Gross, o.Discount, o.ReturnedQty, o.ReturnedNet, o.ReturnedTax, o.ReturnedGross, o.ReturnedDiscount), r.Qty);
+            if (o.DeviceUnitId is { } unitId)
+            {
+                // The device that comes back must be the one sold on that line (11.5); it goes to inspection, never straight back on sale.
+                var unit = await DeviceUnits.LoadAsync(t, unitId);
+                var code = string.IsNullOrWhiteSpace(r.Code) ? throw new KiteException(ErrorCodes.DeviceMismatch, $"Scan the returned device's IMEI or serial number ({o.DescriptionEn}).", 400, $"lines[{i}].code")
+                    : DeviceMath.Classify(r.Code).Value;
+                if (code != unit.Imei1 && code != unit.Imei2 && code != unit.Serial)
+                    throw new KiteException(ErrorCodes.DeviceMismatch, $"{code} is not the device sold on this line.", 400, $"lines[{i}].code");
+                draft.Add(new DraftLine(o.VariantId, o.ProductType, o.DescriptionEn, o.DescriptionAr, r.Qty, o.UnitPrice, o.ListPrice, a.Discount, a.Net, o.TaxCodeId,
+                    o.TaxRate, a.Tax, a.Gross, null, 0, o.Id, false, null, unitId, unit.Condition));
+                continue;
+            }
             var stocked = o.ProductType != "service";
             draft.Add(new DraftLine(o.VariantId, o.ProductType, o.DescriptionEn, o.DescriptionAr, r.Qty, o.UnitPrice, o.ListPrice, a.Discount, a.Net, o.TaxCodeId,
                 o.TaxRate, a.Tax, a.Gross, null, 0, o.Id, stocked ? r.Restock : null, stocked && r.Restock ? decimal.Round(o.CostValue / o.Qty, 6) : null));
@@ -825,9 +874,12 @@ public static class PosEndpoints
             if (req.ApprovalId is null) throw new KiteException(ErrorCodes.Forbidden, "Voiding a sale needs a manager's approval.", 403, "approvalId");
             await Approvals.UseAsync(t, req.ApprovalId.Value, uid, term.BranchId, Permissions.PosSaleVoid, "sale", req.Id);
         }
+        var conditions = (await t.QueryAsync<(Guid Id, string Condition)>("SELECT id, condition FROM device.device_unit WHERE id = ANY(@ids)",
+            new { ids = lines.Where(l => l.DeviceUnitId is not null).Select(l => l.DeviceUnitId!.Value).ToArray() })).ToDictionary(x => x.Id, x => x.Condition);
         var draft = lines.Select(o => new DraftLine(o.VariantId, o.ProductType, o.DescriptionEn, o.DescriptionAr, o.Qty, o.UnitPrice, o.ListPrice, o.Discount,
             o.Net, o.TaxCodeId, o.TaxRate, o.Tax, o.Gross, null, 0, o.Id, o.ProductType != "service" ? true : null,
-            o.ProductType != "service" ? decimal.Round(o.CostValue / o.Qty, 6) : null)).ToArray();
+            o.ProductType != "service" ? decimal.Round(o.CostValue / o.Qty, 6) : null, o.DeviceUnitId,
+            o.DeviceUnitId is { } du ? conditions[du] : null)).ToArray();
         // The money goes back exactly as it came in, cash rounding included.
         var paid = await t.QueryAsync<(string Method, decimal Amount, string? CardTerminal, string? ApprovalCode, string? Reference)>(
             "SELECT method, amount, card_terminal, approval_code, reference FROM sales.payment WHERE sale_id = @originalId ORDER BY created_at, id", new { originalId });
@@ -845,6 +897,9 @@ public static class PosEndpoints
             ?? throw new KiteException(ErrorCodes.NotFound, "That sale was not found in your branches.", 404);
         if (!http.User.HasIn(Permissions.PosSell, s.BranchId)) http.User.Demand(Permissions.PosReportsView, s.BranchId);
         var lines = (await t.QueryAsync<OriginalLine>(OriginalLinesSql, new { id })).ToArray();
+        var identifiers = (await t.QueryAsync<(Guid Unit, string Value)>("""
+            SELECT DISTINCT ON (device_unit_id) device_unit_id, value FROM device.imei_registry WHERE device_unit_id = ANY(@ids) ORDER BY device_unit_id, kind, slot
+            """, new { ids = lines.Where(l => l.DeviceUnitId is not null).Select(l => l.DeviceUnitId!.Value).ToArray() })).ToDictionary(x => x.Unit, x => x.Value);
         var payments = await t.RowsAsync("""
             SELECT method, amount, tendered, change_given AS "changeGiven", card_terminal AS "cardTerminal", approval_code AS "approvalCode", reference
               FROM sales.payment WHERE sale_id = @id ORDER BY created_at, id
@@ -855,7 +910,8 @@ public static class PosEndpoints
             sale = s,
             lines = lines.Select(l => new { l.Id, l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount, l.Net,
                                             l.TaxRate, l.Tax, l.Gross, l.ReturnedQty, l.ReturnedNet, l.ReturnedTax, l.ReturnedGross, l.ReturnedDiscount,
-                                            returnable = l.Qty - l.ReturnedQty }),
+                                            returnable = l.Qty - l.ReturnedQty, l.DeviceUnitId,
+                                            identifier = l.DeviceUnitId is { } du ? identifiers.GetValueOrDefault(du) : null }),
             payments, creditNotes = credits,
         };
     }

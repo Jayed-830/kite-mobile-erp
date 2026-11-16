@@ -5,7 +5,7 @@ using Kite.Platform;
 
 namespace Kite.Host.Features;
 
-public sealed record AdjustmentLineInput(Guid VariantId, decimal Qty, string ReasonCode, decimal? UnitCost = null);
+public sealed record AdjustmentLineInput(Guid VariantId, decimal Qty, string ReasonCode, decimal? UnitCost = null, List<UnitInput>? Units = null);
 public sealed record AdjustmentRequest(Guid BranchId, string Kind, List<AdjustmentLineInput> Lines, Guid? WarehouseId = null, DateOnly? Date = null, string? Note = null);
 public sealed record CountRequest(Guid BranchId, Guid? WarehouseId = null, string? Note = null);
 public sealed record CountLineInput(Guid VariantId, decimal CountedQty);
@@ -70,7 +70,7 @@ public static class InventoryEndpoints
                 if (l.Qty == 0 || l.Qty != decimal.Round(l.Qty, 3)) throw new KiteException(ErrorCodes.Validation, "Quantity cannot be zero (at most 3 decimals).", 400, $"lines[{i}].qty");
                 if (!Reasons.Contains(l.ReasonCode)) throw new KiteException(ErrorCodes.Validation, "Choose a reason.", 400, $"lines[{i}].reasonCode");
                 if (l.UnitCost is < 0) throw new KiteException(ErrorCodes.Validation, "Cost cannot be negative.", 400, $"lines[{i}].unitCost");
-                if (req.Kind == "opening" && (l.Qty < 0 || l.UnitCost is null || l.ReasonCode != "opening"))
+                if (req.Kind == "opening" && (l.Qty < 0 || (l.UnitCost is null && (l.Units is null || l.Units.Any(u => u.UnitCost is null))) || l.ReasonCode != "opening"))
                     throw new KiteException(ErrorCodes.Validation, "Opening stock lines need a positive quantity, a unit cost and the reason opening.", 400, $"lines[{i}]");
                 if (req.Kind == "adjustment" && l.ReasonCode == "opening") throw new KiteException(ErrorCodes.Validation, "Use an opening-stock document for opening stock.", 400, $"lines[{i}].reasonCode");
                 if (l.Qty < 0 && l.UnitCost is not null) throw new KiteException(ErrorCodes.Validation, "Stock going out leaves at the average cost; leave the cost empty.", 400, $"lines[{i}].unitCost");
@@ -87,13 +87,43 @@ public static class InventoryEndpoints
                     INSERT INTO inv.adjustment (id, business_id, branch_id, warehouse_id, number, kind, adjustment_date, note, posted_by, origin_server_id)
                     VALUES (@id, @b, @BranchId, @warehouse, @number, @Kind, @d::date, @Note, @uid, (SELECT id FROM core.server WHERE is_self))
                     """, new { id, b = biz.Id, req.BranchId, warehouse, number, req.Kind, d = date.ToDateTime(TimeOnly.MinValue), req.Note, uid });
-                var types = (await t.QueryAsync<(Guid Id, string Type)>("SELECT v.id, p.product_type FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = ANY(@ids)",
-                    new { ids = req.Lines.Select(l => l.VariantId).ToArray() })).ToDictionary(x => x.Id, x => x.Type);
+                var items = (await t.QueryAsync<(Guid Id, string Type, string Tracking, Guid BrandKey, Guid? CategoryId)>("""
+                    SELECT v.id, p.product_type, p.tracking, coalesce(p.brand_id, p.id), p.category_id FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id
+                     WHERE v.id = ANY(@ids)
+                    """, new { ids = req.Lines.Select(l => l.VariantId).ToArray() })).ToDictionary(x => x.Id);
                 var facts = new PostingFacts();
                 short no = 0;
-                foreach (var l in req.Lines.OrderBy(l => l.VariantId))
+                var units = 0;
+                foreach (var (l, li) in req.Lines.Select((l, i) => (l, i)).OrderBy(x => x.l.VariantId))
                 {
-                    if (!types.TryGetValue(l.VariantId, out var type)) throw new KiteException(ErrorCodes.Validation, "An item is not in the catalog.", 400, "lines");
+                    if (!items.TryGetValue(l.VariantId, out var item)) throw new KiteException(ErrorCodes.Validation, "An item is not in the catalog.", 400, "lines");
+                    var type = item.Type;
+                    if (item.Tracking != "none")
+                    {
+                        // Serialized items come in as device units (11.3): one line per unit, each at its own cost.
+                        if (l.Qty < 0) throw new KiteException(ErrorCodes.Validation, "Devices leave stock by sale or write-off from the device's page, not by adjustment.", 400, $"lines[{li}].qty");
+                        if (l.Units is null || l.Units.Count != l.Qty)
+                            throw new KiteException(ErrorCodes.DeviceUnitCount, $"Scan one IMEI or serial number per device: {l.Qty:0} needed, {l.Units?.Count ?? 0} scanned.", 400, $"lines[{li}].units");
+                        if (l.Units.Any(u => u.Entry == "manual") && !http.User.HasIn(Permissions.DeviceImeiManualEntry, req.BranchId))
+                            throw new KiteException(ErrorCodes.Forbidden, "Typing an IMEI by hand needs the DEVICE.IMEI.MANUAL_ENTRY permission; scan it instead.", 403, $"lines[{li}].units");
+                        if (l.Units.Any(u => u.SellingPrice is not null) && !http.User.HasIn(Permissions.DevicePrice, req.BranchId))
+                            throw new KiteException(ErrorCodes.Forbidden, "Setting a device's price needs the DEVICE.PRICE permission.", 403, $"lines[{li}].units");
+                        for (var ui = 0; ui < l.Units.Count; ui++)
+                        {
+                            var u = l.Units[ui] with { UnitCost = l.Units[ui].UnitCost ?? l.UnitCost };
+                            var unitLineId = t.NewId();
+                            var (unitId, unitValue, cls) = await DeviceUnits.ReceiveAsync(t, biz.Id, req.BranchId, warehouse, (l.VariantId, type, item.Tracking, item.BrandKey, item.CategoryId),
+                                u, req.Kind == "opening" ? "opening" : "adjustment", "adjustment", id, unitLineId, req.Kind == "opening" ? "opening" : "adjustment", $"lines[{li}].units[{ui}]");
+                            await t.ExecuteAsync("""
+                                INSERT INTO inv.adjustment_line (id, adjustment_id, line_no, variant_id, qty, unit_cost, reason_code, device_unit_id)
+                                VALUES (@unitLineId, @id, @no, @VariantId, 1, @UnitCost, @ReasonCode, @unitId)
+                                """, new { unitLineId, id, no = ++no, l.VariantId, u.UnitCost, l.ReasonCode, unitId });
+                            facts.Add(req.Kind == "opening" ? "opening_by_product_type" : "gain_by_product_type", cls, unitValue);
+                            units++;
+                        }
+                        continue;
+                    }
+                    if (l.Units is { Count: > 0 }) throw new KiteException(ErrorCodes.Validation, "Only serialized items take IMEIs or serial numbers.", 400, $"lines[{li}].units");
                     var lineId = t.NewId();
                     await t.ExecuteAsync("""
                         INSERT INTO inv.adjustment_line (id, adjustment_id, line_no, variant_id, qty, unit_cost, reason_code)
@@ -105,7 +135,7 @@ public static class InventoryEndpoints
                 }
                 await Posting.PostAsync(t, biz.Id, req.BranchId, PostingRuleTemplates.StockAdjustment, facts, date, "stock_adjustment", id,
                     $"{(req.Kind == "opening" ? "Opening stock" : "Stock adjustment")} {number}");
-                await t.AuditAsync(new AuditEntry("inv.adjustment_posted", "stock_adjustment", id, After: Json.Obj(new { number, req.Kind, lines = req.Lines.Count, req.Note }), BranchId: req.BranchId));
+                await t.AuditAsync(new AuditEntry("inv.adjustment_posted", "stock_adjustment", id, After: Json.Obj(new { number, req.Kind, lines = req.Lines.Count, units, req.Note }), BranchId: req.BranchId));
                 await t.PublishAsync("inv.adjustment_posted", "stock_adjustment", id, 1, Json.Obj(new { number, req.Kind, req.Lines }), req.BranchId);
                 return new { id, number };
             }, ct);
@@ -175,6 +205,10 @@ public static class InventoryEndpoints
             {
                 var c = await OpenCountAsync(t, id);
                 http.User.Demand(Permissions.InvCount, c.BranchId);
+                if (await t.ExecuteScalarAsync<bool>("""
+                        SELECT EXISTS (SELECT 1 FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = ANY(@ids) AND p.tracking <> 'none')
+                        """, new { ids = lines.Select(l => l.VariantId).ToArray() }))
+                    throw new KiteException(ErrorCodes.Validation, "Devices are counted by scanning their IMEIs (Phase 6), not by quantity.", 400, "variantId");
                 foreach (var l in lines)
                 {
                     if (l.CountedQty < 0 || l.CountedQty != decimal.Round(l.CountedQty, 3)) throw new KiteException(ErrorCodes.Validation, "Counted quantity is zero or more.", 400, "countedQty");
@@ -269,8 +303,9 @@ public static class InventoryEndpoints
     }
 
     /// <summary>
-    /// The 23.2 checks for Phase 4: every stock balance equals its ledger, the inventory accounts equal the stock
-    /// valuation per branch, every journal balances, and every sale has its journals and payments.
+    /// The 23.2 checks: every stock balance equals its ledger, the inventory accounts equal the stock valuation per
+    /// branch, every journal balances, every sale has its journals and payments, and every device unit's cost equals
+    /// its acquisition plus the costs in its history and agrees with the ledger.
     /// </summary>
     public static async Task<object> ConsistencyAsync(DbTx t)
     {
@@ -278,16 +313,35 @@ public static class InventoryEndpoints
             SELECT branch_id AS "branchId", warehouse_id AS "warehouseId", variant_id AS "variantId", balance_qty AS "balanceQty", ledger_qty AS "ledgerQty",
                    balance_value AS "balanceValue", ledger_value AS "ledgerValue" FROM inv.check_balances()
             """);
+        // Stock value by inventory account: non-serialized balances by product type; device units at their own cost by
+        // posting class (a device that is not brand new is in the used-device inventory).
         var valuation = await t.RowsAsync("""
             WITH stock AS (
-                SELECT sb.branch_id, CASE p.product_type WHEN 'device' THEN '1400' WHEN 'spare_part' THEN '1430' ELSE '1420' END AS code, sum(sb.value) AS value
-                  FROM inv.stock_balance sb JOIN catalog.variant v ON v.id = sb.variant_id JOIN catalog.product p ON p.id = v.product_id GROUP BY 1, 2),
+                SELECT sb.branch_id, CASE p.product_type WHEN 'device' THEN '1400' WHEN 'spare_part' THEN '1430' ELSE '1420' END AS code, sb.value
+                  FROM inv.stock_balance sb JOIN catalog.variant v ON v.id = sb.variant_id JOIN catalog.product p ON p.id = v.product_id
+                 WHERE p.tracking = 'none'
+                UNION ALL
+                SELECT u.branch_id, CASE WHEN p.product_type = 'device' AND u.condition <> 'brand_new' THEN '1410' WHEN p.product_type = 'device' THEN '1400'
+                                         WHEN p.product_type = 'spare_part' THEN '1430' ELSE '1420' END, u.accumulated_cost
+                  FROM device.device_unit u JOIN catalog.variant v ON v.id = u.variant_id JOIN catalog.product p ON p.id = v.product_id
+                 WHERE device.in_stock_status(u.status, u.held_from_status)),
+            s AS (SELECT branch_id, code, sum(value) AS value FROM stock GROUP BY 1, 2),
             gl AS (
                 SELECT jl.branch_id, a.code, sum(jl.debit - jl.credit) AS value
-                  FROM acct.journal_line jl JOIN acct.account a ON a.id = jl.account_id WHERE a.code IN ('1400','1420','1430') GROUP BY 1, 2)
+                  FROM acct.journal_line jl JOIN acct.account a ON a.id = jl.account_id WHERE a.code IN ('1400','1410','1420','1430') GROUP BY 1, 2)
             SELECT coalesce(s.branch_id, g.branch_id) AS "branchId", coalesce(s.code, g.code) AS "account", coalesce(s.value, 0) AS "stockValue", coalesce(g.value, 0) AS "ledgerValue"
-              FROM stock s FULL JOIN gl g ON g.branch_id = s.branch_id AND g.code = s.code
+              FROM s FULL JOIN gl g ON g.branch_id = s.branch_id AND g.code = s.code
              WHERE coalesce(s.value, 0) <> coalesce(g.value, 0)
+            """);
+        var devices = await t.RowsAsync("""
+            SELECT device_unit_id AS "deviceUnitId", problem, expected, actual FROM device.check_units()
+            UNION ALL
+            SELECT NULL, 'serialized balance is not the sum of its units', b.value, coalesce(sum(u.accumulated_cost), 0)
+              FROM inv.stock_balance b JOIN catalog.variant v ON v.id = b.variant_id JOIN catalog.product p ON p.id = v.product_id
+              LEFT JOIN device.device_unit u ON u.variant_id = b.variant_id AND u.warehouse_id = b.warehouse_id AND device.in_stock_status(u.status, u.held_from_status)
+             WHERE p.tracking <> 'none'
+             GROUP BY b.branch_id, b.warehouse_id, b.variant_id, b.value, b.qty
+            HAVING b.value <> coalesce(sum(u.accumulated_cost), 0) OR b.qty <> count(u.id)
             """);
         var unbalanced = await t.RowsAsync("""
             SELECT j.number, sum(l.debit) AS debit, sum(l.credit) AS credit FROM acct.journal j JOIN acct.journal_line l ON l.journal_id = j.id
@@ -301,8 +355,8 @@ public static class InventoryEndpoints
                 OR (s.gross_total + s.cash_rounding <> 0 AND NOT EXISTS (SELECT 1 FROM acct.journal j WHERE j.source_doc_type = 'sale' AND j.source_doc_id = s.id
                                                                         AND j.posting_kind IN ('pos.sale','pos.credit_note')))
             """);
-        var ok = balances.Count == 0 && valuation.Count == 0 && unbalanced.Count == 0 && sales.Count == 0;
-        return new { ok, balanceMismatches = balances, valuationMismatches = valuation, unbalancedJournals = unbalanced, salesMismatches = sales };
+        var ok = balances.Count == 0 && valuation.Count == 0 && unbalanced.Count == 0 && sales.Count == 0 && devices.Count == 0;
+        return new { ok, balanceMismatches = balances, valuationMismatches = valuation, unbalancedJournals = unbalanced, salesMismatches = sales, deviceMismatches = devices };
     }
 
     private static async Task<Guid> WarehouseAsync(DbTx t, Guid branchId, Guid? warehouseId) =>

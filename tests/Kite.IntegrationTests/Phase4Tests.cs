@@ -53,7 +53,7 @@ public sealed class Phase4Tests(KiteServerFixture fx)
         var search = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/pos/items?branchId={kit.Branch}&q={item.Sku}");
         Assert.Equal(3.250m, search[0].GetProperty("listPrice").GetDecimal());
 
-        // Product type and tracking cannot change once stock has moved; serialized products cannot take stock yet.
+        // Product type and tracking cannot change once stock has moved; serialized products take stock one scanned unit at a time.
         var product = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/catalog/products/{item.ProductId}");
         var p = product.GetProperty("product");
         var change = await owner.PutAsJsonAsync($"/api/v1/catalog/products/{item.ProductId}", new
@@ -65,7 +65,7 @@ public sealed class Phase4Tests(KiteServerFixture fx)
         await Problem(await owner.PostAsJsonAsync("/api/v1/inventory/adjustments", new
         {
             branchId = kit.Branch, kind = "opening", lines = new[] { new { variantId = phone.VariantId, qty = 1m, unitCost = 200m, reasonCode = "opening" } },
-        }), HttpStatusCode.BadRequest, "CAT-003");
+        }), HttpStatusCode.BadRequest, "DEV-012");
         await AssertConsistentAsync(owner);
     }
 

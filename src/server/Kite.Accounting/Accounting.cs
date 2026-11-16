@@ -59,6 +59,7 @@ public static class ChartTemplate
         new("6000", "Expenses", "المصروفات", AccountType.Expense, null, false, false),
         new("6100", "Rent", "الإيجار", AccountType.Expense, "6000", true, false),
         new("6200", "Salaries", "الرواتب", AccountType.Expense, "6000", true, false),
+        new("6210", "Labour absorbed into stock", "أجور محمّلة على المخزون", AccountType.Expense, "6000", true, false),
         new("6300", "Commission expense", "مصروف العمولات", AccountType.Expense, "6000", true, false),
         new("6400", "Cash over and short", "فروقات النقدية", AccountType.Expense, "6000", true, false),
         new("6500", "Bad debts", "الديون المعدومة", AccountType.Expense, "6000", true, false),

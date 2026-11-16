@@ -110,4 +110,19 @@ public static class ErrorCodes
     public const string EmergencyRecordInvalid = "POS-018";
     public const string EmergencyNotEnabled = "POS-019";
     public const string PrinterUnreachable = "PRN-001";
+
+    // Phase 5: device units, inspections and refurbishment (blueprint 11, 12)
+    public const string ImeiInvalid = "DEV-001";
+    public const string DeviceUnitRequired = "DEV-002";
+    public const string DeviceNotFound = "DEV-003";
+    public const string DeviceNotAvailable = "DEV-004";
+    public const string DeviceReserved = "DEV-005";
+    public const string DeviceTransition = "DEV-006";
+    public const string DeviceIdentifierTaken = "DEV-007";
+    public const string DeviceDamaged = "DEV-008";
+    public const string DeviceMismatch = "DEV-009";
+    public const string RefurbOrderState = "DEV-010";
+    public const string InspectionIncomplete = "DEV-011";
+    public const string DeviceUnitCount = "DEV-012";
+    public const string DeviceLedger = "DEV-013";
 }

@@ -103,6 +103,8 @@ InventoryEndpoints.Map(app);
 PosEndpoints.Map(app);
 ReceiptEndpoints.Map(app);
 EmergencyEndpoints.Map(app);
+DeviceEndpoints.Map(app);
+RefurbishmentEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>

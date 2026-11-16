@@ -49,6 +49,9 @@ public static class ErrorHandling
             "23505" when pg.ConstraintName == "shift_one_open_per_terminal" => (409, ErrorCodes.ShiftAlreadyOpen, "This terminal already has an open shift.", null),
             "23505" when pg.ConstraintName == "variant_sku_unique" => (409, ErrorCodes.Conflict, "That SKU is already in use.", "sku"),
             "23505" when pg.ConstraintName == "barcode_business_id_code_key" => (409, ErrorCodes.Conflict, "That barcode is already on another item.", "barcode"),
+            "23505" when pg.ConstraintName == "imei_registry_imei" => (409, ErrorCodes.DeviceIdentifierTaken, "That IMEI already belongs to another device.", "imei"),
+            "23505" when pg.ConstraintName == "imei_registry_serial" => (409, ErrorCodes.DeviceIdentifierTaken, "That serial number already belongs to another device of this brand.", "serial"),
+            "23505" when pg.ConstraintName == "refurb_order_one_open" => (409, ErrorCodes.RefurbOrderState, "This device already has an open refurbishment order.", null),
             "23505" => (409, ErrorCodes.Conflict, "That value is already in use.", pg.ConstraintName),
             "40P01" or "40001" => (409, ErrorCodes.Conflict, "The server was busy with the same records. Try again.", null),
             "23503" => (400, ErrorCodes.Validation, "A referenced record does not exist.", pg.ConstraintName),
@@ -59,10 +62,19 @@ public static class ErrorHandling
             "KT002" => (400, "DB-KT002", "The journal does not balance.", null),
             "KT003" => (409, "DB-KT003", "The accounting period is not open.", null),
             "KT004" => (409, "DB-KT004", "Sync events cannot be changed.", null),
-            "KT010" => (400, ErrorCodes.SerializedNotYet, "Serialized products (IMEI or serial) cannot move in stock until device units arrive (Phase 5); services are not stocked.", null),
-            "KT011" => (409, ErrorCodes.ReturnTooMany, "More would be returned than was sold.", null),
+            "KT010" => (400, ErrorCodes.SerializedNotYet, "That stock movement breaks a stock rule: serialized items move one device unit at a time, and services are not stocked.", null),
+            "KT011" => (409, ErrorCodes.ReturnTooMany, pg.MessageText.Contains("unit") ? "A returned device must be the unit that was sold on that line." : "More would be returned than was sold.", null),
+            "KT020" => (409, ErrorCodes.DeviceTransition, Sentence(pg.MessageText), null),
+            "KT021" => (409, ErrorCodes.DeviceLedger, "The device and the stock ledger would disagree, so nothing was saved.", null),
             _ => (500, ErrorCodes.Internal, "A database error occurred.", null),
         },
         _ => (500, ErrorCodes.Internal, "Unexpected error. Quote the trace ID to support.", null),
     };
+
+    /// <summary>A database rule message ("KITE: a sold device cannot be sold") as a sentence for the user.</summary>
+    private static string Sentence(string message)
+    {
+        var m = message.StartsWith("KITE: ", StringComparison.Ordinal) ? message[6..] : message;
+        return m.Length == 0 ? m : char.ToUpperInvariant(m[0]) + m[1..] + (m.EndsWith('.') ? "" : ".");
+    }
 }

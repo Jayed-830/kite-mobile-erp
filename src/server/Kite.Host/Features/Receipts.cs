@@ -13,8 +13,9 @@ using QuestPDF.Infrastructure;
 namespace Kite.Host.Features;
 
 public sealed record ReceiptParty(string NameEn, string NameAr, string? VatNumber, string? CrNumber, string? AddressEn, string? AddressAr, string? Phone);
+/// <summary>A receipt line; a device line also names its IMEI or serial number (11.5) and the warranty end.</summary>
 public sealed record ReceiptLine(string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice, decimal Discount, decimal Net, decimal Tax,
-    decimal Gross, decimal TaxRate);
+    decimal Gross, decimal TaxRate, string? Serial, DateTime? WarrantyUntil);
 public sealed record ReceiptTax(decimal Rate, decimal Net, decimal Tax);
 public sealed record ReceiptPayment(string Method, decimal Amount, decimal? Tendered, decimal? Change, string? CardTerminal);
 public sealed record ReceiptModel(
@@ -195,8 +196,12 @@ public static class ReceiptEndpoints
         var branch = await t.QuerySingleOrDefaultAsync<(string Code, string NameEn, string NameAr, string? AddressEn, string? AddressAr, string? Phone)>(
             "SELECT code, name_en, name_ar, address_en, address_ar, phone FROM core.branch WHERE id = @b", new { b = s.BranchId });
         var lines = (await t.QueryAsync<ReceiptLine>("""
-            SELECT description_en AS DescriptionEn, description_ar AS DescriptionAr, qty, unit_price AS UnitPrice, discount_amount AS Discount, net_amount AS Net,
-                   tax_amount AS Tax, gross_amount AS Gross, tax_rate AS TaxRate FROM sales.sale_line WHERE sale_id = @id ORDER BY line_no
+            SELECT l.description_en AS DescriptionEn, l.description_ar AS DescriptionAr, l.qty, l.unit_price AS UnitPrice, l.discount_amount AS Discount,
+                   l.net_amount AS Net, l.tax_amount AS Tax, l.gross_amount AS Gross, l.tax_rate AS TaxRate,
+                   (SELECT CASE r.kind WHEN 'serial' THEN 'S/N ' ELSE 'IMEI ' END || r.value FROM device.imei_registry r
+                     WHERE r.device_unit_id = l.device_unit_id ORDER BY r.kind, r.slot LIMIT 1) AS Serial,
+                   CASE WHEN l.device_unit_id IS NOT NULL THEN l.warranty_until END AS WarrantyUntil
+              FROM sales.sale_line l WHERE l.sale_id = @id ORDER BY l.line_no
             """, new { id })).ToArray();
         var payments = (await t.QueryAsync<ReceiptPayment>("""
             SELECT method, abs(amount) AS Amount, tendered, change_given AS Change, card_terminal AS CardTerminal FROM sales.payment WHERE sale_id = @id ORDER BY created_at, id
@@ -288,7 +293,13 @@ public static class ReceiptEndpoints
                     });
                     foreach (var l in r.Lines)
                     {
-                        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).Column(c => { c.Item().Text(l.DescriptionEn); c.Item().ContentFromRightToLeft().Text(l.DescriptionAr).FontSize(9); });
+                        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).Column(c =>
+                        {
+                            c.Item().Text(l.DescriptionEn);
+                            c.Item().ContentFromRightToLeft().Text(l.DescriptionAr).FontSize(9);
+                            if (l.Serial is { } sn) c.Item().Text(sn).FontSize(8);
+                            if (l.WarrantyUntil is { } w) c.Item().Text($"Warranty until / الضمان حتى {w:yyyy-MM-dd}").FontSize(8);
+                        });
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(Q(l.Qty));
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(M(l.UnitPrice));
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(l.Discount == 0 ? "" : M(l.Discount));

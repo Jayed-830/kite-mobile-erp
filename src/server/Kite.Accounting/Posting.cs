@@ -151,7 +151,11 @@ public static class PostingEngine
     }
 }
 
-/// <summary>The posting kinds and default rules (blueprint 17.3), stored per business and editable as data.</summary>
+/// <summary>
+/// The posting kinds and default rules (blueprint 17.3, 12.5), stored per business and editable as data. Figures are
+/// keyed by posting class: the product type, except that a device that is not brand new is "device_used", so used and
+/// refurbished phones have their own inventory, revenue and cost accounts.
+/// </summary>
 public static class PostingRuleTemplates
 {
     public const string Sale = "pos.sale";
@@ -161,30 +165,50 @@ public static class PostingRuleTemplates
     public const string ShiftVariance = "pos.shift_variance";
     public const string CashPayOut = "pos.cash_pay_out";
     public const string StockAdjustment = "inv.adjustment";
+    public const string RefurbCost = "refurb.cost";
+    public const string DeviceReclass = "device.reclass";
+
+    /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
+    public static string ClassOf(string productType, string? condition) =>
+        productType == "device" && condition is not null && condition != "brand_new" ? "device_used" : productType;
 
     private static readonly IReadOnlyDictionary<string, string> Revenue = new Dictionary<string, string>
-    { ["device"] = "4100", ["accessory"] = "4120", ["consumable"] = "4120", ["spare_part"] = "4130", ["service"] = "4200" };
+    { ["device"] = "4100", ["device_used"] = "4110", ["accessory"] = "4120", ["consumable"] = "4120", ["spare_part"] = "4130", ["service"] = "4200" };
     private static readonly IReadOnlyDictionary<string, string> Cost = new Dictionary<string, string>
-    { ["device"] = "5100", ["accessory"] = "5120", ["consumable"] = "5120", ["spare_part"] = "5200" };
+    { ["device"] = "5100", ["device_used"] = "5110", ["accessory"] = "5120", ["consumable"] = "5120", ["spare_part"] = "5200" };
     private static readonly IReadOnlyDictionary<string, string> Inventory = new Dictionary<string, string>
-    { ["device"] = "1400", ["accessory"] = "1420", ["consumable"] = "1420", ["spare_part"] = "1430" };
+    { ["device"] = "1400", ["device_used"] = "1410", ["accessory"] = "1420", ["consumable"] = "1420", ["spare_part"] = "1430" };
     private static readonly IReadOnlyDictionary<string, string> Tenders = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200" };
+
+    /// <summary>The inventory account of a posting class (for the valuation check).</summary>
+    public static string InventoryAccount(string postingClass) => Inventory.TryGetValue(postingClass, out var c) ? c : "1420";
 
     private static AccountSelector Code(string c) => new(c, null, null, null);
     private static AccountSelector By(string by, IReadOnlyDictionary<string, string> map) => new(null, by, map, null);
 
-    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All =
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All = Build(Revenue, Cost, Inventory);
+
+    /// <summary>
+    /// The Phase 4 defaults (version 1), before used devices had their own accounts. A business whose stored rule is
+    /// still exactly one of these gets the current default as a new version; a rule the business changed is left alone.
+    /// </summary>
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
+        Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
+        Inventory.Where(x => x.Key != "device_used").ToDictionary()).Where(r => r.EventType is not (RefurbCost or DeviceReclass)).ToArray();
+
+    private static IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Build(IReadOnlyDictionary<string, string> revenue,
+        IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory) =>
     [
         (Sale, new("Sale: tenders received; revenue by product type and VAT output; cash rounding to over/short", [
             new("debit", By("tender", Tenders), "tenders"),
-            new("credit", By("product_type", Revenue), "net_by_product_type"),
+            new("credit", By("product_type", revenue), "net_by_product_type"),
             new("credit", Code("2200"), "tax"),
             new("credit", Code("6400"), "cash_rounding"),
         ])),
         (SaleCost, new("Cost of a sale: cost of sales by product type against inventory", [
-            new("debit", By("product_type", Cost), "cost_by_product_type"),
-            new("credit", By("product_type", Inventory), "cost_by_product_type"),
+            new("debit", By("product_type", cost), "cost_by_product_type"),
+            new("credit", By("product_type", inventory), "cost_by_product_type"),
         ])),
         (CreditNote, new("Credit note: sales returns and VAT output reversed against the refund", [
             new("debit", Code("4900"), "net_by_product_type"),
@@ -193,8 +217,8 @@ public static class PostingRuleTemplates
             new("debit", Code("6400"), "cash_rounding"),
         ])),
         (CreditNoteCost, new("Return to stock: inventory against cost of sales", [
-            new("debit", By("product_type", Inventory), "cost_by_product_type"),
-            new("credit", By("product_type", Cost), "cost_by_product_type"),
+            new("debit", By("product_type", inventory), "cost_by_product_type"),
+            new("credit", By("product_type", cost), "cost_by_product_type"),
         ])),
         (ShiftVariance, new("Cash over (positive) or short (negative) at shift close", [
             new("debit", Code("1100"), "variance"),
@@ -205,12 +229,22 @@ public static class PostingRuleTemplates
             new("credit", Code("1100"), "amount"),
         ])),
         (StockAdjustment, new("Stock adjustment, count and opening stock", [
-            new("debit", By("product_type", Inventory), "gain_by_product_type"),
+            new("debit", By("product_type", inventory), "gain_by_product_type"),
             new("credit", Code("6700"), "gain_by_product_type"),
             new("debit", Code("6700"), "loss_by_product_type"),
-            new("credit", By("product_type", Inventory), "loss_by_product_type"),
-            new("debit", By("product_type", Inventory), "opening_by_product_type"),
+            new("credit", By("product_type", inventory), "loss_by_product_type"),
+            new("debit", By("product_type", inventory), "opening_by_product_type"),
             new("credit", Code("3900"), "opening_by_product_type"),
+        ])),
+        (RefurbCost, new("Refurbishment: parts, labour and outside work added to the device's inventory value (a reversal posts the other way)", [
+            new("debit", By("product_type", inventory), "cost_by_product_type"),
+            new("credit", By("product_type", inventory), "parts_by_product_type"),
+            new("credit", Code("6210"), "labour"),
+            new("credit", Code("2110"), "external"),
+        ])),
+        (DeviceReclass, new("A device's condition changed from brand new: its cost moves to the used-device inventory", [
+            new("debit", By("product_type", inventory), "to_by_product_type"),
+            new("credit", By("product_type", inventory), "from_by_product_type"),
         ])),
     ];
 }

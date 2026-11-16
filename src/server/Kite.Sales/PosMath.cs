@@ -10,8 +10,9 @@ public sealed record PricedItem(
     Guid VariantId, string Sku, string ProductType, string Tracking, string DescriptionEn, string DescriptionAr,
     Guid TaxCodeId, string TaxKind, decimal TaxRate, decimal? ListPrice, decimal? MinPrice, int WarrantyDays, bool Active);
 
-/// <summary>A cart line as the terminal sends it. <see cref="UnitPrice"/> is null when the list price is used.</summary>
-public sealed record CartLine(Guid VariantId, decimal Qty, decimal? UnitPrice = null, decimal Discount = 0m, Guid? ApprovalId = null);
+/// <summary>A cart line as the terminal sends it. <see cref="UnitPrice"/> is null when the list price is used. A serialized
+/// item names its device unit (11.5) and is sold one at a time.</summary>
+public sealed record CartLine(Guid VariantId, decimal Qty, decimal? UnitPrice = null, decimal Discount = 0m, Guid? ApprovalId = null, Guid? DeviceUnitId = null);
 
 /// <summary>A cashier's discount limit (10.2): within <see cref="Percent"/> of the line and <see cref="Amount"/>, whichever is lower.</summary>
 public sealed record DiscountLimit(decimal Percent, decimal Amount, bool Unlimited)
@@ -53,10 +54,14 @@ public static class PosMath
     public static PricedLine PriceLine(int lineNo, CartLine line, PricedItem item, bool pricesIncludeTax, DiscountLimit limit)
     {
         if (!item.Active) throw new KiteException(ErrorCodes.ItemInactive, $"{item.Sku} is inactive and cannot be sold.", 400, $"lines[{lineNo - 1}]");
-        if (item.Tracking != "none")
-            throw new KiteException(ErrorCodes.SerializedNotYet, $"{item.Sku} is sold by IMEI or serial number, which arrives with device units (Phase 5).", 400, $"lines[{lineNo - 1}]");
+        if (item.Tracking != "none" && line.DeviceUnitId is null)
+            throw new KiteException(ErrorCodes.DeviceUnitRequired, $"{item.Sku} is sold by IMEI or serial number: scan the device.", 400, $"lines[{lineNo - 1}]");
+        if (item.Tracking == "none" && line.DeviceUnitId is not null)
+            throw new KiteException(ErrorCodes.Validation, $"{item.Sku} is not serialized; it has no device units.", 400, $"lines[{lineNo - 1}].deviceUnitId");
+        if (line.DeviceUnitId is not null && line.Qty != 1)
+            throw new KiteException(ErrorCodes.Validation, "A device is sold one at a time.", 400, $"lines[{lineNo - 1}].qty");
         if (item.TaxKind == "margin")
-            throw new KiteException(ErrorCodes.Validation, $"{item.Sku} uses the margin VAT scheme, which applies to used devices (Phase 6).", 400, $"lines[{lineNo - 1}]");
+            throw new KiteException(ErrorCodes.Validation, $"{item.Sku} uses the margin VAT scheme, which comes with trade-ins (Phase 7).", 400, $"lines[{lineNo - 1}]");
         if (item.ListPrice is null && line.UnitPrice is null)
             throw new KiteException(ErrorCodes.NoPrice, $"{item.Sku} has no price on this date.", 400, $"lines[{lineNo - 1}]");
         if (line.Qty <= 0 || line.Qty != decimal.Round(line.Qty, 3))

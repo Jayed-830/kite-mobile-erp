@@ -215,6 +215,8 @@ public sealed class ServerTests(KiteServerFixture fx)
     {
         var owner = await fx.OwnerTokenAsync();
         using var c = fx.Client(owner);
+        // Other tests sharing this database switch refurbishment on (Phase 5); start from it off.
+        Assert.True((await c.PutAsJsonAsync("/api/v1/settings/modules", new { changes = new Dictionary<string, bool> { ["tradein"] = false, ["refurb"] = false } })).IsSuccessStatusCode);
         await AssertProblem(await c.PutAsJsonAsync("/api/v1/settings/modules", new { changes = new Dictionary<string, bool> { ["tradein"] = true } }),
             HttpStatusCode.BadRequest, "MOD-001");
         await AssertProblem(await c.PutAsJsonAsync("/api/v1/settings/modules", new { changes = new Dictionary<string, bool> { ["sales"] = false } }),

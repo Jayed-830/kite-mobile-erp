@@ -161,13 +161,16 @@ public static class Approvals
 public sealed record DraftLine(
     Guid VariantId, string ProductType, string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice, decimal ListPrice,
     decimal Discount, decimal Net, Guid TaxCodeId, decimal TaxRate, decimal Tax, decimal Gross, Guid? ApprovalId, int WarrantyDays,
-    Guid? ReturnedLineId = null, bool? Restock = null, decimal? RestockUnitCost = null)
+    Guid? ReturnedLineId = null, bool? Restock = null, decimal? RestockUnitCost = null, Guid? DeviceUnitId = null, string? Condition = null)
 {
     public bool Stocked => ProductType != "service";
 
-    public static DraftLine From(PricedLine l, Guid? approvalId) =>
+    /// <summary>The key the posting rules use: the product type, or "device_used" for a device that is not brand new.</summary>
+    public string PostingClass => PostingRuleTemplates.ClassOf(ProductType, Condition);
+
+    public static DraftLine From(PricedLine l, Guid? approvalId, Guid? deviceUnitId = null, string? condition = null) =>
         new(l.Item.VariantId, l.Item.ProductType, l.Item.DescriptionEn, l.Item.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice,
-            l.Discount, l.Net, l.Item.TaxCodeId, l.Item.TaxRate, l.Tax, l.Gross, approvalId, l.Item.WarrantyDays);
+            l.Discount, l.Net, l.Item.TaxCodeId, l.Item.TaxRate, l.Tax, l.Gross, approvalId, l.Item.WarrantyDays, DeviceUnitId: deviceUnitId, Condition: condition);
 }
 
 public sealed record SaleDraft(
@@ -217,23 +220,24 @@ public static class SaleWriter
         var exceptions = 0;
         var lineIds = d.Lines.Select(_ => t.NewId()).ToArray();
         var costs = new decimal[d.Lines.Count];
-        // Stock first, in variant order, so two documents never wait on each other's balance rows in opposite order.
-        foreach (var i in Enumerable.Range(0, d.Lines.Count).Where(i => d.Lines[i].Stocked).OrderBy(i => d.Lines[i].VariantId))
+        // Stock first, in variant (then unit) order, so two documents never wait on each other's rows in opposite order.
+        // A device unit always moves: out at its own cost when sold, back in at that cost when returned or voided (16.3).
+        foreach (var i in Enumerable.Range(0, d.Lines.Count).Where(i => d.Lines[i].Stocked).OrderBy(i => d.Lines[i].VariantId).ThenBy(i => d.Lines[i].DeviceUnitId))
         {
             var l = d.Lines[i];
-            if (isCredit && l.Restock != true) continue;
+            if (isCredit && l.Restock != true && l.DeviceUnitId is null) continue;
             var type = isCredit ? "return" : d.IsEmergency ? "emergency_sale" : "sale";
             var m = await t.QuerySingleOrDefaultAsync<(decimal Value, decimal QtyAfter)>("""
-                INSERT INTO inv.stock_movement (id, business_id, branch_id, warehouse_id, variant_id, movement_type, qty, unit_cost,
+                INSERT INTO inv.stock_movement (id, business_id, branch_id, warehouse_id, variant_id, movement_type, qty, unit_cost, device_unit_id,
                                                 source_doc_type, source_doc_id, source_line_id, movement_at, created_by, origin_server_id, origin_device_id)
-                VALUES (@id, @businessId, @branchId, @warehouseId, @VariantId, @type, @qty, @unitCost, 'sale', @saleId, @lineId, @at,
+                VALUES (@id, @businessId, @branchId, @warehouseId, @VariantId, @type, @qty, @unitCost, @DeviceUnitId, 'sale', @saleId, @lineId, @at,
                         @by, (SELECT id FROM core.server WHERE is_self), @terminalId)
                 RETURNING value, qty_after
                 """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, warehouseId = term.WarehouseId, l.VariantId, type,
-                           qty = isCredit ? l.Qty : -l.Qty, unitCost = isCredit ? l.RestockUnitCost : null, saleId = d.Id, lineId = lineIds[i],
-                           at = d.CompletedAt, by = d.CashierId, terminalId = term.Id });
+                           qty = isCredit ? l.Qty : -l.Qty, unitCost = isCredit && l.DeviceUnitId is null ? l.RestockUnitCost : null, l.DeviceUnitId, saleId = d.Id,
+                           lineId = lineIds[i], at = d.CompletedAt, by = d.CashierId, terminalId = term.Id });
             costs[i] = Math.Abs(m.Value);
-            if (!isCredit && m.QtyAfter < 0)
+            if (!isCredit && m.QtyAfter < 0 && l.DeviceUnitId is null)
             {
                 if (policy.NegativeStock == "block" && !d.IsEmergency)
                     throw new KiteException(ErrorCodes.InsufficientStock, $"Not enough stock of {l.DescriptionEn}: {m.QtyAfter + l.Qty:0.###} left.", 409);
@@ -243,7 +247,7 @@ public static class SaleWriter
                     VALUES (@id, @businessId, @branchId, @warehouseId, @VariantId, 'negative_stock', @QtyAfter, 'sale', @saleId)
                     """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, warehouseId = term.WarehouseId, l.VariantId, m.QtyAfter, saleId = d.Id });
             }
-            costFacts.Add("cost_by_product_type", l.ProductType, costs[i]);
+            costFacts.Add("cost_by_product_type", l.PostingClass, costs[i]);
         }
 
         for (var i = 0; i < d.Lines.Count; i++)
@@ -252,15 +256,25 @@ public static class SaleWriter
             await t.ExecuteAsync("""
                 INSERT INTO sales.sale_line (id, sale_id, line_no, variant_id, product_type, description_en, description_ar, qty, unit_price,
                                              list_price, discount_amount, net_amount, tax_code_id, tax_rate, tax_amount, gross_amount, cost_value,
-                                             approval_id, returned_line_id, restock, warranty_until)
+                                             approval_id, returned_line_id, restock, warranty_until, device_unit_id)
                 VALUES (@id, @saleId, @no, @VariantId, @ProductType, @DescriptionEn, @DescriptionAr, @Qty, @UnitPrice, @ListPrice, @Discount,
-                        @Net, @TaxCodeId, @TaxRate, @Tax, @Gross, @cost, @ApprovalId, @ReturnedLineId, @Restock, @warranty::date)
+                        @Net, @TaxCodeId, @TaxRate, @Tax, @Gross, @cost, @ApprovalId, @ReturnedLineId, @Restock, @warranty::date, @DeviceUnitId)
                 """, new { id = lineIds[i], saleId = d.Id, no = (short)(i + 1), l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty,
                            l.UnitPrice, l.ListPrice, l.Discount, l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, cost = costs[i], l.ApprovalId,
                            l.ReturnedLineId, l.Restock,
-                           warranty = !isCredit && l.WarrantyDays > 0 ? date.AddDays(l.WarrantyDays).ToDateTime(TimeOnly.MinValue) : (DateTime?)null });
-            facts.Add("net_by_product_type", l.ProductType, l.Net);
+                           warranty = !isCredit && l.WarrantyDays > 0 ? date.AddDays(l.WarrantyDays).ToDateTime(TimeOnly.MinValue) : (DateTime?)null, l.DeviceUnitId });
+            facts.Add("net_by_product_type", l.PostingClass, l.Net);
         }
+
+        // Each device unit moves on in its lifecycle (11.3): sold; back to inspection when returned; back in stock when voided.
+        var unitIds = d.Lines.Where(l => l.DeviceUnitId is not null).Select(l => l.DeviceUnitId!.Value).OrderBy(x => x).ToArray();
+        foreach (var unitId in unitIds)
+        {
+            var (evt, to) = !isCredit ? ("sold", "sold") : d.CreditReason == "void" ? ("sale_voided", "in_stock") : ("returned", "returned_inspection");
+            await DeviceUnits.ApplyEventAsync(t, unitId, evt, to, docType: "sale", docId: d.Id, details: new { number });
+        }
+        if (unitIds.Length > 0 && !isCredit)
+            await t.ExecuteAsync("DELETE FROM device.reservation WHERE device_unit_id = ANY(@unitIds)", new { unitIds });
 
         foreach (var p in d.Payments.Tenders)
         {

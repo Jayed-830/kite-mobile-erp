@@ -2,6 +2,7 @@
   <Folder Name="/src/" />
   <Folder Name="/src/server/">
     <Project Path="src/server/Kite.Accounting/Kite.Accounting.csproj" />
+    <Project Path="src/server/Kite.Devices/Kite.Devices.csproj" />
     <Project Path="src/server/Kite.Host/Kite.Host.csproj" />
     <Project Path="src/server/Kite.Identity/Kite.Identity.csproj" />
     <Project Path="src/server/Kite.Persistence/Kite.Persistence.csproj" />
