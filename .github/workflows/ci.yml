@@ -176,6 +176,55 @@ jobs:
           name: load-report
           path: load-report.json
 
+  phase5-exit-gate:
+    name: Phase 5 exit gate (conditions, inspections and refurbishment costs flow to unit cost, 10 workers at once)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The device vectors are what the independent Python implementation writes
+        run: |
+          python3 tests/vectors/generators/device_vectors.py
+          git diff --exit-code tests/vectors/device-math-vectors.json
+      - run: dotnet build Kite.slnx -c Release
+      - name: 10 workers, 12 phones each, random lives at the same time
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+          KITE_P5_WORKERS: "10"
+          KITE_P5_PHONES: "12"
+          KITE_P5_REPORT: ${{ github.workspace }}/phase5-report.json
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~Phase5CostFlowTests" --logger "console;verbosity=detailed"
+      - name: Report
+        if: always()
+        run: |
+          test -f phase5-report.json && cat phase5-report.json
+          test -f phase5-report.json && python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          d = json.load(open('phase5-report.json'))
+          print('### Phase 5 exit gate\n')
+          print(f"{d['workers']} workers, {d['phones']} phones in {d['seconds']} s. Steps: " + ', '.join(f"{k} {v}" for k, v in d['steps'].items()) + '.\n')
+          print('| Account | Expected | Moved |\n| --- | ---: | ---: |')
+          for a, v in d['accounts'].items(): print(f"| {a} | {v['expected']:.3f} | {v['actual']:.3f} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase5-report
+          path: phase5-report.json
+
   pocs-linux:
     name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)
     runs-on: ubuntu-latest

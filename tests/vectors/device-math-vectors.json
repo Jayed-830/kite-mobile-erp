@@ -1,0 +1,975 @@
+{
+ "comment": "Phase 5 device vectors written by an independent Python implementation (tests/vectors/generators/device_vectors.py); Kite.Devices.DeviceMath (C#) and @kite/pos devices.ts (TypeScript) must both reproduce them.",
+ "checklist": [
+  {
+   "code": "screen",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "touch",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "body",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "damaged"
+  },
+  {
+   "code": "buttons",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "cameras",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "audio",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "charging",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "network",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "biometrics",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "damaged"
+  },
+  {
+   "code": "water",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "for_parts"
+  },
+  {
+   "code": "battery",
+   "kind": "percent",
+   "required": true,
+   "minPercent": 80,
+   "onFail": "refurbish"
+  },
+  {
+   "code": "cloud_lock",
+   "kind": "pass_fail",
+   "required": true,
+   "minPercent": null,
+   "onFail": "for_parts"
+  },
+  {
+   "code": "notes",
+   "kind": "text",
+   "required": false,
+   "minPercent": null,
+   "onFail": "refurbish"
+  }
+ ],
+ "imei": [
+  {
+   "value": "352099001761481",
+   "valid": true
+  },
+  {
+   "value": "352099001761482",
+   "valid": false
+  },
+  {
+   "value": "490154203237518",
+   "valid": true
+  },
+  {
+   "value": "490154203237519",
+   "valid": false
+  },
+  {
+   "value": "354670112345675",
+   "valid": true
+  },
+  {
+   "value": "354670112345676",
+   "valid": false
+  },
+  {
+   "value": "860123456789014",
+   "valid": true
+  },
+  {
+   "value": "860123456789015",
+   "valid": false
+  },
+  {
+   "value": "353365859083081",
+   "valid": true
+  },
+  {
+   "value": "358958398685849",
+   "valid": true
+  },
+  {
+   "value": "350396671732392",
+   "valid": true
+  },
+  {
+   "value": "350036723238838",
+   "valid": true
+  },
+  {
+   "value": "356129137370612",
+   "valid": true
+  },
+  {
+   "value": "352954636617815",
+   "valid": true
+  },
+  {
+   "value": "354669837300163",
+   "valid": true
+  },
+  {
+   "value": "353020935535907",
+   "valid": true
+  },
+  {
+   "value": "3520990017614",
+   "valid": false
+  },
+  {
+   "value": "35209900176148A",
+   "valid": false
+  },
+  {
+   "value": "",
+   "valid": false
+  }
+ ],
+ "classify": [
+  {
+   "raw": "352099001761481",
+   "kind": "imei",
+   "value": "352099001761481"
+  },
+  {
+   "raw": " 3520 9900 1761 481 ",
+   "kind": "imei",
+   "value": "352099001761481"
+  },
+  {
+   "raw": "352099001761482",
+   "kind": "invalid_imei",
+   "value": "352099001761482"
+  },
+  {
+   "raw": "35209900176148",
+   "kind": "invalid_imei",
+   "value": "35209900176148"
+  },
+  {
+   "raw": "3520990017614810",
+   "kind": "invalid_imei",
+   "value": "3520990017614810"
+  },
+  {
+   "raw": "f2lx9kq1",
+   "kind": "serial",
+   "value": "F2LX9KQ1"
+  },
+  {
+   "raw": "SN-001",
+   "kind": "serial",
+   "value": "SN-001"
+  },
+  {
+   "raw": "ab",
+   "kind": "unknown",
+   "value": "AB"
+  },
+  {
+   "raw": "C39X 4K2L",
+   "kind": "serial",
+   "value": "C39X4K2L"
+  },
+  {
+   "raw": "DX3VR0ZQJCLF",
+   "kind": "serial",
+   "value": "DX3VR0ZQJCLF"
+  },
+  {
+   "raw": "!!",
+   "kind": "unknown",
+   "value": "!!"
+  },
+  {
+   "raw": "12345678901234567890",
+   "kind": "serial",
+   "value": "12345678901234567890"
+  }
+ ],
+ "labour": [
+  {
+   "minutes": 45,
+   "rate": "4.000",
+   "amount": "3.000"
+  },
+  {
+   "minutes": 1,
+   "rate": "3.000",
+   "amount": "0.050"
+  },
+  {
+   "minutes": 7,
+   "rate": "2.500",
+   "amount": "0.292"
+  },
+  {
+   "minutes": 13,
+   "rate": "3.333",
+   "amount": "0.722"
+  },
+  {
+   "minutes": 60,
+   "rate": "0",
+   "amount": "0.000"
+  },
+  {
+   "minutes": 90,
+   "rate": "7.125",
+   "amount": "10.688"
+  },
+  {
+   "minutes": 25,
+   "rate": "1.111",
+   "amount": "0.463"
+  },
+  {
+   "minutes": 6000,
+   "rate": "9.999",
+   "amount": "999.900"
+  }
+ ],
+ "suggested": [
+  {
+   "newPrice": "220.000",
+   "percent": "85",
+   "step": "0.500",
+   "price": "187.000"
+  },
+  {
+   "newPrice": "220.000",
+   "percent": "85",
+   "step": "0.100",
+   "price": "187.000"
+  },
+  {
+   "newPrice": "199.900",
+   "percent": "70",
+   "step": "0.100",
+   "price": "139.900"
+  },
+  {
+   "newPrice": "349.000",
+   "percent": "55",
+   "step": "1.000",
+   "price": "192.000"
+  },
+  {
+   "newPrice": "10.333",
+   "percent": "85",
+   "step": "0.005",
+   "price": "8.785"
+  },
+  {
+   "newPrice": "0.105",
+   "percent": "50",
+   "step": "0.010",
+   "price": "0.050"
+  },
+  {
+   "newPrice": null,
+   "percent": "85",
+   "step": "0.100",
+   "price": null
+  },
+  {
+   "newPrice": "300.000",
+   "percent": null,
+   "step": "0.100",
+   "price": null
+  },
+  {
+   "newPrice": "123.456",
+   "percent": "62.5",
+   "step": "0.050",
+   "price": "77.150"
+  }
+ ],
+ "unitListPrice": [
+  {
+   "sellingPrice": "130.000",
+   "condition": "used",
+   "newPrice": "300.000",
+   "percent": "70",
+   "step": "0.100",
+   "price": "130.000"
+  },
+  {
+   "sellingPrice": null,
+   "condition": "brand_new",
+   "newPrice": "300.000",
+   "percent": null,
+   "step": "0.100",
+   "price": "300.000"
+  },
+  {
+   "sellingPrice": null,
+   "condition": "used",
+   "newPrice": "300.000",
+   "percent": "70",
+   "step": "0.100",
+   "price": "210.000"
+  },
+  {
+   "sellingPrice": null,
+   "condition": "used",
+   "newPrice": "300.000",
+   "percent": null,
+   "step": "0.100",
+   "price": null
+  },
+  {
+   "sellingPrice": null,
+   "condition": "refurbished",
+   "newPrice": "219.000",
+   "percent": "85",
+   "step": "0.500",
+   "price": "186.000"
+  },
+  {
+   "sellingPrice": null,
+   "condition": "brand_new",
+   "newPrice": null,
+   "percent": null,
+   "step": "0.100",
+   "price": null
+  },
+  {
+   "sellingPrice": "0.000",
+   "condition": "damaged",
+   "newPrice": "80.000",
+   "percent": "55",
+   "step": "0.100",
+   "price": "0.000"
+  }
+ ],
+ "evaluate": [
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "92"
+   },
+   "current": "used",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [],
+    "outcome": "restock",
+    "condition": "used",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "92"
+   },
+   "current": "brand_new",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [],
+    "outcome": "restock",
+    "condition": "brand_new",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "92"
+   },
+   "current": "refurbished",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [],
+    "outcome": "restock",
+    "condition": "refurbished",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "71"
+   },
+   "current": "used",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "battery"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 71
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "fail",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "92"
+   },
+   "current": "used",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "body"
+    ],
+    "outcome": "restock",
+    "condition": "damaged",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "fail",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "fail",
+    "cloud_lock": "pass",
+    "battery": "92"
+   },
+   "current": "used",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "screen",
+     "water"
+    ],
+    "outcome": "for_parts",
+    "condition": "for_parts",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "fail",
+    "battery": "92"
+   },
+   "current": "brand_new",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "cloud_lock"
+    ],
+    "outcome": "for_parts",
+    "condition": "for_parts",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "92"
+   },
+   "current": "used",
+   "expect": {
+    "complete": false,
+    "missing": [
+     "touch"
+    ],
+    "failed": [],
+    "outcome": "restock",
+    "condition": "used",
+    "battery": 92
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "FAIL",
+    "water": "pass",
+    "cloud_lock": "pass"
+   },
+   "current": "used",
+   "expect": {
+    "complete": false,
+    "missing": [
+     "battery"
+    ],
+    "failed": [
+     "biometrics"
+    ],
+    "outcome": "restock",
+    "condition": "damaged",
+    "battery": null
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "80",
+    "notes": "small scratch on the back"
+   },
+   "current": "damaged",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [],
+    "outcome": "restock",
+    "condition": "damaged",
+    "battery": 80
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "fail",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass",
+    "battery": "79"
+   },
+   "current": "used",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "body",
+     "battery"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 79
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "fail",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "fail",
+    "battery": "88",
+    "cloud_lock": "pass"
+   },
+   "current": "damaged",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "cameras",
+     "water"
+    ],
+    "outcome": "for_parts",
+    "condition": "for_parts",
+    "battery": 88
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "fail",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "cloud_lock": "pass"
+   },
+   "current": "refurbished",
+   "expect": {
+    "complete": false,
+    "missing": [
+     "battery"
+    ],
+    "failed": [
+     "cameras"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": null
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "fail",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "fail",
+    "charging": "pass",
+    "network": "fail",
+    "biometrics": "pass",
+    "water": "pass",
+    "battery": "87",
+    "cloud_lock": "pass"
+   },
+   "current": "brand_new",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "touch",
+     "audio",
+     "network"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 87
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "fail",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "fail",
+    "biometrics": "pass",
+    "water": "pass",
+    "battery": "55",
+    "cloud_lock": "fail"
+   },
+   "current": "brand_new",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "cameras",
+     "network",
+     "battery",
+     "cloud_lock"
+    ],
+    "outcome": "for_parts",
+    "condition": "for_parts",
+    "battery": 55
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "fail",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "battery": "69",
+    "cloud_lock": "pass"
+   },
+   "current": "damaged",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "touch",
+     "battery"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 69
+   }
+  },
+  {
+   "answers": {
+    "screen": "fail",
+    "touch": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "fail",
+    "battery": "58",
+    "cloud_lock": "pass"
+   },
+   "current": "refurbished",
+   "expect": {
+    "complete": false,
+    "missing": [
+     "body"
+    ],
+    "failed": [
+     "screen",
+     "water",
+     "battery"
+    ],
+    "outcome": "for_parts",
+    "condition": "for_parts",
+    "battery": 58
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "fail",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "fail",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "battery": "72",
+    "cloud_lock": "pass"
+   },
+   "current": "refurbished",
+   "expect": {
+    "complete": false,
+    "missing": [
+     "water"
+    ],
+    "failed": [
+     "touch",
+     "audio",
+     "battery"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 72
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "fail",
+    "cameras": "pass",
+    "audio": "fail",
+    "charging": "pass",
+    "network": "pass",
+    "water": "fail",
+    "battery": "71",
+    "cloud_lock": "pass"
+   },
+   "current": "used",
+   "expect": {
+    "complete": false,
+    "missing": [
+     "biometrics"
+    ],
+    "failed": [
+     "buttons",
+     "audio",
+     "water",
+     "battery"
+    ],
+    "outcome": "for_parts",
+    "condition": "for_parts",
+    "battery": 71
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "fail",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "fail",
+    "water": "pass",
+    "battery": "100",
+    "cloud_lock": "pass"
+   },
+   "current": "damaged",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "buttons",
+     "biometrics"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 100
+   }
+  },
+  {
+   "answers": {
+    "screen": "pass",
+    "touch": "pass",
+    "body": "pass",
+    "buttons": "pass",
+    "cameras": "pass",
+    "audio": "pass",
+    "charging": "pass",
+    "network": "pass",
+    "biometrics": "pass",
+    "water": "pass",
+    "battery": "78",
+    "cloud_lock": "pass"
+   },
+   "current": "used",
+   "expect": {
+    "complete": true,
+    "missing": [],
+    "failed": [
+     "battery"
+    ],
+    "outcome": "refurbish",
+    "condition": "used",
+    "battery": 78
+   }
+  }
+ ]
+}
