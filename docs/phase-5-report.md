@@ -147,7 +147,7 @@ Recorded in [`architecture-decisions.md`](architecture-decisions.md):
 
 ## Things for Nextdab
 
-1. **The KITE MOBILE ERP public key** (as in the Phase 3 and 4 reports). Copy it from Nextdab Admin 5.14 (**KITE MOBILE ERP › Settings**, or `data\KITE-MOBILE-ERP-public-key.txt`). It goes into `LicenceKeys.EmbeddedHex` in one commit.
+1. **The KITE MOBILE ERP public key: received and compiled in** on 16 November 2026. Release builds now accept licences signed by Nextdab Admin 5.14 with the KITE MOBILE ERP key, and refuse any other.
 2. **QuestPDF licence.** Please confirm Nextdab qualifies for the Community licence (annual gross revenue under USD 1,000,000), or a Professional licence is needed.
 3. **The draft release "dev-package-cache"** on GitHub should be deleted by hand. This session is not allowed to delete releases.
 

@@ -74,7 +74,7 @@ Prerequisites: .NET 10 SDK, Node.js 22, PostgreSQL 16 or later.
 
 4. Open <http://localhost:5080>, choose a new business (or a branch server of an existing one), enter the setup code and complete the wizard. Then sign in with the owner account.
 
-**Licences.** KITE accepts only licences and commands signed with the KITE MOBILE ERP key made in Nextdab Admin 5.14. Its public key goes into `LicenceKeys.EmbeddedHex` (`src/server/Kite.Host/Infrastructure/Phase3Options.cs`); until then the Licence page says no licence can be accepted. For development only, `ASPNETCORE_ENVIRONMENT=Development` with `Kite__Licensing__DevPublicKey=<hex>` uses a test key (see `e2e/nextdab-stub.mjs`).
+**Licences.** KITE accepts only licences and commands signed with the KITE MOBILE ERP key made in Nextdab Admin 5.14. Its public key is compiled in as `LicenceKeys.EmbeddedHex` (`src/server/Kite.Host/Infrastructure/Phase3Options.cs`). For development only, `ASPNETCORE_ENVIRONMENT=Development` with `Kite__Licensing__DevPublicKey=<hex>` uses a test key (see `e2e/nextdab-stub.mjs`).
 
 For UI work without a server: `cd src/client && npm run dev:mock` (owner `owner` / `Muscat-Ruwi-2026!`, MFA code `123456`; cashier PIN 2468 and manager PIN 1357 at `/pos`; `VITE_MOCK=setup` starts at the setup wizard with code `ABCD2345`). The mock is for design review only.
 

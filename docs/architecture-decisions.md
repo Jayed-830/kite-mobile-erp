@@ -91,6 +91,7 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Decision.** Nextdab Admin 5.14 creates the KITE MOBILE ERP Ed25519 key pair on the Nextdab PC the first time the owner signs in, seals the private key with the owner password (as for Kite RMS and Kite REMS) and shows only the public key. That public key is compiled into KITE (`LicenceKeys.EmbeddedHex`). Until it is filled in, no licence can be imported (the Licence page says so); a Development build may use a test key from configuration (`Kite:Licensing:DevPublicKey`), which is how CI runs.
 **Why.** The private key never exists anywhere but the Nextdab PC: not in this repository, not in a chat, not in CI. Licences and commands use NEXTDAB PROTOCOL 1 (canonical JSON, Ed25519 over `NEXTDAB1|`), the same as Kite REMS, proven by two test vectors: one re-signed byte for byte, one made by Nextdab Admin 5.14 itself.
 **Cost.** One manual step: the owner sends the public key once after installing Nextdab Admin 5.14, and a KITE build with it is made.
+**Done on 16 November 2026.** Nextdab sent the key (`baea0666…f5fd4d9`) and it is compiled in. A release build always uses it; `LicenceKeyTests` checks that, and that a licence signed with any other key is refused.
 
 ## ADR 17: Check-in at /v1/kme/checkin, and what an unlicensed server may do
 

@@ -54,11 +54,11 @@ public sealed class KeyStore(string dataDir, IKeyProtector protector)
 /// The Nextdab public key that licences and control commands are checked with (blueprint 24.5). It is
 /// compiled in, so a customer cannot swap it. Nextdab Admin 5.14 makes the KITE MOBILE ERP key pair on the
 /// Nextdab PC (the private key never leaves it, sealed with the owner password) and shows the public key
-/// under Settings; that value replaces <see cref="EmbeddedHex"/>. Until then no licence can be imported.
+/// under Settings. <see cref="EmbeddedHex"/> is that key, sent by Nextdab on 16 November 2026.
 /// </summary>
 public sealed class LicenceKeys
 {
-    public const string EmbeddedHex = "0000000000000000000000000000000000000000000000000000000000000000";
+    public const string EmbeddedHex = "baea0666fd8367c771021b8bf6e466cea8705175bf1a05ced86defc63f5fd4d9";
 
     public LicenceKeys(byte[] publicKey) => PublicKey = publicKey;
 
