@@ -89,6 +89,7 @@ public sealed class KiteServerFixture : IAsyncLifetime
             // Phase 8: the WhatsApp relay and sender are run by the tests themselves; no webhook port or tunnel.
             b.UseSetting("Kite:WhatsApp:Background", "false");
             b.UseSetting("Kite:WhatsApp:WebhookPort", "0");
+            b.UseSetting("Kite:Repairs:PartsBackground", "false");
         });
 
         using var client = Factory.CreateClient();

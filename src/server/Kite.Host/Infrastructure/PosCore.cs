@@ -164,7 +164,7 @@ public sealed record DraftLine(
     Guid VariantId, string ProductType, string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice, decimal ListPrice,
     decimal Discount, decimal Net, Guid TaxCodeId, decimal TaxRate, decimal Tax, decimal Gross, Guid? ApprovalId, int WarrantyDays,
     Guid? ReturnedLineId = null, bool? Restock = null, decimal? RestockUnitCost = null, Guid? DeviceUnitId = null, string? Condition = null,
-    decimal? MarginPurchasePrice = null, bool RepairCharge = false, decimal? KnownCost = null)
+    decimal? MarginPurchasePrice = null, bool RepairCharge = false, decimal? KnownCost = null, string? RepairKind = null)
 {
     /// <summary>Sold under the profit margin mechanism (12.3): taxed against <see cref="MarginPurchasePrice"/>.</summary>
     public bool Margin => MarginPurchasePrice is not null;
@@ -186,7 +186,7 @@ public sealed record SaleDraft(
     Guid Id, Guid ShiftId, Guid CashierId, Guid? CustomerId, string DocType, string? CreditReason, Guid? OriginalSaleId,
     Guid? ExchangeGroupId, DateTimeOffset CompletedAt, IReadOnlyList<DraftLine> Lines, CheckedPayments Payments, bool Refund,
     bool IsEmergency = false, string? EmergencyNumber = null, string? Note = null, Func<string, AuditEntry>? Audit = null,
-    Guid? RepairJobId = null, decimal DepositTax = 0m);
+    Guid? RepairJobId = null, decimal DepositTax = 0m, string? Number = null);
 
 public sealed record WrittenSale(Guid Id, string Number, decimal Gross, decimal CashRounding, int StockExceptions);
 
@@ -202,10 +202,11 @@ public static class SaleWriter
         var isCredit = d.DocType == "credit_note";
         await TradeInCore.LockForPaymentAsync(t, d.Payments.Tenders.Where(p => p.TradeInId is not null).Select(p => p.TradeInId!.Value),
             d.Payments.Tenders.Any(p => p.Method == "store_credit") ? d.CustomerId : null);
-        var number = d.IsEmergency
+        // A document numbered by the caller (one that writes two documents takes both numbers before any journal: ADR 54).
+        var number = d.Number ?? (d.IsEmergency
             ? d.EmergencyNumber!
             : await DocNumbers.NextAsync(t, biz.Id, term.BranchId, isCredit ? "credit_note" : "sale_invoice",
-                await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, date), isCredit ? "CN" : "INV");
+                await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, date), isCredit ? "CN" : "INV"));
         var net = d.Lines.Sum(l => l.Net);
         var tax = d.Lines.Sum(l => l.Tax);
         var gross = d.Lines.Sum(l => l.Gross);
@@ -251,6 +252,26 @@ public static class SaleWriter
                            qty = isCredit ? l.Qty : -l.Qty, unitCost = isCredit && l.DeviceUnitId is null ? l.RestockUnitCost : null, l.DeviceUnitId, saleId = d.Id,
                            lineId = lineIds[i], at = d.CompletedAt, by = d.CashierId, terminalId = term.Id });
             costs[i] = Math.Abs(m.Value);
+            // Parts reserved for repair jobs, and parts jobs are waiting for (arrivals go to the oldest request first), are
+            // not the till's to sell (13.4). The balance row is locked by the movement, so this sum is stable here.
+            if (!isCredit && !d.IsEmergency && m.QtyAfter >= 0)
+            {
+                var reserved = await t.ExecuteScalarAsync<decimal>("""
+                    SELECT b.reserved + coalesce((SELECT sum(r.qty) FROM repair.part_request r WHERE r.warehouse_id = b.warehouse_id AND r.variant_id = b.variant_id), 0)
+                      FROM inv.stock_balance b WHERE b.branch_id = @branchId AND b.warehouse_id = @warehouseId AND b.variant_id = @VariantId
+                    """, new { branchId = term.BranchId, warehouseId = term.WarehouseId, l.VariantId });
+                if (m.QtyAfter < reserved)
+                {
+                    if (policy.NegativeStock == "block")
+                        throw new KiteException(ErrorCodes.InsufficientStock,
+                            $"Only {Math.Max(0m, m.QtyAfter + l.Qty - reserved):0.###} of {l.DescriptionEn} can be sold: {reserved:0.###} are reserved for or awaited by repair jobs.", 409);
+                    exceptions++;
+                    await t.ExecuteAsync("""
+                        INSERT INTO inv.stock_exception (id, business_id, branch_id, warehouse_id, variant_id, kind, qty_after, source_doc_type, source_doc_id)
+                        VALUES (@id, @businessId, @branchId, @warehouseId, @VariantId, 'negative_stock', @after, 'sale', @saleId)
+                        """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, warehouseId = term.WarehouseId, l.VariantId, after = m.QtyAfter - reserved, saleId = d.Id });
+                }
+            }
             if (!isCredit && m.QtyAfter < 0 && l.DeviceUnitId is null)
             {
                 if (policy.NegativeStock == "block" && !d.IsEmergency)
@@ -270,15 +291,15 @@ public static class SaleWriter
             await t.ExecuteAsync("""
                 INSERT INTO sales.sale_line (id, sale_id, line_no, variant_id, product_type, description_en, description_ar, qty, unit_price,
                                              list_price, discount_amount, net_amount, tax_code_id, tax_rate, tax_amount, gross_amount, cost_value,
-                                             approval_id, returned_line_id, restock, warranty_until, device_unit_id, tax_scheme, margin_purchase_price)
+                                             approval_id, returned_line_id, restock, warranty_until, device_unit_id, tax_scheme, margin_purchase_price, repair_kind)
                 VALUES (@id, @saleId, @no, @VariantId, @ProductType, @DescriptionEn, @DescriptionAr, @Qty, @UnitPrice, @ListPrice, @Discount,
                         @Net, @TaxCodeId, @TaxRate, @Tax, @Gross, @cost, @ApprovalId, @ReturnedLineId, @Restock, @warranty::date, @DeviceUnitId,
-                        @scheme, @MarginPurchasePrice)
+                        @scheme, @MarginPurchasePrice, @RepairKind)
                 """, new { id = lineIds[i], saleId = d.Id, no = (short)(i + 1), l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty,
                            l.UnitPrice, l.ListPrice, l.Discount, l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, cost = costs[i], l.ApprovalId,
                            l.ReturnedLineId, l.Restock,
                            warranty = !isCredit && l.WarrantyDays > 0 ? date.AddDays(l.WarrantyDays).ToDateTime(TimeOnly.MinValue) : (DateTime?)null, l.DeviceUnitId,
-                           scheme = l.Margin ? "margin" : "standard", l.MarginPurchasePrice });
+                           scheme = l.Margin ? "margin" : "standard", l.MarginPurchasePrice, l.RepairKind });
             facts.Add("net_by_product_type", l.PostingClass, l.Net);
         }
 

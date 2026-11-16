@@ -1,0 +1,2200 @@
+{
+ "commission": [
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "15",
+   "min": null,
+   "max": null,
+   "labour": "20",
+   "partsRevenue": "30",
+   "partsCost": "18",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "32.000",
+    "raw": "4.800",
+    "clamped": "4.800",
+    "amount": "2.880"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "15",
+   "min": null,
+   "max": null,
+   "labour": "20",
+   "partsRevenue": "30",
+   "partsCost": "18",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "32.000",
+    "raw": "4.800",
+    "clamped": "4.800",
+    "amount": "1.920"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "0.799",
+   "rate": null,
+   "min": null,
+   "max": "11.253",
+   "labour": "90.36",
+   "partsRevenue": "121.906",
+   "partsCost": "15.935",
+   "external": "24.418",
+   "share": "40",
+   "expect": {
+    "base": "0.000",
+    "raw": "0.799",
+    "clamped": "0.799",
+    "amount": "0.320"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "15.3776",
+   "min": "5.789",
+   "max": "22.479",
+   "labour": "123.459",
+   "partsRevenue": "45.209",
+   "partsCost": "33.7",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "123.459",
+    "raw": "18.985",
+    "clamped": "18.985",
+    "amount": "4.746"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "28.2126",
+   "min": null,
+   "max": null,
+   "labour": "159.814",
+   "partsRevenue": "61.66",
+   "partsCost": "239.642",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "-18.168",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "19.097",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "33.034",
+   "partsRevenue": "18.448",
+   "partsCost": "161.266",
+   "external": "3.881",
+   "share": "50",
+   "expect": {
+    "base": "0.000",
+    "raw": "19.097",
+    "clamped": "19.097",
+    "amount": "9.549"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "16.612",
+   "rate": null,
+   "min": "0.986",
+   "max": null,
+   "labour": "79.345",
+   "partsRevenue": "86.046",
+   "partsCost": "19.732",
+   "external": "26.839",
+   "share": "60",
+   "expect": {
+    "base": "0.000",
+    "raw": "16.612",
+    "clamped": "16.612",
+    "amount": "9.967"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "11.47",
+   "rate": null,
+   "min": null,
+   "max": "15.947",
+   "labour": "191.038",
+   "partsRevenue": "43.728",
+   "partsCost": "103.18",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "0.000",
+    "raw": "11.470",
+    "clamped": "11.470",
+    "amount": "5.735"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "36.133",
+   "min": null,
+   "max": "18.066",
+   "labour": "100.657",
+   "partsRevenue": "97.011",
+   "partsCost": "49.283",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "148.385",
+    "raw": "53.616",
+    "clamped": "18.066",
+    "amount": "18.066"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "34.9517",
+   "min": null,
+   "max": null,
+   "labour": "73.855",
+   "partsRevenue": "67.819",
+   "partsCost": "184.171",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "73.855",
+    "raw": "25.814",
+    "clamped": "25.814",
+    "amount": "10.326"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "36.2306",
+   "min": null,
+   "max": null,
+   "labour": "47.026",
+   "partsRevenue": "76.058",
+   "partsCost": "24.151",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "98.933",
+    "raw": "35.844",
+    "clamped": "35.844",
+    "amount": "11.948"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "37.7667",
+   "min": "2.597",
+   "max": null,
+   "labour": "110.032",
+   "partsRevenue": "98.19",
+   "partsCost": "234.409",
+   "external": "22.724",
+   "share": "100",
+   "expect": {
+    "base": "-48.911",
+    "raw": "0.000",
+    "clamped": "2.597",
+    "amount": "2.597"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "11.3129",
+   "min": null,
+   "max": null,
+   "labour": "22.735",
+   "partsRevenue": "123.222",
+   "partsCost": "147.301",
+   "external": "26.227",
+   "share": "63.0875",
+   "expect": {
+    "base": "-27.571",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "2.476",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "117.667",
+   "partsRevenue": "142.118",
+   "partsCost": "72.993",
+   "external": "0",
+   "share": "46.0507",
+   "expect": {
+    "base": "0.000",
+    "raw": "2.476",
+    "clamped": "2.476",
+    "amount": "1.140"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "7.728",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "191.17",
+   "partsRevenue": "29.343",
+   "partsCost": "37.036",
+   "external": "26.252",
+   "share": "40",
+   "expect": {
+    "base": "0.000",
+    "raw": "7.728",
+    "clamped": "7.728",
+    "amount": "3.091"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "10.186",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "5.626",
+   "partsRevenue": "110.309",
+   "partsCost": "99.259",
+   "external": "28.475",
+   "share": "66.6667",
+   "expect": {
+    "base": "0.000",
+    "raw": "10.186",
+    "clamped": "10.186",
+    "amount": "6.791"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "19.7519",
+   "min": null,
+   "max": null,
+   "labour": "111.318",
+   "partsRevenue": "13.508",
+   "partsCost": "222.282",
+   "external": "0",
+   "share": "40.0147",
+   "expect": {
+    "base": "111.318",
+    "raw": "21.987",
+    "clamped": "21.987",
+    "amount": "8.798"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "20.766",
+   "rate": null,
+   "min": null,
+   "max": "1.465",
+   "labour": "66.188",
+   "partsRevenue": "44.651",
+   "partsCost": "172.266",
+   "external": "16.481",
+   "share": "60",
+   "expect": {
+    "base": "0.000",
+    "raw": "20.766",
+    "clamped": "1.465",
+    "amount": "0.879"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "11.114",
+   "rate": null,
+   "min": null,
+   "max": "19.909",
+   "labour": "109.106",
+   "partsRevenue": "25.943",
+   "partsCost": "132.137",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "0.000",
+    "raw": "11.114",
+    "clamped": "11.114",
+    "amount": "2.779"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "19.174",
+   "rate": null,
+   "min": "4.007",
+   "max": null,
+   "labour": "52.489",
+   "partsRevenue": "85.239",
+   "partsCost": "67.08",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "0.000",
+    "raw": "19.174",
+    "clamped": "19.174",
+    "amount": "11.504"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "19.0806",
+   "min": null,
+   "max": null,
+   "labour": "73.789",
+   "partsRevenue": "70.725",
+   "partsCost": "139.034",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "5.480",
+    "raw": "1.046",
+    "clamped": "1.046",
+    "amount": "0.349"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "26.9179",
+   "min": null,
+   "max": null,
+   "labour": "30.818",
+   "partsRevenue": "135.799",
+   "partsCost": "236.495",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "-69.878",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "3.0156",
+   "min": "1.127",
+   "max": null,
+   "labour": "111.855",
+   "partsRevenue": "155.494",
+   "partsCost": "57.692",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "111.855",
+    "raw": "3.373",
+    "clamped": "3.373",
+    "amount": "1.687"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "12.1356",
+   "min": "2.189",
+   "max": "10.794",
+   "labour": "95.803",
+   "partsRevenue": "67.777",
+   "partsCost": "66.679",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "95.803",
+    "raw": "11.626",
+    "clamped": "10.794",
+    "amount": "3.598"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "23.8735",
+   "min": null,
+   "max": null,
+   "labour": "83.165",
+   "partsRevenue": "125.646",
+   "partsCost": "239.416",
+   "external": "21.852",
+   "share": "40",
+   "expect": {
+    "base": "-52.457",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "33.8464",
+   "min": null,
+   "max": null,
+   "labour": "82.575",
+   "partsRevenue": "6.589",
+   "partsCost": "187.455",
+   "external": "0",
+   "share": "39.4767",
+   "expect": {
+    "base": "82.575",
+    "raw": "27.949",
+    "clamped": "27.949",
+    "amount": "11.033"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "9.042",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "128.12",
+   "partsRevenue": "191.14",
+   "partsCost": "205.863",
+   "external": "24.235",
+   "share": "25",
+   "expect": {
+    "base": "0.000",
+    "raw": "9.042",
+    "clamped": "9.042",
+    "amount": "2.261"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "7.672",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "36.522",
+   "partsRevenue": "138.568",
+   "partsCost": "212.77",
+   "external": "16.625",
+   "share": "96.3871",
+   "expect": {
+    "base": "0.000",
+    "raw": "7.672",
+    "clamped": "7.672",
+    "amount": "7.395"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "4.2851",
+   "min": null,
+   "max": null,
+   "labour": "140.153",
+   "partsRevenue": "86.947",
+   "partsCost": "143.029",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "140.153",
+    "raw": "6.006",
+    "clamped": "6.006",
+    "amount": "2.002"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "12.7487",
+   "min": null,
+   "max": null,
+   "labour": "197.691",
+   "partsRevenue": "1.781",
+   "partsCost": "69.928",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "129.544",
+    "raw": "16.515",
+    "clamped": "16.515",
+    "amount": "8.258"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "13.3903",
+   "min": "1.67",
+   "max": "2.644",
+   "labour": "146.963",
+   "partsRevenue": "35.803",
+   "partsCost": "56.173",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "126.593",
+    "raw": "16.951",
+    "clamped": "2.644",
+    "amount": "2.644"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "9.431",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "72.092",
+   "partsRevenue": "40.046",
+   "partsCost": "91.404",
+   "external": "21.829",
+   "share": "66.6667",
+   "expect": {
+    "base": "0.000",
+    "raw": "9.431",
+    "clamped": "9.431",
+    "amount": "6.287"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "0.197",
+   "min": "3.67",
+   "max": null,
+   "labour": "111.771",
+   "partsRevenue": "12.68",
+   "partsCost": "204.692",
+   "external": "9.354",
+   "share": "66.6667",
+   "expect": {
+    "base": "111.771",
+    "raw": "0.220",
+    "clamped": "3.670",
+    "amount": "2.447"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "25.4896",
+   "min": "2.082",
+   "max": null,
+   "labour": "198.049",
+   "partsRevenue": "163.254",
+   "partsCost": "61.639",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "299.664",
+    "raw": "76.383",
+    "clamped": "76.383",
+    "amount": "30.553"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "34.5722",
+   "min": null,
+   "max": "15.322",
+   "labour": "153.574",
+   "partsRevenue": "63.354",
+   "partsCost": "234.345",
+   "external": "0",
+   "share": "42.3538",
+   "expect": {
+    "base": "-17.417",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "38.5366",
+   "min": "4.54",
+   "max": null,
+   "labour": "2.224",
+   "partsRevenue": "53.993",
+   "partsCost": "111.382",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "2.224",
+    "raw": "0.857",
+    "clamped": "4.540",
+    "amount": "4.540"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "34.5019",
+   "min": null,
+   "max": null,
+   "labour": "15.204",
+   "partsRevenue": "114.592",
+   "partsCost": "129.445",
+   "external": "10.854",
+   "share": "46.4099",
+   "expect": {
+    "base": "15.204",
+    "raw": "5.246",
+    "clamped": "5.246",
+    "amount": "2.435"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "23.3871",
+   "min": null,
+   "max": null,
+   "labour": "102.751",
+   "partsRevenue": "27.038",
+   "partsCost": "180.681",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "-50.892",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "38.0457",
+   "min": null,
+   "max": "5.886",
+   "labour": "57.291",
+   "partsRevenue": "97.522",
+   "partsCost": "69.141",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "85.672",
+    "raw": "32.595",
+    "clamped": "5.886",
+    "amount": "1.962"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "3.371",
+   "rate": null,
+   "min": "4.216",
+   "max": null,
+   "labour": "164.756",
+   "partsRevenue": "41.677",
+   "partsCost": "197.899",
+   "external": "21.302",
+   "share": "7.6784",
+   "expect": {
+    "base": "0.000",
+    "raw": "3.371",
+    "clamped": "4.216",
+    "amount": "0.324"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "38.3316",
+   "min": null,
+   "max": null,
+   "labour": "116.21",
+   "partsRevenue": "123.866",
+   "partsCost": "181.23",
+   "external": "8.429",
+   "share": "60",
+   "expect": {
+    "base": "50.417",
+    "raw": "19.326",
+    "clamped": "19.326",
+    "amount": "11.596"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "37.3394",
+   "min": null,
+   "max": "9.75",
+   "labour": "44.455",
+   "partsRevenue": "149.701",
+   "partsCost": "26.758",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "167.398",
+    "raw": "62.505",
+    "clamped": "9.750",
+    "amount": "4.875"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "18.3924",
+   "min": null,
+   "max": "3.971",
+   "labour": "174.359",
+   "partsRevenue": "34.905",
+   "partsCost": "211.732",
+   "external": "29.871",
+   "share": "100",
+   "expect": {
+    "base": "-32.339",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "4.048",
+   "min": "2.206",
+   "max": null,
+   "labour": "61.454",
+   "partsRevenue": "131.147",
+   "partsCost": "26.561",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "61.454",
+    "raw": "2.488",
+    "clamped": "2.488",
+    "amount": "0.829"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "39.7972",
+   "min": "0.496",
+   "max": null,
+   "labour": "132.95",
+   "partsRevenue": "36.079",
+   "partsCost": "195.428",
+   "external": "26.197",
+   "share": "66.6667",
+   "expect": {
+    "base": "-52.596",
+    "raw": "0.000",
+    "clamped": "0.496",
+    "amount": "0.331"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "35.6111",
+   "min": "4.24",
+   "max": null,
+   "labour": "37.751",
+   "partsRevenue": "82.06",
+   "partsCost": "35.356",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "37.751",
+    "raw": "13.444",
+    "clamped": "13.444",
+    "amount": "4.481"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "19.8875",
+   "min": null,
+   "max": null,
+   "labour": "16.203",
+   "partsRevenue": "39.889",
+   "partsCost": "117.727",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "-61.635",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "1.5235",
+   "min": "3.095",
+   "max": "13.998",
+   "labour": "93.375",
+   "partsRevenue": "107.157",
+   "partsCost": "190.508",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "93.375",
+    "raw": "1.423",
+    "clamped": "3.095",
+    "amount": "1.548"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "6.277",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "42.836",
+   "partsRevenue": "9.587",
+   "partsCost": "53.82",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "0.000",
+    "raw": "6.277",
+    "clamped": "6.277",
+    "amount": "1.569"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "31.3058",
+   "min": null,
+   "max": null,
+   "labour": "176.997",
+   "partsRevenue": "152.538",
+   "partsCost": "82.032",
+   "external": "0",
+   "share": "45.5256",
+   "expect": {
+    "base": "176.997",
+    "raw": "55.410",
+    "clamped": "55.410",
+    "amount": "25.226"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "12.989",
+   "min": null,
+   "max": "0.831",
+   "labour": "140.817",
+   "partsRevenue": "118.722",
+   "partsCost": "197.726",
+   "external": "7.706",
+   "share": "66.6667",
+   "expect": {
+    "base": "140.817",
+    "raw": "18.291",
+    "clamped": "0.831",
+    "amount": "0.554"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "30.9737",
+   "min": null,
+   "max": null,
+   "labour": "37.556",
+   "partsRevenue": "55.077",
+   "partsCost": "50.514",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "37.556",
+    "raw": "11.632",
+    "clamped": "11.632",
+    "amount": "2.908"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "1.5036",
+   "min": null,
+   "max": "1.423",
+   "labour": "0.598",
+   "partsRevenue": "69.588",
+   "partsCost": "93.966",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "0.598",
+    "raw": "0.009",
+    "clamped": "0.009",
+    "amount": "0.005"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "0.192",
+   "min": null,
+   "max": null,
+   "labour": "83.942",
+   "partsRevenue": "120.599",
+   "partsCost": "73.611",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "83.942",
+    "raw": "0.161",
+    "clamped": "0.161",
+    "amount": "0.040"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "23.227",
+   "min": "4.679",
+   "max": "8.455",
+   "labour": "184.958",
+   "partsRevenue": "78.939",
+   "partsCost": "176.978",
+   "external": "8.687",
+   "share": "60",
+   "expect": {
+    "base": "184.958",
+    "raw": "42.960",
+    "clamped": "8.455",
+    "amount": "5.073"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "4.7798",
+   "min": "2.559",
+   "max": "8.484",
+   "labour": "67.147",
+   "partsRevenue": "14.476",
+   "partsCost": "36.277",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "45.346",
+    "raw": "2.167",
+    "clamped": "2.559",
+    "amount": "1.024"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "17.3607",
+   "min": "2.418",
+   "max": null,
+   "labour": "119.068",
+   "partsRevenue": "188.156",
+   "partsCost": "10.746",
+   "external": "28.024",
+   "share": "25",
+   "expect": {
+    "base": "268.454",
+    "raw": "46.605",
+    "clamped": "46.605",
+    "amount": "11.651"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "17.451",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "96.689",
+   "partsRevenue": "31.612",
+   "partsCost": "207.58",
+   "external": "24.59",
+   "share": "60",
+   "expect": {
+    "base": "0.000",
+    "raw": "17.451",
+    "clamped": "17.451",
+    "amount": "10.471"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "9.983",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "11.665",
+   "partsRevenue": "59.871",
+   "partsCost": "92.383",
+   "external": "0",
+   "share": "10.0348",
+   "expect": {
+    "base": "0.000",
+    "raw": "9.983",
+    "clamped": "9.983",
+    "amount": "1.002"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "23.36",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "34.729",
+   "partsRevenue": "102.74",
+   "partsCost": "239.779",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "0.000",
+    "raw": "23.360",
+    "clamped": "23.360",
+    "amount": "14.016"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "34.9009",
+   "min": null,
+   "max": null,
+   "labour": "65.28",
+   "partsRevenue": "156.121",
+   "partsCost": "137.949",
+   "external": "0",
+   "share": "66.6667",
+   "expect": {
+    "base": "83.452",
+    "raw": "29.125",
+    "clamped": "29.125",
+    "amount": "19.417"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "34.5083",
+   "min": "5.226",
+   "max": "17.356",
+   "labour": "180.612",
+   "partsRevenue": "55.191",
+   "partsCost": "48.77",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "180.612",
+    "raw": "62.326",
+    "clamped": "17.356",
+    "amount": "4.339"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "1.557",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "172.613",
+   "partsRevenue": "180.488",
+   "partsCost": "67.471",
+   "external": "12.6",
+   "share": "25",
+   "expect": {
+    "base": "0.000",
+    "raw": "1.557",
+    "clamped": "1.557",
+    "amount": "0.389"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "21.02",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "99.205",
+   "partsRevenue": "13.695",
+   "partsCost": "212.606",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "0.000",
+    "raw": "21.020",
+    "clamped": "21.020",
+    "amount": "8.408"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "26.9872",
+   "min": null,
+   "max": null,
+   "labour": "29.055",
+   "partsRevenue": "30.707",
+   "partsCost": "39.747",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "20.015",
+    "raw": "5.401",
+    "clamped": "5.401",
+    "amount": "2.701"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "17.9356",
+   "min": null,
+   "max": "8.947",
+   "labour": "184.149",
+   "partsRevenue": "19.75",
+   "partsCost": "125.495",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "78.404",
+    "raw": "14.062",
+    "clamped": "8.947",
+    "amount": "2.237"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "8.278",
+   "rate": null,
+   "min": "5.672",
+   "max": "12.944",
+   "labour": "77.138",
+   "partsRevenue": "32.999",
+   "partsCost": "150.474",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "0.000",
+    "raw": "8.278",
+    "clamped": "8.278",
+    "amount": "2.070"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "23.5429",
+   "min": "4.501",
+   "max": null,
+   "labour": "176.258",
+   "partsRevenue": "3.482",
+   "partsCost": "159.924",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "176.258",
+    "raw": "41.496",
+    "clamped": "41.496",
+    "amount": "24.898"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "21.062",
+   "rate": null,
+   "min": "2.559",
+   "max": null,
+   "labour": "161.275",
+   "partsRevenue": "125.563",
+   "partsCost": "233.347",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "0.000",
+    "raw": "21.062",
+    "clamped": "21.062",
+    "amount": "8.425"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "27.7765",
+   "min": "0.464",
+   "max": "10.581",
+   "labour": "171.185",
+   "partsRevenue": "181.463",
+   "partsCost": "130.826",
+   "external": "0",
+   "share": "66.6667",
+   "expect": {
+    "base": "171.185",
+    "raw": "47.549",
+    "clamped": "10.581",
+    "amount": "7.054"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "21.7481",
+   "min": null,
+   "max": "17.393",
+   "labour": "38.216",
+   "partsRevenue": "49.7",
+   "partsCost": "223.527",
+   "external": "26.54",
+   "share": "25",
+   "expect": {
+    "base": "-162.151",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "2.904",
+   "rate": null,
+   "min": "0.371",
+   "max": null,
+   "labour": "22.017",
+   "partsRevenue": "47.02",
+   "partsCost": "49.39",
+   "external": "1.274",
+   "share": "36.8113",
+   "expect": {
+    "base": "0.000",
+    "raw": "2.904",
+    "clamped": "2.904",
+    "amount": "1.069"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "8.713",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "160.86",
+   "partsRevenue": "62.747",
+   "partsCost": "182.275",
+   "external": "22.552",
+   "share": "50",
+   "expect": {
+    "base": "0.000",
+    "raw": "8.713",
+    "clamped": "8.713",
+    "amount": "4.357"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "33.1312",
+   "min": null,
+   "max": null,
+   "labour": "74.404",
+   "partsRevenue": "56.316",
+   "partsCost": "84.714",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "74.404",
+    "raw": "24.651",
+    "clamped": "24.651",
+    "amount": "9.860"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "8.503",
+   "min": null,
+   "max": "8.251",
+   "labour": "150.2",
+   "partsRevenue": "124.297",
+   "partsCost": "58.546",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "150.200",
+    "raw": "12.772",
+    "clamped": "8.251",
+    "amount": "4.951"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "19.2357",
+   "min": null,
+   "max": "9.077",
+   "labour": "186.299",
+   "partsRevenue": "81.732",
+   "partsCost": "43.753",
+   "external": "8.02",
+   "share": "100",
+   "expect": {
+    "base": "216.258",
+    "raw": "41.599",
+    "clamped": "9.077",
+    "amount": "9.077"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "18.531",
+   "rate": null,
+   "min": "4.552",
+   "max": null,
+   "labour": "4.61",
+   "partsRevenue": "20.904",
+   "partsCost": "105.371",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "0.000",
+    "raw": "18.531",
+    "clamped": "18.531",
+    "amount": "18.531"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "6.5665",
+   "min": null,
+   "max": null,
+   "labour": "134.459",
+   "partsRevenue": "170.227",
+   "partsCost": "28.874",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "275.812",
+    "raw": "18.111",
+    "clamped": "18.111",
+    "amount": "9.056"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "17.3241",
+   "min": null,
+   "max": "11.909",
+   "labour": "34.785",
+   "partsRevenue": "35.307",
+   "partsCost": "66.977",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "3.115",
+    "raw": "0.540",
+    "clamped": "0.540",
+    "amount": "0.180"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "0.229",
+   "rate": null,
+   "min": "1.898",
+   "max": null,
+   "labour": "113.035",
+   "partsRevenue": "19.123",
+   "partsCost": "247.575",
+   "external": "13.951",
+   "share": "66.6667",
+   "expect": {
+    "base": "0.000",
+    "raw": "0.229",
+    "clamped": "1.898",
+    "amount": "1.265"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "1.8468",
+   "min": "3.185",
+   "max": "17.851",
+   "labour": "34.964",
+   "partsRevenue": "187.385",
+   "partsCost": "231.76",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "-9.411",
+    "raw": "0.000",
+    "clamped": "3.185",
+    "amount": "1.911"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "15.5874",
+   "min": "1.68",
+   "max": "15.758",
+   "labour": "117.571",
+   "partsRevenue": "113.791",
+   "partsCost": "204.107",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "27.255",
+    "raw": "4.248",
+    "clamped": "4.248",
+    "amount": "2.124"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "33.6323",
+   "min": null,
+   "max": null,
+   "labour": "28.015",
+   "partsRevenue": "74.479",
+   "partsCost": "66.889",
+   "external": "10.339",
+   "share": "60",
+   "expect": {
+    "base": "28.015",
+    "raw": "9.422",
+    "clamped": "9.422",
+    "amount": "5.653"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "9.4456",
+   "min": null,
+   "max": null,
+   "labour": "33.863",
+   "partsRevenue": "47.442",
+   "partsCost": "144.217",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "33.863",
+    "raw": "3.199",
+    "clamped": "3.199",
+    "amount": "1.066"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "32.5784",
+   "min": null,
+   "max": null,
+   "labour": "127.918",
+   "partsRevenue": "46.282",
+   "partsCost": "8.524",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "127.918",
+    "raw": "41.674",
+    "clamped": "41.674",
+    "amount": "13.891"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "37.6501",
+   "min": null,
+   "max": null,
+   "labour": "125.136",
+   "partsRevenue": "112.745",
+   "partsCost": "49.665",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "188.216",
+    "raw": "70.864",
+    "clamped": "70.864",
+    "amount": "70.864"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "1.5552",
+   "min": "2.733",
+   "max": null,
+   "labour": "91.654",
+   "partsRevenue": "77.694",
+   "partsCost": "69.984",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "91.654",
+    "raw": "1.425",
+    "clamped": "2.733",
+    "amount": "2.733"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "30.8832",
+   "min": "4.431",
+   "max": "17.332",
+   "labour": "152.494",
+   "partsRevenue": "2.81",
+   "partsCost": "186.417",
+   "external": "5.985",
+   "share": "60",
+   "expect": {
+    "base": "-37.098",
+    "raw": "0.000",
+    "clamped": "4.431",
+    "amount": "2.659"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "29.7195",
+   "min": null,
+   "max": null,
+   "labour": "99.357",
+   "partsRevenue": "101.834",
+   "partsCost": "203.602",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "-2.411",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "0.856",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "93.187",
+   "partsRevenue": "109.75",
+   "partsCost": "190.972",
+   "external": "0",
+   "share": "66.6667",
+   "expect": {
+    "base": "0.000",
+    "raw": "0.856",
+    "clamped": "0.856",
+    "amount": "0.571"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "13.5089",
+   "min": null,
+   "max": null,
+   "labour": "49.656",
+   "partsRevenue": "139.682",
+   "partsCost": "91.101",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "49.656",
+    "raw": "6.708",
+    "clamped": "6.708",
+    "amount": "3.354"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "25.5476",
+   "min": null,
+   "max": "6.26",
+   "labour": "157.221",
+   "partsRevenue": "35.488",
+   "partsCost": "105.059",
+   "external": "7.697",
+   "share": "60",
+   "expect": {
+    "base": "79.953",
+    "raw": "20.426",
+    "clamped": "6.260",
+    "amount": "3.756"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "7.3903",
+   "min": "3.275",
+   "max": "8.435",
+   "labour": "122.824",
+   "partsRevenue": "106.428",
+   "partsCost": "128.132",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "122.824",
+    "raw": "9.077",
+    "clamped": "8.435",
+    "amount": "4.218"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "6.547",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "35.786",
+   "partsRevenue": "181.463",
+   "partsCost": "28.559",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "0.000",
+    "raw": "6.547",
+    "clamped": "6.547",
+    "amount": "6.547"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "10.1599",
+   "min": "0.405",
+   "max": "17.471",
+   "labour": "87.486",
+   "partsRevenue": "93.836",
+   "partsCost": "105.529",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "87.486",
+    "raw": "8.888",
+    "clamped": "8.888",
+    "amount": "5.333"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "16.605",
+   "rate": null,
+   "min": "4.363",
+   "max": "12.668",
+   "labour": "24.23",
+   "partsRevenue": "150.34",
+   "partsCost": "102.371",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "0.000",
+    "raw": "16.605",
+    "clamped": "12.668",
+    "amount": "4.223"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "19.993",
+   "rate": null,
+   "min": null,
+   "max": "14.734",
+   "labour": "39.004",
+   "partsRevenue": "18.498",
+   "partsCost": "199.992",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "0.000",
+    "raw": "19.993",
+    "clamped": "14.734",
+    "amount": "8.840"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "22.115",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "74.452",
+   "partsRevenue": "162.906",
+   "partsCost": "50.015",
+   "external": "22.331",
+   "share": "50",
+   "expect": {
+    "base": "0.000",
+    "raw": "22.115",
+    "clamped": "22.115",
+    "amount": "11.058"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "32.9074",
+   "min": null,
+   "max": null,
+   "labour": "25.47",
+   "partsRevenue": "167.076",
+   "partsCost": "203.668",
+   "external": "18.677",
+   "share": "33.3333",
+   "expect": {
+    "base": "25.470",
+    "raw": "8.382",
+    "clamped": "8.382",
+    "amount": "2.794"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "23.4257",
+   "min": null,
+   "max": "15.305",
+   "labour": "190.583",
+   "partsRevenue": "60.544",
+   "partsCost": "158.76",
+   "external": "8.274",
+   "share": "60",
+   "expect": {
+    "base": "190.583",
+    "raw": "44.645",
+    "clamped": "15.305",
+    "amount": "9.183"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "21.798",
+   "rate": null,
+   "min": "2.34",
+   "max": null,
+   "labour": "78.989",
+   "partsRevenue": "176.592",
+   "partsCost": "214.309",
+   "external": "0",
+   "share": "100",
+   "expect": {
+    "base": "0.000",
+    "raw": "21.798",
+    "clamped": "21.798",
+    "amount": "21.798"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "1.901",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "146.688",
+   "partsRevenue": "108.038",
+   "partsCost": "188.449",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "0.000",
+    "raw": "1.901",
+    "clamped": "1.901",
+    "amount": "0.951"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "32.4475",
+   "min": "4.785",
+   "max": null,
+   "labour": "191.872",
+   "partsRevenue": "33.038",
+   "partsCost": "164.337",
+   "external": "0.161",
+   "share": "25",
+   "expect": {
+    "base": "60.412",
+    "raw": "19.602",
+    "clamped": "19.602",
+    "amount": "4.901"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "21.7042",
+   "min": null,
+   "max": "5.254",
+   "labour": "91.928",
+   "partsRevenue": "106.648",
+   "partsCost": "140.866",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "91.928",
+    "raw": "19.952",
+    "clamped": "5.254",
+    "amount": "2.102"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "13.6664",
+   "min": null,
+   "max": null,
+   "labour": "166.827",
+   "partsRevenue": "5.395",
+   "partsCost": "232.786",
+   "external": "0",
+   "share": "40",
+   "expect": {
+    "base": "-60.564",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "23.994",
+   "rate": null,
+   "min": null,
+   "max": null,
+   "labour": "52.137",
+   "partsRevenue": "25.22",
+   "partsCost": "24.729",
+   "external": "0",
+   "share": "1.561",
+   "expect": {
+    "base": "0.000",
+    "raw": "23.994",
+    "clamped": "23.994",
+    "amount": "0.375"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "9.78",
+   "min": null,
+   "max": null,
+   "labour": "143.296",
+   "partsRevenue": "183.128",
+   "partsCost": "26.166",
+   "external": "0",
+   "share": "25",
+   "expect": {
+    "base": "300.258",
+    "raw": "29.365",
+    "clamped": "29.365",
+    "amount": "7.341"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "34.1566",
+   "min": null,
+   "max": null,
+   "labour": "57.96",
+   "partsRevenue": "111.681",
+   "partsCost": "111.708",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "57.960",
+    "raw": "19.797",
+    "clamped": "19.797",
+    "amount": "11.878"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "3.5464",
+   "min": null,
+   "max": null,
+   "labour": "46.629",
+   "partsRevenue": "129.154",
+   "partsCost": "195.329",
+   "external": "20.027",
+   "share": "50",
+   "expect": {
+    "base": "46.629",
+    "raw": "1.654",
+    "clamped": "1.654",
+    "amount": "0.827"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "27.0089",
+   "min": null,
+   "max": null,
+   "labour": "74.078",
+   "partsRevenue": "94.115",
+   "partsCost": "96.413",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "71.780",
+    "raw": "19.387",
+    "clamped": "19.387",
+    "amount": "11.632"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "14.7801",
+   "min": null,
+   "max": "5.575",
+   "labour": "103.973",
+   "partsRevenue": "167.057",
+   "partsCost": "213.019",
+   "external": "0",
+   "share": "78.8492",
+   "expect": {
+    "base": "58.011",
+    "raw": "8.574",
+    "clamped": "5.575",
+    "amount": "4.396"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "23.0805",
+   "min": "2.997",
+   "max": "15.479",
+   "labour": "70.483",
+   "partsRevenue": "84.13",
+   "partsCost": "232.33",
+   "external": "26.106",
+   "share": "50",
+   "expect": {
+    "base": "70.483",
+    "raw": "16.268",
+    "clamped": "15.479",
+    "amount": "7.740"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "25.1224",
+   "min": null,
+   "max": "3.737",
+   "labour": "39.635",
+   "partsRevenue": "64.145",
+   "partsCost": "128.215",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "-24.435",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "19.446",
+   "rate": null,
+   "min": "2.497",
+   "max": null,
+   "labour": "74.588",
+   "partsRevenue": "96.889",
+   "partsCost": "88.726",
+   "external": "0",
+   "share": "50",
+   "expect": {
+    "base": "0.000",
+    "raw": "19.446",
+    "clamped": "19.446",
+    "amount": "9.723"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "7.3523",
+   "min": null,
+   "max": null,
+   "labour": "61.978",
+   "partsRevenue": "182.612",
+   "partsCost": "66.745",
+   "external": "0",
+   "share": "33.3333",
+   "expect": {
+    "base": "61.978",
+    "raw": "4.557",
+    "clamped": "4.557",
+    "amount": "1.519"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "22.5768",
+   "min": null,
+   "max": "5.837",
+   "labour": "64.5",
+   "partsRevenue": "76.247",
+   "partsCost": "219.987",
+   "external": "4.199",
+   "share": "25",
+   "expect": {
+    "base": "-83.439",
+    "raw": "0.000",
+    "clamped": "0.000",
+    "amount": "0.000"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "12.751",
+   "rate": null,
+   "min": "0.852",
+   "max": null,
+   "labour": "5.504",
+   "partsRevenue": "92.284",
+   "partsCost": "114.399",
+   "external": "21.539",
+   "share": "100",
+   "expect": {
+    "base": "0.000",
+    "raw": "12.751",
+    "clamped": "12.751",
+    "amount": "12.751"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "3.9767",
+   "min": "3.063",
+   "max": null,
+   "labour": "185.764",
+   "partsRevenue": "12.414",
+   "partsCost": "149.207",
+   "external": "7.262",
+   "share": "25",
+   "expect": {
+    "base": "41.709",
+    "raw": "1.659",
+    "clamped": "3.063",
+    "amount": "0.766"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "23.3161",
+   "min": null,
+   "max": null,
+   "labour": "77.313",
+   "partsRevenue": "143.487",
+   "partsCost": "140.3",
+   "external": "25.636",
+   "share": "72.9212",
+   "expect": {
+    "base": "77.313",
+    "raw": "18.026",
+    "clamped": "18.026",
+    "amount": "13.145"
+   }
+  },
+  {
+   "basis": "profit",
+   "amount": null,
+   "rate": "15.519",
+   "min": null,
+   "max": null,
+   "labour": "43.718",
+   "partsRevenue": "80.13",
+   "partsCost": "11.139",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "112.709",
+    "raw": "17.491",
+    "clamped": "17.491",
+    "amount": "10.495"
+   }
+  },
+  {
+   "basis": "labour",
+   "amount": null,
+   "rate": "25.8776",
+   "min": null,
+   "max": null,
+   "labour": "12.091",
+   "partsRevenue": "130.784",
+   "partsCost": "222.52",
+   "external": "0",
+   "share": "60",
+   "expect": {
+    "base": "12.091",
+    "raw": "3.129",
+    "clamped": "3.129",
+    "amount": "1.877"
+   }
+  },
+  {
+   "basis": "fixed",
+   "amount": "17.821",
+   "rate": null,
+   "min": "1.342",
+   "max": null,
+   "labour": "94.465",
+   "partsRevenue": "20.68",
+   "partsCost": "49.637",
+   "external": "0",
+   "share": "66.6667",
+   "expect": {
+    "base": "0.000",
+    "raw": "17.821",
+    "clamped": "17.821",
+    "amount": "11.881"
+   }
+  }
+ ]
+}

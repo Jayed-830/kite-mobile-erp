@@ -46,7 +46,7 @@ public sealed record CardTerminalTotal(string CardTerminal, decimal Total);
 public sealed record SaleSummary(Guid Id, string Number, string DocType, decimal Gross, decimal CashRounding, decimal Paid, decimal Change, int StockExceptions);
 
 /// <summary>POS: policy, shifts and cash (10.4), approvals (10.2, 18.3), sales, returns, voids and parked carts (10.2, 10.3).</summary>
-public static class PosEndpoints
+public static partial class PosEndpoints
 {
     public static readonly string[] ApprovableActions =
     [
@@ -812,7 +812,7 @@ public static class PosEndpoints
         """;
 
     private static async Task<(PosTerminal Term, ShiftRow Shift, OriginalSale Original, OriginalLine[] Lines, BusinessInfo Biz, PosPolicy Policy)> PrepareCreditAsync(
-        DbTx t, HttpContext http, Guid originalId, Guid creditId)
+        DbTx t, HttpContext http, Guid originalId, Guid creditId, bool repairCorrection = false)
     {
         await t.ExecuteAsync("SELECT pg_advisory_xact_lock(hashtextextended(@k, 0))", new { k = originalId.ToString() });
         var term = await PosTerminals.CurrentAsync(t, http);
@@ -826,8 +826,8 @@ public static class PosEndpoints
             """, new { originalId }) ?? throw new KiteException(ErrorCodes.NotFound, "That sale was not found in your branches.", 404);
         if (original.DocType == "credit_note") throw new KiteException(ErrorCodes.Validation, "A credit note cannot be returned.", 400);
         // A repair invoice closed its job (13.5): it is not voided or returned at the till; a fault is a warranty claim (13.6).
-        if (await t.ExecuteScalarAsync<bool>("SELECT repair_job_id IS NOT NULL FROM sales.sale WHERE id = @originalId", new { originalId }))
-            throw new KiteException(ErrorCodes.RepairState, "A repair invoice is not voided or returned at the till. If the repair failed, open a warranty claim on the job.", 409);
+        if (!repairCorrection && await t.ExecuteScalarAsync<bool>("SELECT repair_job_id IS NOT NULL FROM sales.sale WHERE id = @originalId", new { originalId }))
+            throw new KiteException(ErrorCodes.RepairState, "A repair invoice is not voided or returned at the till: a manager corrects it from the job (Repairs, Correct the invoice). If the repair failed, open a warranty claim.", 409);
         if (original.BranchId != term.BranchId) throw new KiteException(ErrorCodes.Validation, "Return the items at the branch that sold them.", 400);
         var lines = (await t.QueryAsync<OriginalLine>(OriginalLinesSql, new { id = originalId })).ToArray();
         var biz = await BusinessInfo.LoadAsync(t);

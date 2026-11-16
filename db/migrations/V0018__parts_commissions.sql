@@ -45,9 +45,10 @@ CREATE TABLE inv.reservation (
 CREATE INDEX reservation_balance ON inv.reservation (branch_id, warehouse_id, variant_id) WHERE qty > 0;
 
 -- The balance's reserved total follows every reservation change; a reservation never takes more than is on hand.
-CREATE FUNCTION inv.reservation_apply() RETURNS trigger
+-- A reservation keeps its item and document, is never deleted (released by setting it to zero), and is only for parts.
+CREATE FUNCTION inv.reservation_check() RETURNS trigger
 LANGUAGE plpgsql AS $$
-DECLARE delta numeric; b inv.stock_balance%ROWTYPE; p_type text;
+DECLARE p_type text;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'KITE: a reservation is released by setting it to zero, not deleted' USING ERRCODE = 'KT050';
@@ -60,8 +61,20 @@ BEGIN
   IF p_type IN ('service','device') THEN
     RAISE EXCEPTION 'KITE: only parts, accessories and consumables are reserved for repairs' USING ERRCODE = 'KT050';
   END IF;
+  NEW.updated_at := now();
+  RETURN NEW;
+END $$;
+CREATE TRIGGER reservation_check BEFORE INSERT OR UPDATE OR DELETE ON inv.reservation FOR EACH ROW EXECUTE FUNCTION inv.reservation_check();
+
+-- The balance's reserved quantity follows its reservations, never above what is on hand. An AFTER trigger: a BEFORE INSERT
+-- trigger also fires for the row an INSERT ... ON CONFLICT DO UPDATE proposes and then updates instead, which would count
+-- the change twice. Runs as the owner: the application may only read stock balances.
+CREATE FUNCTION inv.reservation_apply() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+DECLARE delta numeric; b inv.stock_balance%ROWTYPE;
+BEGIN
   delta := NEW.qty - CASE WHEN TG_OP = 'UPDATE' THEN OLD.qty ELSE 0 END;
-  IF delta = 0 THEN RETURN NEW; END IF;
+  IF delta = 0 THEN RETURN NULL; END IF;
   INSERT INTO inv.stock_balance (business_id, branch_id, warehouse_id, variant_id)
   VALUES (NEW.business_id, NEW.branch_id, NEW.warehouse_id, NEW.variant_id)
   ON CONFLICT (branch_id, warehouse_id, variant_id) DO NOTHING;
@@ -71,10 +84,26 @@ BEGIN
   IF delta > 0 AND b.reserved > b.qty THEN
     RAISE EXCEPTION 'KITE: only % of this part is on hand and % is already reserved', b.qty, b.reserved - delta USING ERRCODE = 'KT050';
   END IF;
-  NEW.updated_at := now();
-  RETURN NEW;
+  RETURN NULL;
 END $$;
-CREATE TRIGGER reservation_apply BEFORE INSERT OR UPDATE OR DELETE ON inv.reservation FOR EACH ROW EXECUTE FUNCTION inv.reservation_apply();
+CREATE TRIGGER reservation_apply AFTER INSERT OR UPDATE ON inv.reservation FOR EACH ROW EXECUTE FUNCTION inv.reservation_apply();
+
+-- Locks a part's balance for the repair writers (job first, then balances in part order: ADR 54), creating the row when the
+-- part was never stocked here. The application may only read balances, so this runs as the owner, for a warehouse of the
+-- branch given.
+CREATE FUNCTION inv.lock_part_balance(p_branch uuid, p_warehouse uuid, p_variant uuid, OUT qty numeric, OUT reserved numeric)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+DECLARE biz uuid;
+BEGIN
+  SELECT w.business_id INTO biz FROM core.warehouse w WHERE w.id = p_warehouse AND w.branch_id = p_branch;
+  IF biz IS NULL THEN
+    RAISE EXCEPTION 'KITE: that warehouse is not in the branch' USING ERRCODE = 'KT050';
+  END IF;
+  INSERT INTO inv.stock_balance (business_id, branch_id, warehouse_id, variant_id) VALUES (biz, p_branch, p_warehouse, p_variant)
+  ON CONFLICT (branch_id, warehouse_id, variant_id) DO NOTHING;
+  SELECT b.qty, b.reserved INTO qty, reserved FROM inv.stock_balance b
+   WHERE b.branch_id = p_branch AND b.warehouse_id = p_warehouse AND b.variant_id = p_variant FOR UPDATE;
+END $$;
 
 -- What a branch can still use of an item: on hand less reserved (never below zero).
 CREATE FUNCTION inv.available(p_warehouse uuid, p_variant uuid) RETURNS numeric
@@ -374,10 +403,14 @@ CREATE INDEX accrual_status ON comm.accrual (branch_id, status);
 -- An accrual is never edited (15.3): only its status moves forward, and a reversal pairs it with its opposite.
 CREATE FUNCTION comm.accrual_guard() RETURNS trigger
 LANGUAGE plpgsql AS $$
-DECLARE moving text[] := ARRAY['status','approved_by','approved_at','payout_id','reversed_by','reversed_at','reason'];
+DECLARE moving text[] := ARRAY['status','approved_by','approved_at','payout_id','reversed_by','reversed_at','reason','journal_id'];
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'KITE: a commission accrual is never deleted; it is reversed' USING ERRCODE = 'KT061';
+  END IF;
+  -- The accrual is written first (its unique key decides), then its journal; the link is set once.
+  IF OLD.journal_id IS NOT NULL AND NEW.journal_id IS DISTINCT FROM OLD.journal_id THEN
+    RAISE EXCEPTION 'KITE: an accrual keeps its journal' USING ERRCODE = 'KT061';
   END IF;
   IF (SELECT jsonb_object_agg(k, v) FROM jsonb_each(to_jsonb(NEW)) e(k, v) WHERE NOT k = ANY(moving))
      IS DISTINCT FROM (SELECT jsonb_object_agg(k, v) FROM jsonb_each(to_jsonb(OLD)) e(k, v) WHERE NOT k = ANY(moving)) THEN
@@ -479,6 +512,8 @@ GRANT SELECT, INSERT, UPDATE ON inv.reservation, repair.part_request TO kite_app
 GRANT SELECT ON inv.reservation, repair.part_request, repair.invoice_correction TO kite_ro;
 GRANT SELECT, INSERT ON repair.invoice_correction TO kite_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON comm.job_share TO kite_app;
+REVOKE ALL ON FUNCTION inv.lock_part_balance(uuid, uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION inv.lock_part_balance(uuid, uuid, uuid) TO kite_app;
 GRANT EXECUTE ON FUNCTION inv.available(uuid, uuid), repair.parts_cost(uuid), repair.outside_cost(uuid), repair.current_invoice(uuid) TO kite_app, kite_ro;
 
 DO $$

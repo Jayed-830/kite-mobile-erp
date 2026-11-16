@@ -12,6 +12,7 @@ public sealed class KiteOptions
     public BackupSettings Backup { get; set; } = new();
     public PrintingSettings Printing { get; set; } = new();
     public WhatsAppSettings WhatsApp { get; set; } = new();
+    public RepairOptions Repairs { get; set; } = new();
 }
 
 /// <summary>The print relay only reaches printers on the shop network unless this is switched on.</summary>

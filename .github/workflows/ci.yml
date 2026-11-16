@@ -370,6 +370,57 @@ jobs:
           name: phase8-report
           path: phase8-report.json
 
+  phase9-exit-gate:
+    name: Phase 9 exit gate (scarce parts, racing tills and fillers, commissions generated once, corrections and payouts at 4 branches at once)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The commission vectors are what the independent Python implementation writes
+        run: |
+          python3 tests/vectors/generators/commission_vectors.py
+          git diff --exit-code tests/vectors/commission-math-vectors.json
+      - run: dotnet build Kite.slnx -c Release
+      - name: 4 branches, 3 tills each, 6 repairs per till; parts short and filled oldest first, commissions on each basis, generator x10, corrections, racing payouts
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+          KITE_P9_BRANCHES: "4"
+          KITE_P9_TILLS: "3"
+          KITE_P9_JOBS: "6"
+          KITE_P9_REPORT: ${{ github.workspace }}/phase9-report.json
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~Phase9ExitGateTests" --logger "console;verbosity=detailed"
+      - name: Report
+        if: always()
+        run: |
+          test -f phase9-report.json && cat phase9-report.json
+          test -f phase9-report.json && python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          d = json.load(open('phase9-report.json'))
+          print('### Phase 9 exit gate\n')
+          print(f"{d['branches']} branches x {d['tillsPerBranch']} tills x {d['jobsPerTill']} repairs in {d['seconds']} s.\n")
+          print(', '.join(f"{v} {k}" for k, v in d['counts'].items()) + '\n')
+          print('| Account | Expected | Moved |\n| --- | ---: | ---: |')
+          for a, v in d['accounts'].items(): print(f"| {a} | {v['expected']:.3f} | {v['actual']:.3f} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase9-report
+          path: phase9-report.json
+
   pocs-linux:
     name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)
     runs-on: ubuntu-latest

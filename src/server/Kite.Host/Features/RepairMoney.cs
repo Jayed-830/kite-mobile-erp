@@ -119,7 +119,7 @@ public static partial class RepairEndpoints
     /// <summary>Gives part of a job's deposit back: a numbered refund receipt, the ledger line, the tender (from the drawer, to the card,
     /// by transfer, or to store credit) and the journal (13.7). The job's row lock is held by the caller.</summary>
     private static async Task<RefundDone> RefundAsync(DbTx t, HttpContext http, RepairJob j, decimal amount, decimal tax, string method, string reason,
-        string? cardTerminal, string? reference)
+        string? cardTerminal, string? reference, string? takenNumber = null)
     {
         if (method is not ("cash" or "card" or "bank_transfer" or "store_credit"))
             throw new KiteException(ErrorCodes.Validation, "A deposit goes back in cash, to the card, by transfer or as store credit.", 400, "method");
@@ -138,7 +138,7 @@ public static partial class RepairEndpoints
         var date = BusinessDay.DateOf(now, biz.TimeZone);
         var uid = Uid(http);
         var refundId = t.NewId();
-        var number = await DocNumbers.NextAsync(t, biz.Id, j.BranchId, "repair_deposit", await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, date), "DEP");
+        var number = takenNumber ?? await DocNumbers.NextAsync(t, biz.Id, j.BranchId, "repair_deposit", await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, date), "DEP");
         var ledger = t.NewId();
         await t.ExecuteAsync("""
             INSERT INTO crm.credit_ledger (id, business_id, branch_id, customer_id, balance_type, amount, source_doc_type, source_doc_id, note, created_by,
@@ -207,7 +207,7 @@ public static partial class RepairEndpoints
         }
         var wip = await RepairCore.WipAsync(t, id);
         if (j.Outcome != "repaired" && wip != 0)
-            throw new KiteException(ErrorCodes.RepairState, $"The job still holds {wip:0.000} of parts. Return them to stock or write them off before the device goes back.", 409);
+            throw new KiteException(ErrorCodes.RepairState, $"The job still holds {wip:0.000} of parts or outside work. Return parts to stock or write them off before the device goes back.", 409);
 
         var charges = await RepairCore.ChargesAsync(t, j, fee);
         var gross = charges.Sum(c => c.GrossAmount);
@@ -224,6 +224,16 @@ public static partial class RepairEndpoints
             term = await PosTerminals.CurrentAsync(t, http);
             if (term.BranchId != j.BranchId) throw new KiteException(ErrorCodes.Validation, $"The device is collected at {j.BranchCode}.", 400);
             shift = await PosEndpoints.OpenShiftForUpdateAsync(t, term, http);
+        }
+
+        // Lock order (ADR 54): an excess going back to store credit locks the customer's balance, and its refund receipt takes
+        // its number, before the invoice's number and journals.
+        string? refundNumber = null;
+        if (split.Excess > 0)
+        {
+            if (req.ExcessTo == "store_credit") await TradeInCore.LockForPaymentAsync(t, [], j.CustomerId);
+            refundNumber = await DocNumbers.NextAsync(t, biz.Id, j.BranchId, "repair_deposit",
+                await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, BusinessDay.Today(biz.TimeZone, t.Clock)), "DEP");
         }
 
         // The repair invoice: the charges, the deposit applied, the rest by any tender (13.5).
@@ -250,7 +260,7 @@ public static partial class RepairEndpoints
             }
             var lines = charges.Select((c, i) => new DraftLine(c.VariantId, c.ProductType, c.DescriptionEn, c.DescriptionAr, c.Qty, c.UnitPrice, c.UnitPrice,
                 0m, c.NetAmount, c.TaxCodeId, c.TaxRate, c.TaxAmount, c.GrossAmount, null, c.Kind == "part" || c.Kind == "labour" ? j.WarrantyDays : 0,
-                RepairCharge: true, KnownCost: costs[i])).ToList();
+                RepairCharge: true, KnownCost: costs[i], RepairKind: c.Kind)).ToList();
             saleId = t.NewId();
             var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(saleId.Value, shift!.Id, uid, j.CustomerId, "tax_invoice", null, null, null,
                 t.Clock.UtcNow, lines, payments, false, Note: $"Repair {j.Number}", RepairJobId: j.Id, DepositTax: split.AppliedTax,
@@ -263,18 +273,28 @@ public static partial class RepairEndpoints
         RefundDone? refund = null;
         if (split.Excess > 0)
             refund = await RefundAsync(t, http, j, split.Excess, split.ExcessTax, req.ExcessTo == "store_credit" ? "store_credit" : "cash",
-                $"Deposit above the charges of {j.Number}, given back at collection", null, null);
+                $"Deposit above the charges of {j.Number}, given back at collection", null, null, refundNumber);
 
-        // Work-in-progress leaves the job: the cost of the repair, or warranty expense on a warranty claim (13.7).
+        // Work-in-progress leaves the job (13.7): the parts to the cost of repair parts and outside work to its own cost, or all of it
+        // to warranty expense on a warranty claim.
         if (j.Outcome == "repaired" && wip > 0)
         {
-            var kind = j.IsWarrantyClaim ? "warranty" : "cost_of_repair";
-            var cid = t.NewId();
-            var journal = await Posting.PostAsync(t, biz.Id, j.BranchId, PostingRuleTemplates.RepairCost, new PostingFacts().Set(kind, wip),
-                BusinessDay.Today(biz.TimeZone, t.Clock), "repair_wip", cid, $"Repair {j.Number}: {(j.IsWarrantyClaim ? "warranty repair" : "parts cost")}");
-            await t.ExecuteAsync("""
-                INSERT INTO repair.wip_clearing (id, business_id, branch_id, job_id, kind, amount, journal_id, created_by) VALUES (@cid, @b, @BranchId, @id, @kind, @wip, @journal, @uid)
-                """, new { cid, b = biz.Id, j.BranchId, id, kind, wip, journal, uid });
+            var outside = await t.ExecuteScalarAsync<decimal>("""
+                SELECT repair.outside_cost(@id) - coalesce((SELECT sum(w.amount) FROM repair.wip_clearing w JOIN repair.repair_line l ON l.id = w.line_id
+                                                             WHERE w.job_id = @id AND l.kind = 'external'), 0)
+                """, new { id });
+            var clearings = j.IsWarrantyClaim
+                ? new[] { ("warranty", wip, PostingRuleTemplates.RepairCost, new PostingFacts().Set("warranty", wip), "warranty repair") }
+                : new[] { ("cost_of_repair", wip - outside, PostingRuleTemplates.RepairCost, new PostingFacts().Set("cost_of_repair", wip - outside), "parts cost"),
+                          ("outside_work", outside, PostingRuleTemplates.RepairOutsideWork, new PostingFacts().Set("cost", outside), "outside work cost") };
+            foreach (var (kind, amount, rule, facts, what) in clearings.Where(c => c.Item2 > 0))
+            {
+                var cid = t.NewId();
+                var journal = await Posting.PostAsync(t, biz.Id, j.BranchId, rule, facts, BusinessDay.Today(biz.TimeZone, t.Clock), "repair_wip", cid, $"Repair {j.Number}: {what}");
+                await t.ExecuteAsync("""
+                    INSERT INTO repair.wip_clearing (id, business_id, branch_id, job_id, kind, amount, journal_id, created_by) VALUES (@cid, @b, @BranchId, @id, @kind, @amount, @journal, @uid)
+                    """, new { cid, b = biz.Id, j.BranchId, id, kind, amount, journal, uid });
+            }
         }
 
         await SavePhotoAsync(t, j, "collection_signature", req.Signature, $"Collected by {collectedBy}", null, uid);
@@ -296,6 +316,8 @@ public static partial class RepairEndpoints
         await t.AuditAsync(new AuditEntry("repair.delivered", "repair_job", id,
             After: Json.Obj(new { j.Number, saleNumber, gross, applied = split.Applied, excess = split.Excess, wip, collectedBy, req.Check }), BranchId: j.BranchId));
         await t.PublishAsync("repair.delivered", "repair_job", id, j.Version + 1, Json.Obj(new { j.Number, saleNumber, gross }), j.BranchId);
+        // The technicians' commissions, in the same transaction as the invoice (15.2).
+        await Commissions.GenerateAsync(t, id, uid);
         return new
         {
             id, number = j.Number, saleId, saleNumber, gross, applied = split.Applied, due = split.Due, excess = split.Excess, refundId = refund?.Id,

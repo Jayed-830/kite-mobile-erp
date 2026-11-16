@@ -89,6 +89,8 @@ public static class SettingsEndpoints
                     var payload = Json.Obj(new { changes = changed });
                     await t.AuditAsync(new AuditEntry("settings.modules_changed", "business", server.BusinessId,
                         Before: Json.Obj(changed.ToDictionary(kv => kv.Key, kv => current[kv.Key])), After: payload));
+                    // One change of the module switches at a time, so each event's version is the next (the outbox is written at commit).
+                    await t.ExecuteAsync("SELECT pg_advisory_xact_lock(hashtextextended('kite.modules_configured', 0))");
                     var version = await t.ExecuteScalarAsync<long>("SELECT count(*) + 1 FROM sync.outbox WHERE event_type = 'core.modules_configured'");
                     await t.PublishAsync("core.modules_configured", "business", server.BusinessId!.Value, (int)version, payload);
                 }, ct);

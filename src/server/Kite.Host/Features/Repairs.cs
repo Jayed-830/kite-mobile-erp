@@ -26,7 +26,7 @@ public sealed record RepairAssignRequest(Guid? TechnicianId);
 public sealed record EstimateRequest(List<EstimateLineInput> Lines, string? Note = null);
 public sealed record EstimateApproveRequest(string Method, string? ApproverName = null, string? Phone = null, string? Signature = null, string? Then = null);
 public sealed record EstimateDeclineRequest(string Reason);
-public sealed record PartFitRequest(Guid VariantId, decimal Qty, string? Note = null, Guid? WarehouseId = null);
+public sealed record PartFitRequest(Guid VariantId, decimal Qty, string? Note = null, Guid? WarehouseId = null, string? Serial = null);
 public sealed record PartReturnRequest(decimal Qty, string? Note = null);
 public sealed record PartWriteOffRequest(string Reason);
 public sealed record LabourRequest(int Minutes, Guid? TechnicianId = null, string? Note = null);
@@ -59,6 +59,7 @@ public static partial class RepairEndpoints
         MapMoney(app);
         MapSetup(app);
         MapDocuments(app);
+        MapParts(app);
     }
 
     private static Guid Uid(HttpContext http) => http.User.UserIdOf();
@@ -128,9 +129,12 @@ public static partial class RepairEndpoints
                 var today = BusinessDay.Today((await BusinessInfo.LoadAsync(t)).TimeZone, t.Clock);
                 if (o.WarrantyUntil is not { } until || DateOnly.FromDateTime(until) < today)
                     throw new KiteException(ErrorCodes.RepairState, o.WarrantyUntil is null ? "This repair had no warranty." : $"The repair's warranty ended on {o.WarrantyUntil:yyyy-MM-dd}.", 409);
-                return await IntakeAsync(t, http, secrets, new RepairIntakeRequest(o.CustomerId, o.CategoryId, req.Problem, req.PasscodeMode, req.TermsName,
+                var claimId = await IntakeAsync(t, http, secrets, new RepairIntakeRequest(o.CustomerId, o.CategoryId, req.Problem, req.PasscodeMode, req.TermsName,
                     req.TermsSignature, o.CustomerDeviceId, null, req.FaultCodes, req.Condition, req.ConditionNotes, req.Accessories, req.AccessoriesOther,
                     req.Passcode, 0m, null, req.NotifyWhatsapp, o.Lang, req.Photos, o.TechnicianId, o.BranchId), o);
+                // Rework (13.6, 15.3): a claim soon after delivery can take back the original technician's commission.
+                await Commissions.ClawbackAsync(t, await RepairCore.LoadAsync(t, claimId), Uid(http));
+                return claimId;
             }, ct);
             return Results.Created($"/api/v1/repairs/{newId}", await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => DetailAsync(t, http, newId), ct));
         }).RequirePermission(Permissions.RepairIntake).RequireModule("repair");
@@ -540,6 +544,7 @@ public static partial class RepairEndpoints
         }
         var work = await t.RowsAsync("""
             SELECT l.id, l.kind, l.variant_id AS "variantId", v.sku, p.name_en AS "nameEn", p.name_ar AS "nameAr", l.qty, l.cost, l.return_of_id AS "returnOfId",
+                   l.serial, l.vendor, l.reference, EXISTS (SELECT 1 FROM repair.repair_line r WHERE r.return_of_id = l.id AND l.kind = 'external') AS reversed,
                    l.minutes, tu.display_name_en AS "technicianName", l.note, l.created_at AS "createdAt", cu.display_name_en AS "createdBy",
                    CASE WHEN l.kind = 'part' AND l.qty > 0 THEN l.qty + coalesce((SELECT sum(r.qty) FROM repair.repair_line r WHERE r.return_of_id = l.id), 0) END AS "qtyLeft",
                    CASE WHEN l.kind = 'part' AND l.qty > 0 THEN l.cost + coalesce((SELECT sum(r.cost) FROM repair.repair_line r WHERE r.return_of_id = l.id), 0)
@@ -590,7 +595,7 @@ public static partial class RepairEndpoints
                 j.CollectionCheck, j.WarrantyUntil, j.RemindedDays, j.CreatedAt, j.CreatedByName, j.Version, qr = QrText(j),
                 next = RepairCore.Transitions[j.Status],
             },
-            estimates, work, clearing, deposits, history, assignments, photos, claims,
+            estimates, work, clearing, deposits, history, assignments, photos, claims, parts = await RepairParts.SummaryAsync(t, id),
             money = new { deposit, depositTax = await RepairCore.DepositTaxAsync(t, id), wip, charges, chargesTotal, due = Math.Max(0, chargesTotal - deposit),
                           excess = Math.Max(0, deposit - chargesTotal), settings.DiagnosisFee, settings.HourlyRate, settings.DepositVatPoint },
         };

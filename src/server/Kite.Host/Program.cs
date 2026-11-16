@@ -50,6 +50,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<WebAddressService>
 builder.Services.AddSingleton<WhatsAppGateway>();
 builder.Services.AddSingleton<NotifRelay>();
 builder.Services.AddSingleton<RepairHousekeeping>();
+builder.Services.AddHostedService<PartsWorker>();
 builder.Services.AddHostedService<WhatsAppWorker>();
 builder.Services.AddHttpClient("whatsapp", c => c.Timeout = TimeSpan.FromSeconds(20));
 
@@ -123,6 +124,8 @@ DeviceCounts.Map(app);
 TradeInEndpoints.Map(app);
 RefurbishmentEndpoints.Map(app);
 RepairEndpoints.Map(app);
+PosEndpoints.MapRepairCorrection(app);
+CommissionEndpoints.Map(app);
 WhatsAppEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.

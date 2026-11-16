@@ -152,4 +152,10 @@ public static class ErrorCodes
     public const string WhatsAppWindow = "WA-002";
     public const string WhatsAppConsent = "WA-003";
     public const string WebAddress = "WA-004";
+    public const string PartsReserved = "PRT-001";
+    public const string RepairCorrection = "REP-008";
+    public const string CommissionRule = "COM-001";
+    public const string CommissionState = "COM-002";
+    public const string CommissionShares = "COM-003";
+    public const string CommissionPayout = "COM-004";
 }

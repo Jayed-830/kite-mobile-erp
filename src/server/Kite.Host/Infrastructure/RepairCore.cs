@@ -230,7 +230,7 @@ public static class RepairCore
 
     /// <summary>Moves a job to another status; the database refuses a transition 13.2 does not allow and writes the history row
     /// with this note. A version from the client must match.</summary>
-    public static async Task MoveAsync(DbTx t, RepairJob j, string to, string? note, Guid actor, int? expectedVersion = null, string? outcome = null)
+    public static async Task MoveAsync(DbTx t, RepairJob j, string to, string? note, Guid? actor, int? expectedVersion = null, string? outcome = null)
     {
         if (expectedVersion is { } v && v != j.Version)
             throw new KiteException(ErrorCodes.VersionMismatch, "Someone else changed this job. Reload and try again.", 412, "version");
@@ -256,6 +256,15 @@ public static class RepairCore
         await t.AuditAsync(new AuditEntry("repair.status_changed", "repair_job", j.Id,
             After: Json.Obj(new { j.Number, from, to, note = string.IsNullOrWhiteSpace(note) ? null : note.Trim() }), BranchId: j.BranchId));
         await t.PublishAsync("repair.status_changed", "repair_job", j.Id, j.Version, Json.Obj(new { j.Number, from, to }), j.BranchId);
+        // A job that has ended no longer holds parts or waits for them (13.4).
+        if (to is "completed" or "cancelled" or "unrepairable") await RepairParts.ReconcileAsync(t, j, actor);
+        // Work cannot start without its parts: a job sent to repair while parts are short waits for them, and moves on by
+        // itself when they arrive (13.4).
+        if (to == "in_progress")
+        {
+            var missing = await t.ExecuteScalarAsync<decimal>("SELECT coalesce(sum(qty), 0) FROM repair.part_request WHERE job_id = @id", new { id = j.Id });
+            if (missing > 0) await MoveAsync(t, j, "waiting_parts", $"Waiting for parts: {missing:0.###} not in stock", actor);
+        }
     }
 
     public static string Words(string status) => status.Replace('_', ' ');
@@ -276,8 +285,11 @@ public static class RepairCore
             var f = $"lines[{i}]";
             if (!items.TryGetValue(l.VariantId, out var item)) throw new KiteException(ErrorCodes.Validation, "That item is not in the catalog.", 400, f + ".variantId");
             if (l.Kind is not ("labour" or "part" or "extra")) throw new KiteException(ErrorCodes.Validation, "A line is labour, a part or an extra charge.", 400, f + ".kind");
-            if (l.Kind == "part" && (item.ProductType is "service" or "device" || item.Tracking != "none"))
-                throw new KiteException(ErrorCodes.Validation, $"{item.Sku} is not a part: a part is a spare part, accessory or consumable counted by quantity.", 400, f + ".variantId");
+            // A part is counted by quantity, or (13.4) is a spare part tracked by serial number and fitted one unit at a time.
+            if (l.Kind == "part" && (item.ProductType is "service" or "device" || item.Tracking == "imei"))
+                throw new KiteException(ErrorCodes.Validation, $"{item.Sku} is not a part: a part is a spare part, accessory or consumable.", 400, f + ".variantId");
+            if (l.Kind == "part" && item.Tracking == "serial" && l.Qty != decimal.Truncate(l.Qty))
+                throw new KiteException(ErrorCodes.Validation, $"{item.Sku} is tracked by serial number: whole units only.", 400, f + ".qty");
             if (l.Kind != "part" && item.ProductType != "service")
                 throw new KiteException(ErrorCodes.Validation, $"{item.Sku} is not a service: labour and extra charges are services in the catalog.", 400, f + ".variantId");
             if (l.Minutes is not null && l.Kind != "labour") throw new KiteException(ErrorCodes.Validation, "Only labour is charged by the minute.", 400, f + ".minutes");
@@ -288,7 +300,9 @@ public static class RepairCore
                 qty = 1m;
                 price = RepairMath.LabourPrice(minutes, settings.HourlyRate);
             }
-            var priced = PosMath.PriceLine(i + 1, new CartLine(l.VariantId, qty, price), item, biz.PricesIncludeTax, DiscountLimit.Any);
+            // A serial part is charged on the invoice by quantity; which unit was fitted is on the job (13.4).
+            var priced = PosMath.PriceLine(i + 1, new CartLine(l.VariantId, qty, price), item.Tracking == "serial" ? item with { Tracking = "none" } : item,
+                biz.PricesIncludeTax, DiscountLimit.Any);
             var en = string.IsNullOrWhiteSpace(l.DescriptionEn) ? item.DescriptionEn : l.DescriptionEn.Trim();
             var ar = string.IsNullOrWhiteSpace(l.DescriptionAr) ? item.DescriptionAr : l.DescriptionAr.Trim();
             if (l.Minutes is { } m2) { en += $" ({m2} min)"; ar += $" ({m2} دقيقة)"; }
@@ -348,6 +362,8 @@ public static class RepairCore
         await t.AuditAsync(new AuditEntry("repair.estimate_approved", "repair_job", j.Id,
             After: Json.Obj(new { j.Number, version = e.EstimateNo, e.Total, method, approverName, reference }), BranchId: j.BranchId));
         await t.PublishAsync("repair.estimate_approved", "repair_job", j.Id, j.Version, Json.Obj(new { j.Number, version = e.EstimateNo, method }), j.BranchId);
+        // The approved estimate's parts are reserved; what the branch does not have is requested (13.4).
+        await RepairParts.ReconcileAsync(t, j, actor);
     }
 
     // ------------------------------------------------------------------ WhatsApp (5.3)
@@ -515,6 +531,7 @@ public static class Phase8Seed
 
     public static async Task EnsureAsync(DbTx t, Guid businessId)
     {
+        await t.ExecuteAsync("INSERT INTO comm.settings (business_id) VALUES (@businessId) ON CONFLICT DO NOTHING", new { businessId });
         await t.ExecuteAsync("""
             INSERT INTO repair.settings (business_id, terms_en, terms_ar) VALUES (@businessId, @en, @ar) ON CONFLICT DO NOTHING
             """, new { businessId, en = RepairCore.TermsEn, ar = RepairCore.TermsAr });

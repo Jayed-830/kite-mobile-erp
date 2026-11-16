@@ -1,4 +1,5 @@
 using Kite.Accounting;
+using Kite.Devices;
 using Kite.Host.Infrastructure;
 using Kite.Persistence;
 using Kite.Platform;
@@ -124,42 +125,85 @@ public static partial class RepairEndpoints
                 http.User.Demand(Permissions.RepairWork, j.BranchId);
                 if (j.Status is not ("in_progress" or "testing"))
                     throw new KiteException(ErrorCodes.RepairState, $"Parts are fitted while the repair is in progress or being tested; the job is {RepairCore.Words(j.Status)}.", 409);
-                if (req.Qty <= 0 || req.Qty != decimal.Round(req.Qty, 3)) throw new KiteException(ErrorCodes.Validation, "The quantity is above zero (at most 3 decimals).", 400, "qty");
                 var part = await t.QuerySingleOrDefaultAsync<(string Type, string Tracking, string Name)>("""
                     SELECT p.product_type, p.tracking, p.name_en FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = @VariantId
                     """, new { req.VariantId });
                 if (part.Type is null) throw new KiteException(ErrorCodes.Validation, "That part is not in the catalog.", 400, "variantId");
-                if (part.Type is "service" or "device" || part.Tracking != "none")
-                    throw new KiteException(ErrorCodes.Validation, "A repair uses spare parts, accessories or consumables counted by quantity.", 400, "variantId");
-                var warehouse = req.WarehouseId ?? await t.ExecuteScalarAsync<Guid?>("""
-                    SELECT id FROM core.warehouse WHERE branch_id = @BranchId AND status = 'active' ORDER BY (kind = 'shop') DESC, (code = 'SHOP') DESC, created_at LIMIT 1
-                    """, new { j.BranchId }) ?? throw new KiteException(ErrorCodes.Validation, "The branch has no warehouse.", 400);
+                if (part.Type is "service" or "device" || part.Tracking == "imei")
+                    throw new KiteException(ErrorCodes.Validation, "A repair uses spare parts, accessories or consumables.", 400, "variantId");
+                var uid = Uid(http);
                 var lineId = t.NewId();
                 var biz = await BusinessInfo.LoadAsync(t);
-                var m = await t.QuerySingleOrDefaultAsync<(Guid Id, decimal Value, decimal QtyAfter)>("""
-                    INSERT INTO inv.stock_movement (id, business_id, branch_id, warehouse_id, variant_id, movement_type, qty, source_doc_type, source_doc_id,
-                                                    source_line_id, reason, created_by, origin_server_id)
-                    VALUES (@mid, @b, @BranchId, @warehouse, @VariantId, 'repair_issue', @negQty, 'repair_job', @id, @lineId, @number, @uid,
-                            (SELECT id FROM core.server WHERE is_self))
-                    RETURNING id, value, qty_after
-                    """, new { mid = t.NewId(), b = biz.Id, j.BranchId, warehouse, req.VariantId, negQty = -req.Qty, id, lineId, number = j.Number, uid = Uid(http) });
-                if (m.QtyAfter < 0) throw new KiteException(ErrorCodes.InsufficientStock, $"Not enough {part.Name} in stock: {m.QtyAfter + req.Qty:0.###} left.", 409, "qty");
-                var cost = -m.Value;
+                DeviceUnitRow? unit = null;
+                Guid warehouse;
+                decimal qty;
+                if (part.Tracking == "serial")
+                {
+                    // A serial-tracked part (13.4) is one device unit, scanned by its serial number.
+                    if (string.IsNullOrWhiteSpace(req.Serial)) throw new KiteException(ErrorCodes.Validation, $"Scan the serial number of the {part.Name}.", 400, "serial");
+                    if (req.Qty != 1) throw new KiteException(ErrorCodes.Validation, "A serial-tracked part is fitted one at a time.", 400, "qty");
+                    unit = await DeviceUnits.FindAsync(t, new ScannedCode("serial", req.Serial.Trim().ToUpperInvariant()));
+                    if (unit is null || unit.VariantId != req.VariantId)
+                        throw new KiteException(ErrorCodes.DeviceNotFound, $"No {part.Name} with serial {req.Serial.Trim()} is in stock.", 404, "serial");
+                    if (unit.BranchId != j.BranchId || unit.Status != "in_stock")
+                        throw new KiteException(ErrorCodes.DeviceNotAvailable, $"That {part.Name} is {unit.Status.Replace('_', ' ')} at {unit.BranchCode}, not in stock here.", 409, "serial");
+                    warehouse = unit.WarehouseId;
+                    qty = 1;
+                }
+                else
+                {
+                    if (req.Qty <= 0 || req.Qty != decimal.Round(req.Qty, 3)) throw new KiteException(ErrorCodes.Validation, "The quantity is above zero (at most 3 decimals).", 400, "qty");
+                    warehouse = req.WarehouseId ?? await RepairParts.WarehouseAsync(t, j.BranchId);
+                    qty = req.Qty;
+                }
+                // The job's own reservation first, then free stock not waited for by older requests (13.4).
+                var keep = await RepairParts.TakeForFittingAsync(t, j, warehouse, req.VariantId, qty, uid);
+                Guid movementId;
+                decimal cost, qtyAfter;
+                if (unit is not null)
+                {
+                    var (mid, value) = await DeviceUnits.MoveAsync(t, unit, "repair_issue", -1, null, "repair_job", id, lineId, j.Number);
+                    await DeviceUnits.ApplyEventAsync(t, unit.Id, "fitted", "fitted", docType: "repair_job", docId: id, details: new { job = j.Number });
+                    movementId = mid;
+                    cost = -value;
+                    qtyAfter = await t.ExecuteScalarAsync<decimal>("SELECT qty FROM inv.stock_balance WHERE warehouse_id = @warehouse AND variant_id = @VariantId",
+                        new { warehouse, req.VariantId });
+                }
+                else
+                {
+                    var m = await t.QuerySingleOrDefaultAsync<(Guid Id, decimal Value, decimal QtyAfter)>("""
+                        INSERT INTO inv.stock_movement (id, business_id, branch_id, warehouse_id, variant_id, movement_type, qty, source_doc_type, source_doc_id,
+                                                        source_line_id, reason, created_by, origin_server_id)
+                        VALUES (@mid, @b, @BranchId, @warehouse, @VariantId, 'repair_issue', @negQty, 'repair_job', @id, @lineId, @number, @uid,
+                                (SELECT id FROM core.server WHERE is_self))
+                        RETURNING id, value, qty_after
+                        """, new { mid = t.NewId(), b = biz.Id, j.BranchId, warehouse, req.VariantId, negQty = -qty, id, lineId, number = j.Number, uid });
+                    if (m.QtyAfter < 0) throw new KiteException(ErrorCodes.InsufficientStock, $"Not enough {part.Name} in stock: {m.QtyAfter + qty:0.###} left.", 409, "qty");
+                    movementId = m.Id;
+                    cost = -m.Value;
+                    qtyAfter = m.QtyAfter;
+                }
+                if (qtyAfter < keep)
+                    throw new KiteException(ErrorCodes.InsufficientStock,
+                        $"Only {Math.Max(0m, qtyAfter + qty - keep):0.###} {part.Name} can be used: the rest is reserved for other repairs or waited for by older jobs.", 409, "qty");
                 if (cost <= 0) throw new KiteException(ErrorCodes.Validation, "That part has no cost in stock yet, so it cannot go into the repair's cost.", 400, "variantId");
+                // Stock balances are all locked before the journal takes its number (ADR 54): the part being fitted is counted in.
+                await RepairParts.ReconcileAsync(t, j, uid, (req.VariantId, qty));
                 var journal = await Posting.PostAsync(t, biz.Id, j.BranchId, PostingRuleTemplates.RepairParts,
                     new PostingFacts().Add("parts_by_product_type", part.Type, cost), BusinessDay.Today(biz.TimeZone, t.Clock), "repair_part", lineId,
                     $"Repair {j.Number}: {part.Name} fitted");
                 await t.ExecuteAsync("""
                     INSERT INTO repair.repair_line (id, business_id, branch_id, job_id, kind, variant_id, product_type, qty, cost, stock_movement_id, technician_id,
-                                                    journal_id, note, created_by, origin_server_id)
-                    VALUES (@lineId, @b, @BranchId, @id, 'part', @VariantId, @type, @Qty, @cost, @mid, @tech, @journal, @note, @uid, (SELECT id FROM core.server WHERE is_self))
-                    """, new { lineId, b = biz.Id, j.BranchId, id, req.VariantId, type = part.Type, req.Qty, cost, mid = m.Id, tech = j.TechnicianId ?? Uid(http), journal,
-                               note = Clean(req.Note), uid = Uid(http) });
-                await t.AuditAsync(new AuditEntry("repair.part_fitted", "repair_job", id, After: Json.Obj(new { j.Number, part = part.Name, req.Qty, cost }), BranchId: j.BranchId));
+                                                    journal_id, note, device_unit_id, serial, created_by, origin_server_id)
+                    VALUES (@lineId, @b, @BranchId, @id, 'part', @VariantId, @type, @qty, @cost, @movementId, @tech, @journal, @note, @unitId, @serial, @uid,
+                            (SELECT id FROM core.server WHERE is_self))
+                    """, new { lineId, b = biz.Id, j.BranchId, id, req.VariantId, type = part.Type, qty, cost, movementId, tech = j.TechnicianId ?? uid, journal,
+                               note = Clean(req.Note), unitId = unit?.Id, serial = unit?.Serial, uid });
+                await t.AuditAsync(new AuditEntry("repair.part_fitted", "repair_job", id, After: Json.Obj(new { j.Number, part = part.Name, qty, cost, serial = unit?.Serial }), BranchId: j.BranchId));
                 return await DetailAsync(t, http, id);
             }, ct)))).RequirePermission(Permissions.RepairWork).RequireModule("repair");
 
-        // A fitted part that was not used goes back to stock at what it went out at.
+        // A fitted part that was not used goes back to stock at what it went out at (a serial part as its own unit).
         g.MapPost("/parts/{lineId:guid}/return", async (Guid id, Guid lineId, PartReturnRequest req, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await PosEndpoints.WithRetryAsync(() => db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
             {
@@ -170,45 +214,79 @@ public static partial class RepairEndpoints
                 if (f.WrittenOff) throw new KiteException(ErrorCodes.RepairState, "That part was written off.", 409);
                 var cost = RepairMath.ReturnCost(f.Qty, f.Cost, f.ReturnedQty, f.ReturnedCost, req.Qty);
                 var biz = await BusinessInfo.LoadAsync(t);
+                var uid = Uid(http);
                 var retId = t.NewId();
-                var warehouse = await t.ExecuteScalarAsync<Guid>("SELECT warehouse_id FROM inv.stock_movement WHERE id = @m", new { m = f.MovementId });
-                var mid = await t.ExecuteScalarAsync<Guid>("""
-                    INSERT INTO inv.stock_movement (id, business_id, branch_id, warehouse_id, variant_id, movement_type, qty, value, source_doc_type, source_doc_id,
-                                                    source_line_id, reason, created_by, origin_server_id)
-                    VALUES (@mid, @b, @BranchId, @warehouse, @VariantId, 'repair_return', @Qty, @cost, 'repair_job', @id, @retId, @number, @uid,
-                            (SELECT id FROM core.server WHERE is_self))
-                    RETURNING id
-                    """, new { mid = t.NewId(), b = biz.Id, j.BranchId, warehouse, f.VariantId, req.Qty, cost, id, retId, number = j.Number, uid = Uid(http) });
+                Guid mid;
+                if (f.DeviceUnitId is { } unitId)
+                {
+                    var u = await DeviceUnits.LoadAsync(t, unitId);
+                    var (movement, value) = await DeviceUnits.MoveAsync(t, u, "repair_return", 1, null, "repair_job", id, retId, j.Number);
+                    await DeviceUnits.ApplyEventAsync(t, unitId, "unfitted", "in_stock", docType: "repair_job", docId: id, details: new { job = j.Number });
+                    if (value != cost) throw new KiteException(ErrorCodes.Validation, "The part's cost changed while it was fitted.", 409);
+                    mid = movement;
+                }
+                else
+                {
+                    var warehouse = await t.ExecuteScalarAsync<Guid>("SELECT warehouse_id FROM inv.stock_movement WHERE id = @m", new { m = f.MovementId });
+                    mid = await t.ExecuteScalarAsync<Guid>("""
+                        INSERT INTO inv.stock_movement (id, business_id, branch_id, warehouse_id, variant_id, movement_type, qty, value, source_doc_type, source_doc_id,
+                                                        source_line_id, reason, created_by, origin_server_id)
+                        VALUES (@mid, @b, @BranchId, @warehouse, @VariantId, 'repair_return', @Qty, @cost, 'repair_job', @id, @retId, @number, @uid,
+                                (SELECT id FROM core.server WHERE is_self))
+                        RETURNING id
+                        """, new { mid = t.NewId(), b = biz.Id, j.BranchId, warehouse, f.VariantId, req.Qty, cost, id, retId, number = j.Number, uid });
+                }
+                // Stock balances are all locked before the journal takes its number (ADR 54): the returned part is counted in.
+                await RepairParts.ReconcileAsync(t, j, uid, (f.VariantId, -req.Qty));
                 var journal = await Posting.PostAsync(t, biz.Id, j.BranchId, PostingRuleTemplates.RepairParts,
                     new PostingFacts().Add("parts_by_product_type", f.ProductType, -cost), BusinessDay.Today(biz.TimeZone, t.Clock), "repair_part", retId,
                     $"Repair {j.Number}: part returned to stock");
                 await t.ExecuteAsync("""
                     INSERT INTO repair.repair_line (id, business_id, branch_id, job_id, kind, variant_id, product_type, qty, cost, stock_movement_id, return_of_id,
-                                                    journal_id, note, created_by, origin_server_id)
-                    VALUES (@retId, @b, @BranchId, @id, 'part', @VariantId, @ProductType, @negQty, @negCost, @mid, @lineId, @journal, @note, @uid,
+                                                    journal_id, note, device_unit_id, serial, created_by, origin_server_id)
+                    VALUES (@retId, @b, @BranchId, @id, 'part', @VariantId, @ProductType, @negQty, @negCost, @mid, @lineId, @journal, @note, @DeviceUnitId, @Serial, @uid,
                             (SELECT id FROM core.server WHERE is_self))
                     """, new { retId, b = biz.Id, j.BranchId, id, f.VariantId, f.ProductType, negQty = -req.Qty, negCost = -cost, mid, lineId, journal,
-                               note = Clean(req.Note), uid = Uid(http) });
+                               note = Clean(req.Note), f.DeviceUnitId, f.Serial, uid });
                 await t.AuditAsync(new AuditEntry("repair.part_returned", "repair_job", id, After: Json.Obj(new { j.Number, req.Qty, cost }), BranchId: j.BranchId));
                 return await DetailAsync(t, http, id);
             }, ct)))).RequirePermission(Permissions.RepairView).RequireModule("repair");
 
-        // A fitted part that cannot go back (damaged, or the job was cancelled after fitting): written off with a reason (13.5, 13.7).
+        // A fitted part, or outside work, that cannot be used or charged: written off with a reason (13.5, 13.7).
         g.MapPost("/parts/{lineId:guid}/write-off", async (Guid id, Guid lineId, PartWriteOffRequest req, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await PosEndpoints.WithRetryAsync(() => db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
             {
                 var j = await RepairCore.LoadAsync(t, id, forUpdate: true);
                 http.User.Demand(Permissions.RepairCancel, j.BranchId);
                 if (j.Status == "delivered") throw new KiteException(ErrorCodes.RepairState, "The job was delivered.", 409);
-                if (string.IsNullOrWhiteSpace(req.Reason)) throw new KiteException(ErrorCodes.Validation, "Say why the part is written off.", 400, "reason");
-                var f = await FittedAsync(t, id, lineId);
-                if (f.WrittenOff) throw new KiteException(ErrorCodes.RepairState, "That part was already written off.", 409);
-                var amount = f.Cost - f.ReturnedCost;
-                if (amount <= 0) throw new KiteException(ErrorCodes.RepairState, "Nothing of that part is left on the job.", 409);
+                if (string.IsNullOrWhiteSpace(req.Reason)) throw new KiteException(ErrorCodes.Validation, "Say why it is written off.", 400, "reason");
+                var external = await t.QuerySingleOrDefaultAsync<(Guid Id, decimal Cost, bool Reversed)>("""
+                    SELECT l.id, l.cost, EXISTS (SELECT 1 FROM repair.repair_line r WHERE r.return_of_id = l.id) FROM repair.repair_line l
+                     WHERE l.id = @lineId AND l.job_id = @id AND l.kind = 'external' AND l.cost > 0
+                    """, new { lineId, id });
+                decimal amount;
+                Guid? unitToWriteOff = null;
+                if (external.Id != Guid.Empty)
+                {
+                    if (external.Reversed) throw new KiteException(ErrorCodes.RepairState, "That outside work was reversed.", 409);
+                    if (await t.ExecuteScalarAsync<bool>("SELECT EXISTS (SELECT 1 FROM repair.wip_clearing WHERE line_id = @lineId)", new { lineId }))
+                        throw new KiteException(ErrorCodes.RepairState, "That outside work was already written off.", 409);
+                    amount = external.Cost;
+                }
+                else
+                {
+                    var f = await FittedAsync(t, id, lineId);
+                    if (f.WrittenOff) throw new KiteException(ErrorCodes.RepairState, "That part was already written off.", 409);
+                    amount = f.Cost - f.ReturnedCost;
+                    if (f.DeviceUnitId is { } u && f.ReturnedQty == 0) unitToWriteOff = u;
+                }
+                if (amount <= 0) throw new KiteException(ErrorCodes.RepairState, "Nothing of that is left on the job.", 409);
+                if (unitToWriteOff is { } unitId)
+                    await DeviceUnits.ApplyEventAsync(t, unitId, "written_off", "written_off", docType: "repair_job", docId: id, details: new { job = j.Number, reason = req.Reason.Trim() });
                 var biz = await BusinessInfo.LoadAsync(t);
                 var cid = t.NewId();
                 var journal = await Posting.PostAsync(t, biz.Id, j.BranchId, PostingRuleTemplates.RepairCost, new PostingFacts().Set("written_off", amount),
-                    BusinessDay.Today(biz.TimeZone, t.Clock), "repair_wip", cid, $"Repair {j.Number}: part written off");
+                    BusinessDay.Today(biz.TimeZone, t.Clock), "repair_wip", cid, $"Repair {j.Number}: {(external.Id != Guid.Empty ? "outside work" : "part")} written off");
                 await t.ExecuteAsync("""
                     INSERT INTO repair.wip_clearing (id, business_id, branch_id, job_id, kind, amount, line_id, reason, journal_id, created_by)
                     VALUES (@cid, @b, @BranchId, @id, 'written_off', @amount, @lineId, @reason, @journal, @uid)
@@ -247,6 +325,8 @@ public static partial class RepairEndpoints
 
     private sealed class FittedPart
     {
+        public Guid? DeviceUnitId { get; set; }
+        public string? Serial { get; set; }
         public Guid Id { get; set; }
         public Guid VariantId { get; set; }
         public string ProductType { get; set; } = "";
@@ -261,6 +341,7 @@ public static partial class RepairEndpoints
     private static async Task<FittedPart> FittedAsync(DbTx t, Guid jobId, Guid lineId) =>
         await t.QuerySingleOrDefaultAsync<FittedPart>("""
             SELECT l.id, l.variant_id AS VariantId, l.product_type AS ProductType, l.qty, l.cost, l.stock_movement_id AS MovementId,
+                   l.device_unit_id AS DeviceUnitId, l.serial,
                    coalesce((SELECT -sum(r.qty) FROM repair.repair_line r WHERE r.return_of_id = l.id), 0) AS ReturnedQty,
                    coalesce((SELECT -sum(r.cost) FROM repair.repair_line r WHERE r.return_of_id = l.id), 0) AS ReturnedCost,
                    EXISTS (SELECT 1 FROM repair.wip_clearing w WHERE w.line_id = l.id) AS WrittenOff

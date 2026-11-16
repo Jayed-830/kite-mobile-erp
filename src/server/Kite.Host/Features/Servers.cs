@@ -245,6 +245,8 @@ public sealed class PkiService(KiteDb db, ServerContext server, KeyStore keys, K
     {
         var revoked = (await t.QueryAsync<(string Serial, DateTime At)>(
             "SELECT serial, revoked_at FROM pki.certificate WHERE revoked_at IS NOT NULL AND kind = 'branch_server' ORDER BY revoked_at")).ToArray();
+        // One CRL at a time, so each has the next number.
+        await t.ExecuteAsync("SELECT pg_advisory_xact_lock(hashtextextended('kite.pki.crl', 0))");
         var number = await t.ExecuteScalarAsync<long>("SELECT coalesce(max(number), 0) + 1 FROM pki.crl");
         var now = clock.UtcNow;
         var pem = BusinessCa.BuildCrlPem(Authority, number, revoked.Select(r => (r.Serial, new DateTimeOffset(DateTime.SpecifyKind(r.At, DateTimeKind.Utc)))), now);

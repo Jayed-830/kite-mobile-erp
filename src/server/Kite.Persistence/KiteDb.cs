@@ -62,7 +62,12 @@ public sealed class KiteDb(NpgsqlDataSource dataSource, ServerContext server, II
         await using var conn = await dataSource.OpenConnectionAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
         await ApplyScope(conn, tx, scope, ct);
-        var result = await work(new DbTx(conn, tx, actor, server, ids, clock, ct));
+        var t = new DbTx(conn, tx, actor, server, ids, clock, ct);
+        var result = await work(t);
+        // The audit log and the outbox each take one server-wide lock (their chains are in order). Written last, just before
+        // the commit, those locks are always the last a transaction takes, so no transaction holding them waits for anything
+        // else and they can never be part of a deadlock (ADR 61).
+        await t.FlushAsync();
         await tx.CommitAsync(ct);
         return result;
     }
@@ -88,6 +93,9 @@ public sealed class DbTx(NpgsqlConnection conn, NpgsqlTransaction tx, ActorConte
     public CancellationToken Cancellation => ct;
     public IClock Clock => clock;
     public Guid NewId() => ids.NewId();
+
+    private readonly List<object> _audits = [];
+    private readonly List<object> _events = [];
 
     public Task<int> ExecuteAsync(string sql, object? param = null) =>
         conn.ExecuteAsync(new CommandDefinition(sql, param, tx, cancellationToken: ct));
@@ -121,39 +129,60 @@ public sealed class DbTx(NpgsqlConnection conn, NpgsqlTransaction tx, ActorConte
         return result;
     }
 
-    /// <summary>Appends to the hash-chained audit log (the database computes seq and hashes).</summary>
+    /// <summary>
+    /// Appends to the hash-chained audit log (the database computes seq and hashes). The row is written, in order, when the
+    /// work of the transaction is done, just before it commits; a transaction that fails writes none.
+    /// </summary>
     public Task AuditAsync(AuditEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        return ExecuteAsync("""
-            INSERT INTO audit.audit_log (id, business_id, branch_id, user_id, terminal_id, action, entity_type, entity_id,
-                                         before, after, reason, ip, origin_server_id)
-            VALUES (@id, @business, @branch, @user, @terminal, @action, @entityType, @entityId,
-                    @before::jsonb, @after::jsonb, @reason, @ip::inet, @server)
-            """,
-            new
-            {
-                id = ids.NewId(),
-                business = server.BusinessId,
-                branch = entry.BranchId ?? actor.BranchId,
-                user = actor.UserId,
-                terminal = actor.TerminalId,
-                action = entry.Action,
-                entityType = entry.EntityType,
-                entityId = entry.EntityId,
-                before = entry.Before?.ToJsonString(),
-                after = entry.After?.ToJsonString(),
-                reason = entry.Reason,
-                ip = actor.Ip,
-                server = server.ServerId,
-            });
+        _audits.Add(new
+        {
+            id = ids.NewId(),
+            business = server.BusinessId,
+            branch = entry.BranchId ?? actor.BranchId,
+            user = actor.UserId,
+            terminal = actor.TerminalId,
+            action = entry.Action,
+            entityType = entry.EntityType,
+            entityId = entry.EntityId,
+            before = entry.Before?.ToJsonString(),
+            after = entry.After?.ToJsonString(),
+            reason = entry.Reason,
+            ip = actor.Ip,
+            server = server.ServerId,
+        });
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Writes the audit entries, then the outbox events, of this transaction (called once, before the commit).</summary>
+    internal async Task FlushAsync()
+    {
+        foreach (var a in _audits)
+            await ExecuteAsync("""
+                INSERT INTO audit.audit_log (id, business_id, branch_id, user_id, terminal_id, action, entity_type, entity_id,
+                                             before, after, reason, ip, origin_server_id)
+                VALUES (@id, @business, @branch, @user, @terminal, @action, @entityType, @entityId,
+                        @before::jsonb, @after::jsonb, @reason, @ip::inet, @server)
+                """, a);
+        foreach (var e in _events)
+            await ExecuteAsync("""
+                INSERT INTO sync.outbox (event_id, event_type, schema_version, aggregate_type, aggregate_id, aggregate_version,
+                                         business_id, origin_branch_id, origin_server_id, origin_device_id, actor_user_id,
+                                         occurred_at, causation_id, correlation_id, payload)
+                VALUES (@EventId, @EventType, @SchemaVersion, @AggregateType, @AggregateId, @AggregateVersion,
+                        @BusinessId, @OriginBranchId, @OriginServerId, @OriginDeviceId, @ActorUserId,
+                        @OccurredAt, @CausationId, @CorrelationId, @payload::jsonb)
+                """, e);
+        _audits.Clear();
+        _events.Clear();
     }
 
     /// <summary>
-    /// Writes a sync event to the transactional outbox (blueprint 7.2). Requires a configured
-    /// server; during setup the server row is created first in the same transaction.
+    /// Writes a sync event to the transactional outbox (blueprint 7.2), after the audit entries, just before the commit.
+    /// Requires a configured server; during setup the server row is created first in the same transaction.
     /// </summary>
-    public async Task<Guid> PublishAsync(string eventType, string aggregateType, Guid aggregateId, int aggregateVersion, JsonObject payload, Guid? branchId = null)
+    public Task<Guid> PublishAsync(string eventType, string aggregateType, Guid aggregateId, int aggregateVersion, JsonObject payload, Guid? branchId = null)
     {
         var envelope = new EventEnvelope(
             ids.NewId(), eventType, 1, aggregateType, aggregateId, aggregateVersion,
@@ -162,22 +191,14 @@ public sealed class DbTx(NpgsqlConnection conn, NpgsqlTransaction tx, ActorConte
             server.ServerId ?? throw new InvalidOperationException("Server is not configured."),
             actor.TerminalId, actor.UserId, clock.UtcNow, null, null, payload);
         envelope.Validate();
-        await ExecuteAsync("""
-            INSERT INTO sync.outbox (event_id, event_type, schema_version, aggregate_type, aggregate_id, aggregate_version,
-                                     business_id, origin_branch_id, origin_server_id, origin_device_id, actor_user_id,
-                                     occurred_at, causation_id, correlation_id, payload)
-            VALUES (@EventId, @EventType, @SchemaVersion, @AggregateType, @AggregateId, @AggregateVersion,
-                    @BusinessId, @OriginBranchId, @OriginServerId, @OriginDeviceId, @ActorUserId,
-                    @OccurredAt, @CausationId, @CorrelationId, @payload::jsonb)
-            """,
-            new
-            {
-                envelope.EventId, envelope.EventType, envelope.SchemaVersion, envelope.AggregateType, envelope.AggregateId,
-                envelope.AggregateVersion, envelope.BusinessId, envelope.OriginBranchId, envelope.OriginServerId,
-                envelope.OriginDeviceId, envelope.ActorUserId, envelope.OccurredAt, envelope.CausationId, envelope.CorrelationId,
-                payload = envelope.Payload.ToJsonString(),
-            });
-        return envelope.EventId;
+        _events.Add(new
+        {
+            envelope.EventId, envelope.EventType, envelope.SchemaVersion, envelope.AggregateType, envelope.AggregateId,
+            envelope.AggregateVersion, envelope.BusinessId, envelope.OriginBranchId, envelope.OriginServerId,
+            envelope.OriginDeviceId, envelope.ActorUserId, envelope.OccurredAt, envelope.CausationId, envelope.CorrelationId,
+            payload = envelope.Payload.ToJsonString(),
+        });
+        return Task.FromResult(envelope.EventId);
     }
 }
 

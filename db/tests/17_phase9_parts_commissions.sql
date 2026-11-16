@@ -46,6 +46,11 @@ SELECT kt.expect_error($$SELECT kt.reserve((SELECT j3 FROM v), -1)$$, '23514');
 -- Stock arriving does not change what is reserved; a sale can take the balance below reserved (the till checks first).
 SELECT kt.move(2, 22.000, 'adjustment', 'a3900000-0000-0000-0000-000000000001');
 SELECT kt.assert(kt.reserved() = 3 AND inv.available('a1000000-0000-0000-0000-00000000000a', 'a3900000-0000-0000-0000-000000000001') = 2, 'arrivals add to what is available');
+-- Raising an existing reservation through INSERT ... ON CONFLICT DO UPDATE counts once (the balance follows in an AFTER trigger).
+SELECT kt.reserve((SELECT j1 FROM v), 2);
+SELECT kt.assert(kt.reserved() = 5 AND inv.available('a1000000-0000-0000-0000-00000000000a', 'a3900000-0000-0000-0000-000000000001') = 0, 'an upsert from 0 to 2 reserves 2');
+SELECT kt.reserve((SELECT j1 FROM v), 0);
+SELECT kt.assert(kt.reserved() = 3, 'and releasing it gives back 2');
 SELECT kt.reserve((SELECT j2 FROM v), 0);
 SELECT kt.reserve((SELECT j3 FROM v), 0);
 

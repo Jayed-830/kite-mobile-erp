@@ -175,6 +175,9 @@ public static class PostingRuleTemplates
     public const string RepairDepositRefund = "repair.deposit_refund";
     public const string RepairParts = "repair.parts";
     public const string RepairCost = "repair.cost";
+    public const string RepairOutsideWork = "repair.outside_work";
+    public const string CommissionAccrual = "comm.accrual";
+    public const string CommissionPayout = "comm.payout";
 
     /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
     public static string ClassOf(string productType, string? condition) =>
@@ -198,6 +201,10 @@ public static class PostingRuleTemplates
     private static readonly IReadOnlyDictionary<string, string> Phase4Tenders = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200" };
 
+    // Commissions are paid in cash, to the bank, or through payroll (15.4). Declared before the rule sets that use it: static fields initialise in order.
+    private static readonly IReadOnlyDictionary<string, string> PayoutMethods = new Dictionary<string, string>
+    { ["cash"] = "1100", ["bank"] = "1200", ["payroll"] = "2410" };
+
     /// <summary>The inventory account of a posting class (for the valuation check).</summary>
     public static string InventoryAccount(string postingClass) => Inventory.TryGetValue(postingClass, out var c) ? c : "1420";
 
@@ -209,6 +216,7 @@ public static class PostingRuleTemplates
     private static readonly string[] SincePhase5 = [RefurbCost, DeviceReclass, DeviceReceiptReversal];
     private static readonly string[] SincePhase7 = [TradeInAccept, TradeInStoreCredit, TradeInPayout];
     private static readonly string[] SincePhase8 = [RepairDeposit, RepairDepositRefund, RepairParts, RepairCost];
+    private static readonly string[] SincePhase9 = [RepairOutsideWork, CommissionAccrual, CommissionPayout];
 
     /// <summary>
     /// The Phase 4 defaults (version 1), before used devices had their own accounts. A business whose stored rule is
@@ -217,15 +225,15 @@ public static class PostingRuleTemplates
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
         Phase7Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
         Inventory.Where(x => x.Key != "device_used").ToDictionary(), Phase4Tenders)
-        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 5 and 6 defaults (version 2), before trade-in credit and store credit were tenders.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version2 = Build(Phase7Revenue, Cost, Inventory, Phase4Tenders)
-        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 7 defaults (version 3), before repair parts income, repair deposits as a tender and deposit VAT.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version3 = Build(Phase7Revenue, Cost, Inventory, Phase7Tenders)
-        .Where(r => !SincePhase8.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType)).ToArray();
 
     /// <summary>Every earlier default, oldest first.</summary>
     public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2, Version3];
@@ -326,6 +334,20 @@ public static class PostingRuleTemplates
             new("credit", Code("1460"), "warranty"),
             new("debit", Code("6700"), "written_off"),
             new("credit", Code("1460"), "written_off"),
+        ])),
+        (RepairOutsideWork, new("Outside repair work: into the job's work in progress, owed to the supplier until the invoice arrives; at delivery the cost of outside work (a reversal posts the other way)", [
+            new("debit", Code("1460"), "incurred"),
+            new("credit", Code("2110"), "incurred"),
+            new("debit", Code("5210"), "cost"),
+            new("credit", Code("1460"), "cost"),
+        ])),
+        (CommissionAccrual, new("Technician commission: expense and commissions payable (a reversal or clawback posts the other way)", [
+            new("debit", Code("6300"), "amount"),
+            new("credit", Code("2400"), "amount"),
+        ])),
+        (CommissionPayout, new("Commissions paid out: commissions payable against cash, bank or payroll clearing", [
+            new("debit", Code("2400"), "paid_by_method"),
+            new("credit", By("method", PayoutMethods), "paid_by_method"),
         ])),
     ];
 }

@@ -85,6 +85,12 @@ public static class Permissions
     public const string RepairSettings = "REPAIR.SETTINGS";
     public const string NotifSettings = "NOTIF.SETTINGS";
     public const string NotifReply = "NOTIF.REPLY";
+    public const string RepairInvoiceCorrect = "REPAIR.INVOICE.CORRECT";
+    public const string CommView = "COMM.VIEW";
+    public const string CommOwn = "COMM.OWN";
+    public const string CommRules = "COMM.RULES";
+    public const string CommApprove = "COMM.APPROVE";
+    public const string CommPay = "COMM.PAY";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -122,6 +128,7 @@ public static class RoleTemplates
             Permissions.TradeInSettings,
             Permissions.RepairView, Permissions.RepairIntake, Permissions.RepairWork, Permissions.RepairAssign, Permissions.RepairCancel,
             Permissions.RepairSettings, Permissions.RepairCredentialView, Permissions.NotifSettings, Permissions.NotifReply,
+            Permissions.RepairInvoiceCorrect, Permissions.CommView, Permissions.CommOwn, Permissions.CommApprove,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
@@ -134,7 +141,7 @@ public static class RoleTemplates
              Permissions.NotifReply], 5m, 2.000m),
         new("technician", "Technician", "فني",
             [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView,
-             Permissions.RepairView, Permissions.RepairWork]),
+             Permissions.RepairView, Permissions.RepairWork, Permissions.CommOwn]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
             [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount,
              Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceCount, Permissions.DeviceImeiCorrect]),
@@ -144,7 +151,7 @@ public static class RoleTemplates
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
             Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
             Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView, Permissions.DeviceView,
-            Permissions.TradeInView, Permissions.RepairView,
+            Permissions.TradeInView, Permissions.RepairView, Permissions.CommView, Permissions.CommPay,
         ]),
     ];
 }
