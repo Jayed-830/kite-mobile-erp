@@ -49,7 +49,8 @@ public static class WhatsAppEndpoints
                     s?.Enabled, s?.Provider, s?.PhoneNumberId, s?.WabaId, s?.DisplayPhone, hasToken = s?.AccessTokenEnc is not null, hasSecret = s?.AppSecretEnc is not null,
                     s?.VerifyToken, s?.DailyCap, s?.StaleHours, s?.WebhookSeenAt, s?.Version,
                     webhookUrl = w?.Host is { } host && w.Active ? $"https://{host}/wa/webhook" : null,
-                    webAddress = new { host = w?.Host, active = w?.Active ?? false, offReason = w?.OffReason, tunnel = w?.Active == true ? state : "off", error, since },
+                    webAddress = new { host = w?.Host, active = w?.Active ?? false, offReason = w?.OffReason, tunnel = w?.Active == true ? state : "off", error, since,
+                        listening = WebhookListener.Port > 0, port = WebhookListener.Port, problem = WebhookListener.Problem },
                     counts, sentToday = today, relay = new { relay.LastOk, relay.Error },
                 };
             }, ct))).RequirePermission(Permissions.NotifSettings).RequireModule("notif");

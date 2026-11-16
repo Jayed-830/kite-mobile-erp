@@ -21,6 +21,36 @@ public sealed class WhatsAppSettings
     public int IntervalSeconds { get; set; } = 4;
 }
 
+/// <summary>
+/// Whether this server could open the loopback WhatsApp webhook port when it started. Another program, or a second KITE
+/// server on the same computer, may already hold it: the server then starts without the webhook and says so in WhatsApp
+/// settings and in the report Nextdab sees, instead of failing to start.
+/// </summary>
+public static class WebhookListener
+{
+    public static int Port { get; private set; }
+    public static string? Problem { get; private set; }
+
+    public static bool Reserve(int port)
+    {
+        Port = 0; Problem = null;
+        if (port <= 0) return false;
+        try
+        {
+            var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+            probe.Start();
+            probe.Stop();
+            Port = port;
+            return true;
+        }
+        catch (System.Net.Sockets.SocketException)
+        {
+            Problem = $"Port {port} is in use on this computer, so the WhatsApp webhook is not listening. Free the port (or set Kite:WhatsApp:WebhookPort to another one and ask Nextdab to send the address again), then restart KITE.";
+            return false;
+        }
+    }
+}
+
 /// <summary>A message handed from the server that queued it to the main server's gateway.</summary>
 public sealed record RelayedMessage(Guid Id, Guid BusinessId, Guid BranchId, string Phone, string Lang, string? Template, string Params, string? BodyText,
     DateTime? OptInAt, DateTime ExpiresAt);

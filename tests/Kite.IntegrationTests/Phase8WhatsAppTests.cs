@@ -304,3 +304,35 @@ public sealed class Phase8WhatsAppTests(KiteServerFixture fx)
         Assert.True(report["web"]!["off"]!.GetValue<bool>());
     }
 }
+
+/// <summary>The loopback webhook port: opened when free; when another program holds it the server starts without it and says why.
+/// In the server collection so the shared state never changes while a test server is running something else.</summary>
+[Collection("server")]
+public sealed class WebhookListenerTests
+{
+    [Fact]
+    public void A_busy_port_is_reported_instead_of_stopping_the_server()
+    {
+        var holder = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        holder.Start();
+        try
+        {
+            var busy = ((IPEndPoint)holder.LocalEndpoint).Port;
+            Assert.False(WebhookListener.Reserve(busy));
+            Assert.Equal(0, WebhookListener.Port);
+            Assert.Contains($"Port {busy} is in use", WebhookListener.Problem);
+        }
+        finally { holder.Stop(); }
+
+        var free = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        free.Start();
+        var port = ((IPEndPoint)free.LocalEndpoint).Port;
+        free.Stop();
+        Assert.True(WebhookListener.Reserve(port));
+        Assert.Equal(port, WebhookListener.Port);
+        Assert.Null(WebhookListener.Problem);
+
+        Assert.False(WebhookListener.Reserve(0));
+        Assert.Null(WebhookListener.Problem);
+    }
+}

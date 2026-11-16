@@ -50,7 +50,7 @@ function start(name) {
     ConnectionStrings__Migrator: `${main ? MAIN_PG : BRANCH_PG};Username=kite_migrator;Password=e2e-migrator`,
     Kite__DataDir: path.join(WORK, `${name}-data`), Kite__Licensing__DevPublicKey: STUB_KEY,
     ...(main ? { Kite__Sync__Port: '5443', Kite__Sync__Hosts: 'localhost', Kite__Licensing__ControlUrl: STUB }
-      : { Kite__Sync__Port: '0', Kite__Sync__HeartbeatSeconds: '3', Kite__Licensing__CheckinEnabled: 'false' }),
+      : { Kite__Sync__Port: '0', Kite__Sync__HeartbeatSeconds: '3', Kite__Licensing__CheckinEnabled: 'false', Kite__WhatsApp__WebhookPort: '0' }),
   };
   const log = fs.openSync(path.join(WORK, `${name}.log`), 'a');
   const p = spawn('dotnet', ['bin/Release/net10.0/Kite.Host.dll'], { cwd: HOST_DIR, env, stdio: ['ignore', log, log] });

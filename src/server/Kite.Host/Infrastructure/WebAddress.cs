@@ -117,7 +117,8 @@ public sealed partial class WebAddressService(KiteDb db, ISecretProtector secret
                 ["off"] = w is { Active: false, OffReason: not null },
                 ["off_reason"] = w?.OffReason,
                 ["tunnel"] = w?.Active == true ? _state : "off",
-                ["tunnel_error"] = _error,
+                ["tunnel_error"] = _error ?? (w?.Active == true ? WebhookListener.Problem : null),
+                ["listening"] = WebhookListener.Port > 0,
                 ["connected_since"] = _connectedSince?.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
             };
     }
@@ -149,7 +150,7 @@ public sealed partial class WebAddressService(KiteDb db, ISecretProtector secret
                 var w = await db.InTransactionAsync(AccessScope.System, ActorContext.System, LoadAsync, stoppingToken);
                 bool running;
                 lock (_gate) running = _proc is { HasExited: false };
-                if (w is { Active: true, TokenEnc: not null } && opts.WhatsApp.WebhookPort > 0 && !running)
+                if (w is { Active: true, TokenEnc: not null } && WebhookListener.Port > 0 && !running)
                 {
                     await StartAsync(w, stoppingToken);
                     delay = TimeSpan.FromSeconds(30);

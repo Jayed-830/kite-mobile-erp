@@ -55,6 +55,7 @@ builder.Services.AddHttpClient("whatsapp", c => c.Timeout = TimeSpan.FromSeconds
 
 // Kestrel: the web/API addresses from configuration ("urls"), plus the TLS sync port on which branch servers
 // register and send heartbeats with their client certificates (blueprint 18.1, 18.4).
+var webhookOpen = WebhookListener.Reserve(kite.WhatsApp.WebhookPort);
 builder.WebHost.ConfigureKestrel(o =>
 {
     var urls = (builder.Configuration["urls"] ?? "http://localhost:5000").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -67,7 +68,7 @@ builder.WebHost.ConfigureKestrel(o =>
         else o.ListenAnyIP(a.Port);
     }
     // The WhatsApp webhook port: loopback only, for the Nextdab tunnel (only /wa/webhook answers on it).
-    if (kite.WhatsApp.WebhookPort > 0) o.Listen(IPAddress.Loopback, kite.WhatsApp.WebhookPort);
+    if (webhookOpen) o.Listen(IPAddress.Loopback, WebhookListener.Port);
     if (kite.Sync.Port > 0)
         o.ListenAnyIP(kite.Sync.Port, lo => lo.UseHttps(new HttpsConnectionAdapterOptions
         {
@@ -90,7 +91,8 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamin
 var app = builder.Build();
 
 app.UseKiteErrors();
-app.UseTunnelGuard(kite.WhatsApp.WebhookPort);
+app.UseTunnelGuard(WebhookListener.Port);
+if (WebhookListener.Problem is { } webhookProblem) app.Logger.LogWarning("{Problem}", webhookProblem);
 app.UseMiddleware<SuspensionMiddleware>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
