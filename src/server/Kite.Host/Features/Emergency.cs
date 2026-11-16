@@ -176,9 +176,13 @@ public static class EmergencyEndpoints
                 var lines = p.Lines.Select(l => new DraftLine(l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount,
                     l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, null, l.WarrantyDays)).ToArray();
                 // The product type decides the accounts: take it from the catalog, not from the terminal.
-                var types = (await t.QueryAsync<(Guid Id, string Type)>("SELECT v.id, p.product_type FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = ANY(@ids)",
-                    new { ids = lines.Select(l => l.VariantId).ToArray() })).ToDictionary(x => x.Id, x => x.Type);
-                lines = lines.Select(l => types.TryGetValue(l.VariantId, out var ty) ? l with { ProductType = ty }
+                var types = (await t.QueryAsync<(Guid Id, string Type, string Tracking)>("SELECT v.id, p.product_type, p.tracking FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = ANY(@ids)",
+                    new { ids = lines.Select(l => l.VariantId).ToArray() })).ToDictionary(x => x.Id);
+                // Phones are not sold offline until the central IMEI register (Phase 6, ADR 33): the snapshot leaves them out,
+                // and a phone line that still arrives is kept as a conflict, never written without its unit.
+                if (lines.FirstOrDefault(l => types.TryGetValue(l.VariantId, out var x) && x.Tracking != "none") is { } phone)
+                    throw new KiteException(ErrorCodes.DeviceUnitRequired, $"{phone.DescriptionEn} is sold by IMEI or serial number, which emergency mode cannot do.");
+                lines = lines.Select(l => types.TryGetValue(l.VariantId, out var ty) ? l with { ProductType = ty.Type }
                     : throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "An item of the sale is not in the catalog.")).ToArray();
                 var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
                 var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(p.SaleId, shift.Id, shift.CashierId, p.CustomerId, "simplified_invoice",

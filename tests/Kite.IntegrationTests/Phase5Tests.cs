@@ -239,4 +239,44 @@ public sealed class Phase5Tests(KiteServerFixture fx)
         foreach (var c in tills) c.Dispose();
         await AssertConsistentAsync(owner);
     }
+
+    [PgFact]
+    public async Task Emergency_mode_does_not_sell_phones_and_an_offline_phone_line_is_kept_as_a_conflict()
+    {
+        using var owner = await kit.OwnerAsync();
+        await kit.SetPolicyAsync(owner);
+        var phone = await Dev.PhoneAsync(owner, "Redmi Note 13", 85m);
+        var unit = (await Dev.ReceiveAsync(owner, phone, (60.000m, "brand_new", "in_stock", null, null)))[0];
+        var cable = await kit.ProductAsync(owner, "Cable", 2.100m, openingQty: 5, unitCost: 0.800m);
+        var term = await kit.TerminalAsync(owner, kind: "windows", emergency: true);
+        var cashier = await kit.UserAsync(owner, "p5em", "cashier", pin: "7531");
+        using var pos = await kit.PosAsync(cashier.Username, cashier.Password, term);
+        var snap = await Ok(await pos.GetAsync("/api/v1/pos/emergency/snapshot"));
+        Assert.DoesNotContain(snap.GetProperty("items").EnumerateArray(), i => i.GetProperty("variantId").GetGuid() == phone.VariantId);
+        Assert.Contains(snap.GetProperty("items").EnumerateArray(), i => i.GetProperty("variantId").GetGuid() == cable.VariantId);
+        var prefix = snap.GetProperty("numberPrefix").GetString()!;
+
+        var shiftId = Guid.CreateVersion7();
+        var taxCode = await kit.TaxCodeAsync(owner);
+        var at = DateTimeOffset.UtcNow.AddMinutes(-20);
+        object Line(PosKit.Item i, string type, decimal gross, decimal net, string name) =>
+            new { variantId = i.VariantId, qty = 1m, unitPrice = gross, listPrice = gross, discount = 0m, net, tax = gross - net, gross, taxRate = 5m, taxCodeId = taxCode, productType = type, descriptionEn = name, descriptionAr = name };
+        object Rec(long seq, string kind, object payload) => new { id = Guid.CreateVersion7(), seq, kind, recordedAt = at.AddMinutes(seq), payload };
+        var records = new[]
+        {
+            Rec(1, "shift_open", new { shiftId, number = $"EMS-{term.Code}-000001", cashierId = cashier.Id, openingFloat = 10.000m }),
+            Rec(2, "sale", new { saleId = Guid.CreateVersion7(), shiftId, cashierId = cashier.Id, number = prefix + "000001", lines = new[] { Line(phone, "device", 85.000m, 80.952m, "Redmi Note 13") },
+                                 payments = new[] { new { method = "cash", amount = 85.000m } }, cashRounding = 0m }),
+            Rec(3, "sale", new { saleId = Guid.CreateVersion7(), shiftId, cashierId = cashier.Id, number = prefix + "000002", lines = new[] { Line(cable, "accessory", 2.100m, 2.000m, "Cable") },
+                                 payments = new[] { new { method = "cash", amount = 2.100m } }, cashRounding = 0m }),
+        };
+        var up = await Ok(await pos.PostAsJsonAsync("/api/v1/pos/emergency/records", new { records }));
+        var results = up.GetProperty("results").EnumerateArray().ToArray();
+        Assert.Equal(["applied", "conflict", "applied"], results.Select(r => r.GetProperty("result").GetString()).ToArray());
+        Assert.Contains("IMEI", results[1].GetProperty("detail").GetString());
+        Assert.Equal("in_stock", await StatusAsync(owner, unit.Id));       // the phone never left stock
+        Assert.Equal(1m, await kit.StockAsync(owner, phone));
+        Assert.Equal(4m, await kit.StockAsync(owner, cable));              // the cable sale went through
+        await AssertConsistentAsync(owner);
+    }
 }

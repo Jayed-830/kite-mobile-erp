@@ -153,3 +153,45 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Why.** A percentage alone gives away too much on a phone; an amount alone blocks a fair discount on a cable.
 **Cost.** Shops must set both numbers per role.
 
+
+## ADR 27: A phone is a device unit, and its status changes only through one database function
+
+**Decision.** Every phone (or other serialized item) is a row in `device.device_unit` with its IMEI 1, IMEI 2 or serial number in `device.imei_registry` (unique per business; a serial is unique per brand). Its status changes only through `device.apply_event`, a security-definer function that checks the move against `device.transition` (blueprint 11.3), writes the event to the unit's history with a gap-free sequence and updates the unit. The app role has no UPDATE right on units. Selling, voiding, returning, inspecting, refurbishing, holding, pricing and writing off all go through it.
+**Why.** A phone is worth hundreds of rials; its history must be complete and no code path may move it to a status the business rules forbid. One function is one place to check.
+**Cost.** Every new device action (transfers in Phase 12, supplier returns in Phase 11) must add its moves to the transitions table.
+
+## ADR 28: A phone's cost changes only through the stock ledger, and status and ledger must agree at commit
+
+**Decision.** A unit's `accumulated_cost` is changed only by the stock ledger trigger: a `unit_cost` movement (quantity 0, a value) adds parts, labour or outside work; serialized movements are always ±1 at the unit's own cost. Deferred constraint triggers check at commit that a unit in an in-stock status has ledger quantity 1 at exactly its cost, and any other unit has 0 (`KT021`, shown as `DEV-013`). Cost of sale is the unit's own cost, not the item's moving average.
+**Why.** Blueprint 25 row 5: conditions, inspections and refurbishment costs flow to unit cost. If cost could be written directly, the ledger, the inventory accounts and the device page could disagree.
+**Cost.** Writers must post a movement for every cost change; a mistake fails the whole transaction instead of saving a wrong figure.
+
+## ADR 29: Used, refurbished and damaged phones post to their own accounts, and an inspection reclassifies
+
+**Decision.** A phone that is not brand new uses the posting class `device_used` (inventory 1410, sales 4110, cost 5110); new phones use 1400, 4100 and 5100. When an inspection changes a returned new phone to used, refurbished or damaged, a reclassification journal moves its cost from 1400 to 1410 in the same transaction.
+**Why.** Accountants and the VAT margin scheme (Phase 7) need new and second-hand stock, sales and margins apart.
+**Cost.** Two more posting rules (`refurb.cost`, `device.reclass`). Default rules seeded in Phase 4 are upgraded only if the business has not changed them.
+
+## ADR 30: A phone in a cart is a lease, not a lock
+
+**Decision.** Putting a phone in a cart writes a lease row (`device.reservation`: unit, cart, expiry; 15 minutes, 240 when the sale is parked). Another till cannot take it until the lease expires; an expired lease is simply taken over. Completing the sale checks the lease and deletes it. The till's unit list hides phones in its own cart and greys out phones held by others.
+**Why.** Two cashiers must never sell the same phone, but a till that crashes must not hold a phone forever. The concurrency test (6 tills scanning one phone at once) sells it once.
+**Cost.** A cashier who leaves a cart open longer than the lease can lose the phone to another till; the sale is then refused with `DEV-005` and nothing is sold twice.
+
+## ADR 31: The checklist suggests, the inspector decides, and a different decision needs a note
+
+**Decision.** Each category has an inspection checklist (pass/fail, percent with a lowest value, or a note) and each item says what a failure means: refurbish, damaged or for parts. The suggestion follows the worst failure (for parts, then refurbish, then damaged; all pass means back to stock). The same rule runs in C#, in TypeScript on the inspection page and in an independent Python program, checked against shared vectors. The inspector can choose another outcome, but must write why.
+**Why.** Consistent grading across technicians and branches, without taking the decision away from the person holding the phone.
+**Cost.** Shops must keep their checklists sensible; the default has 13 items.
+
+## ADR 32: Labour is absorbed into stock and outside work waits for the supplier's invoice
+
+**Decision.** Refurbishment labour is minutes × the hourly rate, rounded to the baisa half away from zero, and posts Dr inventory, Cr 6210 "Labour absorbed into stock". Parts come out of spare-parts stock at moving average (Dr inventory, Cr 1430). Outside work posts Dr inventory, Cr 2110 "Goods received not invoiced" until supplier invoices arrive in Phase 11. A cost taken back posts the exact reverse, and a part taken back returns to stock.
+**Why.** Blueprint 12.4: the phone's cost must include all work on it, and the books must show where that money came from.
+**Cost.** 2110 grows until Phase 11 matches it to invoices; accountants should review it monthly.
+
+## ADR 33: Emergency mode does not sell phones until Phase 6
+
+**Decision.** The Windows app's offline snapshot leaves out serialized items, and an offline upload with a phone line is refused (`DEV-002`). Phones are sold only while the server is reachable.
+**Why.** Selling a phone offline needs a central IMEI register to stop two tills selling the same unit while apart; that is Phase 6 (IMEI and serial number management).
+**Cost.** A shop with its server down can still sell accessories, parts and services, but not phones, until Phase 6.

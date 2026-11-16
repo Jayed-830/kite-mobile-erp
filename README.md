@@ -4,41 +4,42 @@
 
 Offline-first, multi-branch ERP and POS for mobile phone sales and repair shops. Oman first: OMR with 3 decimals, English and Arabic (right-to-left), Windows desktop and browser.
 
-**Status:** Phase 4 (POS and inventory: catalog, stock, the touch till with shifts, approvals, returns and receipts, the posting engine, printing and the Windows app's emergency mode) is done. See [`docs/phase-4-report.md`](docs/phase-4-report.md), the earlier [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
+**Status:** Phase 5 (new, used and refurbished devices: phones received by IMEI with their own cost, inspections with checklists, refurbishment costs flowing into each phone and the books, selling by IMEI at the till, returns to inspection, profit per phone) is done. See [`docs/phase-5-report.md`](docs/phase-5-report.md), the earlier [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
 
 ## Repository layout
 
 ```text
 db/
   bootstrap/00_bootstrap.sql   one-time database setup by a superuser (roles, extensions)
-  migrations/V0001..V0013      forward-only SQL migrations (run by the server as kite_migrator)
-  tests/                       SQL tests: immutable ledgers, balanced journals, RLS, audit chain, outbox, revocation, licences, stock, sales, printers
+  migrations/V0001..V0014      forward-only SQL migrations (run by the server as kite_migrator)
+  tests/                       SQL tests: immutable ledgers, balanced journals, RLS, audit chain, outbox, revocation, licences, stock, sales, printers, devices
 src/server/
   Kite.Platform                IDs (UUIDv7), hybrid logical clock, money, modules, permissions, errors
   Kite.Tax                     tax engine (inclusive/exclusive VAT, margin scheme) and Oman template
   Kite.Accounting              chart-of-accounts template, journal builder, fiscal calendar, posting engine and rules
   Kite.Sales                   POS arithmetic: line pricing, discounts, VAT, cash rounding, tenders, returns, QR
+  Kite.Devices                 IMEI check digit, labour cost, grade prices, the inspection checklist rule
   Kite.Identity                Argon2id, TOTP, tokens, lockout, secret encryption, DPAPI key files, business CA,
                                NEXTDAB PROTOCOL 1 licences and commands, backup encryption
   Kite.Persistence             migrator, unit of work with branch scope, audit and outbox writers
   Kite.Host                    ASP.NET Core server: setup, sign-in, users, roles, terminals, settings, audit,
                                branches and servers (mTLS sync port), licence and Nextdab check-in, backup agent,
                                catalog, inventory, POS (shifts, approvals, sales, returns), receipts and printing,
-                               emergency intake
+                               emergency intake, devices (units, inspections, refurbishment, reports)
 src/client/
   packages/ui                  design system (tokens, components, RTL, light/dark)
   packages/i18n                English and Arabic strings, number formatting
   packages/api-client          typed client for the server API (checked against the server's routes by a test)
-  packages/pos                 POS arithmetic (same vectors as Kite.Sales) and the ESC/POS receipt picture
+  packages/pos                 POS and device arithmetic (same vectors as Kite.Sales and Kite.Devices), the receipt picture
   apps/web                     the web app (served by the KITE server)
   apps/desktop                 Windows desktop app (Electron): receipt printers, cash drawer, emergency store
 tests/
   Kite.UnitTests               unit and property-based tests
   Kite.IntegrationTests        end-to-end tests against a real PostgreSQL
   vectors/                     NEXTDAB PROTOCOL 1 signing vectors (one made by Nextdab Admin 5.14 itself), POS
-                               arithmetic vectors (from an independent Python implementation), PIN hash vectors
+                               and device arithmetic vectors (from independent Python implementations), PIN hash vectors
 e2e/                           browser walk-throughs of real servers (Phase 2; Phase 3 with two servers and a Nextdab stub;
-                               Phase 4 the till and back office)
+                               Phase 4 the till and back office; Phase 5 phones from receiving to profit)
 poc/                           Phase 2 proofs of concept
 scripts/                       build helpers
 ```
@@ -89,6 +90,8 @@ For UI work without a server: `cd src/client && npm run dev:mock` (owner `owner`
 | Load test, 20 terminals (Phase 4 exit gate) | `KITE_LOAD_SALES=40 dotnet test tests/Kite.IntegrationTests --filter Phase4LoadTests` with `KITE_TEST_PG` set |
 | End-to-end, two servers (Phase 3) | see the `e2e-phase3` CI job (`e2e/phase3.mjs` + `e2e/nextdab-stub.mjs`) |
 | End-to-end, till and back office (Phase 4) | see the `e2e-phase4` CI job (`e2e/phase4.mjs` + `e2e/nextdab-stub.mjs`) |
+| Device costs, 10 workers (Phase 5 exit gate) | `KITE_P5_WORKERS=10 KITE_P5_PHONES=12 dotnet test tests/Kite.IntegrationTests --filter Phase5CostFlowTests` with `KITE_TEST_PG` set |
+| End-to-end, phones (Phase 5) | see the `e2e-phase5` CI job (`e2e/phase5.mjs` + `e2e/nextdab-stub.mjs`) |
 | Proofs of concept | see `poc/*/` and the `pocs-*` CI jobs |
 
 Every push runs all of these on GitHub Actions (Linux and Windows, PostgreSQL 16 and 17).
