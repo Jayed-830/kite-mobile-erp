@@ -6,7 +6,7 @@ export const posEn = {
     price: 'Price', priceHelp: 'As the customer pays it (VAT included when your prices include VAT).', minPrice: 'Minimum price', min: 'min',
     taxCode: 'Tax code', warranty: 'Warranty (days)', serialized: 'IMEI / serial', changePrice: 'Change price', addBarcode: 'Add barcode', removeBarcode: 'Remove barcode',
     effectiveFrom: 'Starts on', effectiveHelp: 'Leave empty to start today. The current price ends the day before.', priceFrom: 'Price since {date}',
-    deviceNote: 'Phones are tracked by IMEI. They can be added now and are sold from device stock in the next update.',
+    deviceNote: 'Phones are tracked by IMEI: each phone comes into stock by scanning its IMEI, and is sold by scanning it at the till.',
     types: { device: 'Device (phone, tablet)', accessory: 'Accessory', spare_part: 'Spare part', service: 'Service', consumable: 'Consumable' },
   },
   inventory: {
@@ -32,7 +32,7 @@ export const posEn = {
     requester: 'From', reason: 'Reason', when: 'When', approve: 'Approve', reject: 'Reject',
     actions: {
       POS_DISCOUNT_ABOVE_LIMIT: 'Discount above the limit', POS_PRICE_OVERRIDE: 'Price change or below minimum', POS_SALE_VOID: 'Void a sale', POS_REFUND: 'Refund (late or large)',
-      POS_CASH_PAY_OUT: 'Pay cash out', POS_DRAWER_NO_SALE: 'Open the drawer (no sale)', POS_SHIFT_ACCEPT_VARIANCE: 'Accept a cash difference',
+      POS_CASH_PAY_OUT: 'Pay cash out', POS_DRAWER_NO_SALE: 'Open the drawer (no sale)', POS_SHIFT_ACCEPT_VARIANCE: 'Accept a cash difference', DEVICE_SELL_DAMAGED: 'Sell a damaged device',
     },
   },
   salesReports: {

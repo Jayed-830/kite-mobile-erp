@@ -20,6 +20,7 @@ export function Shell() {
     { to: '/app/customers', label: t('nav.customers'), show: can(me, 'CUSTOMERS.VIEW') },
     { to: '/app/catalog', label: t('nav.catalog'), show: can(me, 'CATALOG.VIEW'), section: t('nav.stock') },
     { to: '/app/inventory', label: t('nav.inventory'), show: can(me, 'INV.VIEW') },
+    { to: '/app/devices', label: t('nav.devices'), show: can(me, 'DEVICE.VIEW') },
     { to: '/app/users', label: t('nav.users'), show: can(me, 'USERS.VIEW'), section: t('nav.administration') },
     { to: '/app/roles', label: t('nav.roles'), show: can(me, 'USERS.VIEW') },
     { to: '/app/terminals', label: t('nav.terminals'), show: can(me, 'TERMINALS.APPROVE') },
@@ -32,6 +33,7 @@ export function Shell() {
     { to: '/app/settings/tax', label: t('nav.tax'), show: can(me, 'SETTINGS.VIEW') },
     { to: '/app/settings/accounts', label: t('nav.accounts'), show: can(me, 'SETTINGS.VIEW') },
     { to: '/app/settings/pos', label: t('nav.posSettings'), show: can(me, 'SETTINGS.VIEW') || can(me, 'POS.POLICY.MANAGE') },
+    { to: '/app/settings/devices', label: t('nav.deviceSettings'), show: can(me, 'DEVICE.SETTINGS') },
     { to: '/app/account', label: t('nav.account'), show: true, section: '' },
   ];
 

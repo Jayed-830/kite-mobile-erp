@@ -41,12 +41,12 @@ export interface Movement {
   valueAfter: number; sourceDocType: string; sourceDocId: string; sourceNumber: string | null; reason: string | null;
 }
 export type ReasonCode = 'opening' | 'damaged' | 'lost' | 'found' | 'expired' | 'correction' | 'other';
-export interface AdjustmentInput { branchId: string; kind: 'opening' | 'adjustment'; note?: string; date?: string; warehouseId?: string; lines: { variantId: string; qty: number; unitCost?: number | null; reasonCode: ReasonCode }[] }
+export interface AdjustmentInput { branchId: string; kind: 'opening' | 'adjustment'; note?: string; date?: string; warehouseId?: string; lines: { variantId: string; qty: number; unitCost?: number | null; reasonCode: ReasonCode; units?: import('./devices').UnitInput[] }[] }
 export interface AdjustmentRow { id: string; number: string; kind: string; date: string; branchCode: string; note: string | null; postedAt: string; postedBy: string; lines: number; value: number }
 export interface CountRow { id: string; number: string; status: 'open' | 'posted' | 'cancelled'; branchCode: string; warehouseCode: string; startedAt: string; postedAt: string | null; lines: number }
 export interface CountDetail { id: string; number: string; status: string; branchId: string; lines: { variantId: string; sku: string; descriptionEn: string; countedQty: number; systemQty: number; difference: number }[] }
 export interface StockException { id: string; kind: string; status: string; branchCode: string; sku: string; descriptionEn: string; qtyAfter: number; sourceDocType: string; sourceNumber: string | null; createdAt: string; resolutionNote: string | null }
-export interface ConsistencyCheck { ok: boolean; balanceMismatches: unknown[]; valuationMismatches: unknown[]; unbalancedJournals: unknown[]; salesMismatches: unknown[] }
+export interface ConsistencyCheck { ok: boolean; balanceMismatches: unknown[]; valuationMismatches: unknown[]; unbalancedJournals: unknown[]; salesMismatches: unknown[]; deviceMismatches?: unknown[] }
 
 export interface PosPolicy {
   id: string; branchId: string | null; negativeStock: 'block' | 'allow'; returnWindowDays: number; cashRefundCap: number; varianceThreshold: number; blindClose: boolean;
@@ -62,7 +62,7 @@ export interface ShiftFigures {
   cardByTerminal: { cardTerminal: string; total: number }[];
 }
 export interface ShiftReport { shift: Shift; report: 'X' | 'Z'; figures: ShiftFigures; cardSettlements: { cardTerminal: string; batchTotal: number; recordedTotal: number; difference: number; reason: string | null }[]; cashEvents: { kind: string; amount: number; reason: string; createdAt: string }[] }
-export interface CartLineInput { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null; approvalId?: string | null }
+export interface CartLineInput { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null; approvalId?: string | null; deviceUnitId?: string | null; damagedApprovalId?: string | null }
 export interface TenderInput { method: 'cash' | 'card' | 'bank_transfer'; amount: number; tendered?: number | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null }
 export interface SaleInput { lines: CartLineInput[]; payments?: TenderInput[]; docType?: 'simplified_invoice' | 'tax_invoice'; customerId?: string | null; expectedTotal?: number; note?: string; approvalId?: string | null }
 export interface Quote {
@@ -78,13 +78,13 @@ export interface SaleHeader {
 export interface SaleLine {
   id: string; variantId: string; productType: ProductType; descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; listPrice: number; discount: number;
   net: number; taxRate: number; tax: number; gross: number; returnedQty: number; returnable: number;
-  returnedNet?: number; returnedTax?: number; returnedGross?: number; returnedDiscount?: number;
+  returnedNet?: number; returnedTax?: number; returnedGross?: number; returnedDiscount?: number; deviceUnitId?: string | null; identifier?: string | null;
 }
 export interface SaleDetail { sale: SaleHeader; lines: SaleLine[]; payments: { method: string; amount: number; tendered: number | null; changeGiven: number | null; cardTerminal: string | null }[]; creditNotes: { id: string; number: string; creditReason: string; grossTotal: number }[] }
 export interface SaleListRow { id: string; number: string; docType: string; creditReason: string | null; completedAt: string; grossTotal: number; cashRounding: number; isEmergency: boolean; customerName: string | null; cashierName: string; terminalCode: string; originalNumber: string | null }
-export interface ReturnInput { id: string; lines: { lineId: string; qty: number; restock: boolean }[]; refunds: TenderInput[]; reason: string; approvalId?: string | null }
+export interface ReturnInput { id: string; lines: { lineId: string; qty: number; restock: boolean; code?: string | null }[]; refunds: TenderInput[]; reason: string; approvalId?: string | null }
 export interface ParkedCart { id: string; label: string | null; parkedAt: string; parkedBy: string; terminalCode: string; cart: string }
-export type ApprovalAction = 'POS.DISCOUNT.ABOVE_LIMIT' | 'POS.PRICE.OVERRIDE' | 'POS.SALE.VOID' | 'POS.REFUND' | 'POS.CASH.PAY_OUT' | 'POS.DRAWER.NO_SALE' | 'POS.SHIFT.ACCEPT_VARIANCE';
+export type ApprovalAction = 'POS.DISCOUNT.ABOVE_LIMIT' | 'POS.PRICE.OVERRIDE' | 'POS.SALE.VOID' | 'POS.REFUND' | 'POS.CASH.PAY_OUT' | 'POS.DRAWER.NO_SALE' | 'POS.SHIFT.ACCEPT_VARIANCE' | 'DEVICE.SELL_DAMAGED';
 export interface ApprovalRow { id: string; branchId: string; branchCode: string; actionCode: ApprovalAction; method: string; status: string; reason: string | null; context: string; requesterName: string; terminalCode: string | null; createdAt: string; expiresAt: string }
 export interface Printer { id: string; branchId: string; name: string; host: string; port: number; paperWidthMm: number; hasDrawer: boolean; status: 'active' | 'inactive'; lastResult: string | null; lastUsedAt: string | null; version: number }
 export interface PrinterInput { branchId: string; name: string; host: string; port?: number; paperWidthMm?: 58 | 80; hasDrawer?: boolean; status?: 'active' | 'inactive'; version?: number }
@@ -140,7 +140,7 @@ export interface PosApi {
   sales(f: { shiftId?: string; branchId?: string; q?: string; date?: string }): Promise<SaleListRow[]>;
   sale(id: string): Promise<SaleDetail>;
   saleByNumber(number: string): Promise<SaleDetail>;
-  park(c: { id: string; label?: string | null; cart: unknown }): Promise<void>;
+  park(c: { id: string; label?: string | null; cart: unknown; deviceUnitIds?: string[] }): Promise<void>;
   parked(): Promise<ParkedCart[]>;
   recall(id: string): Promise<unknown>;
   receipt(saleId: string, reprint?: boolean): Promise<ReceiptModel>;

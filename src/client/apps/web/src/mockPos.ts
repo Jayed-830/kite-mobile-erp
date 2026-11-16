@@ -1,8 +1,9 @@
 // In-memory Phase 4 server for tests, `npm run dev:mock` and design review: catalog, stock, customers, shifts, sales,
 // returns, approvals, printers. Prices and totals use the same arithmetic as the real server (@kite/pos), but the real
 // server is the source of truth and checks everything again.
-import { ApiError, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
+import { ApiError, type DeviceApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
   type SaleDetail, type SaleLine, type SaleListRow, type Shift, type ShiftFigures, type TenderInput, type Terminal, type Tokens, type User } from '@kite/api';
+import { createMockDevices } from './mockDevices';
 import { apportionReturn, checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
 
 export interface MockPosContext {
@@ -29,7 +30,7 @@ const n = (b: bigint) => toNumber(b);
 interface StockRow { qty: bigint; value: bigint }
 interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null }[] }
 
-export function createMockPos(ctx: MockPosContext): PosApi {
+export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi {
   const products: ProductView[] = [];
   const stock = new Map<string, StockRow>();
   const customers: Customer[] = [];
@@ -67,6 +68,17 @@ export function createMockPos(ctx: MockPosContext): PosApi {
   seed('Earphones', 'سماعات', 'accessory', 'EAR-BASIC', '6291000000059', 5.5, 2, 2.8);
   seed('Battery (spare part)', 'بطارية (قطعة غيار)', 'spare_part', 'BAT-SPARE', '6291000000066', 12, 10, 6.5);
   seed('Phone setup service', 'خدمة إعداد الهاتف', 'service', 'SVC-SETUP', '6291000000073', 2, 0, 0);
+  // Phones are sold by IMEI from device units (Phase 5); they have no quantity stock of their own.
+  const phone = (nameEn: string, nameAr: string, sku: string, barcode: string, price: number, min: number | null) => {
+    const pid = id(); const vid = id();
+    products.push({
+      product: { id: pid, brandId: null, brandName: null, categoryId: null, categoryName: null, nameEn, nameAr, productType: 'device', tracking: 'imei', taxCodeId: ctx.taxCodeId, taxCode: 'VAT-STD', defaultWarrantyDays: 365, status: 'active', version: 1 },
+      variants: [{ variant: { id: vid, productId: pid, sku, colourEn: null, colourAr: null, storageGb: null, ramGb: null, status: 'active', version: 1, price, minPrice: min, priceFrom: '2026-01-01' }, barcodes: [{ id: id(), code: barcode }] }],
+    });
+    return vid;
+  };
+  const iphone = phone('iPhone 13 128GB', 'آيفون 13 سعة 128 جيجابايت', 'IP13-128', '194252000013', 220, 200);
+  const galaxy = phone('Galaxy A55 128GB', 'جالاكسي A55 سعة 128 جيجابايت', 'SM-A55-128', '880609000055', 160, 150);
   customers.push({ id: id(), number: 'C-000001', kind: 'company', nameEn: 'Gulf Trading LLC', nameAr: 'الخليج للتجارة', phoneE164: '+96891234567', email: null, vatNumber: 'OM1199887766', crNumber: null, addressEn: null, addressAr: null, status: 'active', version: 1 });
 
   const variantOf = (vid: string) => {
@@ -79,7 +91,7 @@ export function createMockPos(ctx: MockPosContext): PosApi {
     return {
       variantId: vid, sku: f.v.variant.sku, productType: f.p.product.productType, tracking: f.p.product.tracking, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr,
       taxCodeId: f.p.product.taxCodeId, taxKind: 'standard', taxRate: 5, listPrice: f.v.variant.price, minPrice: f.v.variant.minPrice, warrantyDays: f.p.product.defaultWarrantyDays,
-      active: f.p.product.status === 'active' && f.v.variant.status === 'active', stock: n(stock.get(vid)?.qty ?? 0n), barcode: f.v.barcodes[0]?.code ?? null,
+      active: f.p.product.status === 'active' && f.v.variant.status === 'active', stock: f.p.product.tracking === 'none' ? n(stock.get(vid)?.qty ?? 0n) : dev.inStock(vid) * 1, barcode: f.v.barcodes[0]?.code ?? null,
     };
   };
   const posItem = (vid: string): PosItem => { const i = itemOf(vid); return { ...i, productType: i.productType as PosItem['productType'], tracking: i.tracking as PosItem['tracking'], taxRate: 5, listPrice: i.listPrice as number | null, minPrice: i.minPrice as number | null }; };
@@ -131,6 +143,20 @@ export function createMockPos(ctx: MockPosContext): PosApi {
     stock.set(vid, { qty: row.qty + qty, value: row.value + value });
     return value;
   };
+  const dev = createMockDevices({
+    need: ctx.need, can, next, partMove: (vid, q) => move(vid, q), partStock: (vid) => stock.get(vid)?.qty ?? 0n,
+    reservedBy: () => (currentTerminal ? { terminalCode: currentTerminal.code } : null),
+    item: (vid) => { const f = variantOf(vid)!; return { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, tracking: f.p.product.tracking, listPrice: f.v.variant.price, minPrice: f.v.variant.minPrice, warrantyDays: f.p.product.defaultWarrantyDays, categoryId: f.p.product.categoryId }; },
+  });
+  // Seeded device units: two new phones, a used one waiting for inspection, a refurbished grade-A and a damaged one.
+  for (const [vid, imei, cost, condition, status, grade] of [
+    [iphone, '352099001761481', 180, 'brand_new', 'in_stock', null], [iphone, '354670112345675', 182.5, 'brand_new', 'in_stock', null],
+    [iphone, '354670112345683', 95, 'used', 'under_inspection', null], [iphone, '354670112345691', 120, 'refurbished', 'in_stock', 'A'],
+    [galaxy, '354670112345709', 60, 'damaged', 'in_stock', 'C'],
+  ] as const) {
+    dev.receive(vid, { imei1: imei, unitCost: cost, condition, status, gradeId: grade == null ? null : dev.gradeId(grade) }, cost);
+  }
+
   const write = (detail: Omit<SaleDetail['sale'], 'qrPayload' | 'einvoiceUuid'>, lines: SaleLine[], tenders: Tender[], refund: boolean, shiftId: string, t: Terminal): SaleDetail => {
     const uuid = id();
     const b = ctx.business();
@@ -141,13 +167,21 @@ export function createMockPos(ctx: MockPosContext): PosApi {
   };
   const toTenders = (xs: TenderInput[] | undefined): Tender[] => (xs ?? []).map((p) => ({ ...p, amount: toBaisa(p.amount), tendered: p.tendered == null ? null : toBaisa(p.tendered) }));
   const summary = (d: SaleDetail, paid: bigint, change: bigint) => ({ id: d.sale.id, number: d.sale.number, docType: d.sale.docType, gross: d.sale.grossTotal, cashRounding: d.sale.cashRounding, paid: n(paid), change: n(change), stockExceptions: 0 });
-  const priceCart = (u: User, lines: { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null }[]) => wrap(() => {
+  const priceCart = (u: User, lines: { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null; deviceUnitId?: string | null }[]) => wrap(() => {
     if (lines.length === 0) throw new PosError('VAL-001', 'The cart is empty.');
     const limit = can(u, 'POS.DISCOUNT.ABOVE_LIMIT') ? UNLIMITED : { percent: 5, amount: 2, unlimited: false };
-    return lines.map((l, i) => priceLine(i + 1, l, itemOf(l.variantId), ctx.business().pricesIncludeTax, limit));
+    return lines.map((l, i) => {
+      let item: Item = itemOf(l.variantId);
+      if (l.deviceUnitId) {
+        const p = dev.priced(l.deviceUnitId).item;
+        item = { ...item, descriptionEn: p.descriptionEn, descriptionAr: p.descriptionAr, listPrice: p.listPrice, minPrice: p.minPrice, warrantyDays: p.warrantyDays };
+      }
+      return priceLine(i + 1, l, item, ctx.business().pricesIncludeTax, limit);
+    });
   });
 
   return {
+    ...dev.api,
     async brands() { ctx.need('CATALOG.VIEW'); return delay([]); },
     async createBrand(b) { ctx.need('CATALOG.MANAGE'); return delay({ id: id(), ...b, status: 'active', version: 1 }); },
     async categories() { ctx.need('CATALOG.VIEW'); return delay([]); },
@@ -233,7 +267,13 @@ export function createMockPos(ctx: MockPosContext): PosApi {
     async postAdjustment(a) {
       ctx.need('INV.ADJUST');
       if (!a.lines.length) throw problem(400, 'VAL-001', 'Add at least one line.');
-      for (const l of a.lines) move(l.variantId, toBaisa(l.qty), l.unitCost == null ? undefined : toBaisa(l.unitCost));
+      for (const l of a.lines) {
+        if (itemOf(l.variantId).tracking !== 'none') {
+          if (l.qty < 0) throw problem(400, 'VAL-001', "Devices leave stock by sale or write-off from the device's page, not by adjustment.");
+          if ((l.units?.length ?? 0) !== l.qty) throw problem(400, 'DEV-012', `Scan one IMEI or serial number per device: ${l.qty} needed, ${l.units?.length ?? 0} scanned.`);
+          for (const u of l.units ?? []) dev.receive(l.variantId, u, l.unitCost);
+        } else move(l.variantId, toBaisa(l.qty), l.unitCost == null ? undefined : toBaisa(l.unitCost));
+      }
       return delay({ id: id(), number: next('adj', 'ADJ') });
     },
     async adjustments() { ctx.need('INV.VIEW'); return delay([]); },
@@ -329,12 +369,25 @@ export function createMockPos(ctx: MockPosContext): PosApi {
       if (req.expectedTotal != null && toBaisa(req.expectedTotal) !== tt.gross) throw problem(409, 'POS-015', 'Prices changed. Check the cart and try again.');
       const tenders = toTenders(req.payments);
       const paid = wrap(() => checkTenders(tenders, tt.gross, policy.cashRounding));
-      for (const l of lines) if (l.item.productType !== 'service' && (stock.get(l.item.variantId)?.qty ?? 0n) < l.qty && policy.negativeStock === 'block') throw problem(409, 'INV-001', `Not enough stock of ${l.item.descriptionEn}.`);
-      for (const l of lines) if (l.item.productType !== 'service') move(l.item.variantId, -l.qty);
+      const unitOf = (l: { lineNo: number }) => req.lines[l.lineNo - 1]!.deviceUnitId ?? null;
+      for (const l of lines) {
+        const uid = unitOf(l);
+        if (!uid) continue;
+        const holder = dev.leaseHolder(uid);
+        if (holder && holder !== saleId) throw problem(409, 'DEV-005', `${l.item.descriptionEn} is in another cart.`);
+        if (dev.condition(uid) === 'damaged' && !can(u, 'DEVICE.SELL_DAMAGED')) {
+          const aid = req.lines[l.lineNo - 1]!.damagedApprovalId;
+          if (!aid) throw problem(403, 'DEV-008', `${l.item.descriptionEn} is damaged: selling it needs a manager's approval and telling the customer.`);
+          useApproval(aid, 'DEVICE.SELL_DAMAGED', u.id);
+        }
+      }
+      for (const l of lines) if (!unitOf(l) && l.item.productType !== 'service' && (stock.get(l.item.variantId)?.qty ?? 0n) < l.qty && policy.negativeStock === 'block') throw problem(409, 'INV-001', `Not enough stock of ${l.item.descriptionEn}.`);
+      for (const l of lines) if (!unitOf(l) && l.item.productType !== 'service') move(l.item.variantId, -l.qty);
       const cust = customers.find((c) => c.id === req.customerId);
       const d = write({ id: saleId, branchId: t.branchId, number: next('inv', 'INV'), docType: req.docType ?? 'simplified_invoice', creditReason: null, originalSaleId: null, originalNumber: null, saleDate: now().slice(0, 10), completedAt: now(), netTotal: n(tt.net), discountTotal: n(tt.discount), taxTotal: n(tt.tax), grossTotal: n(tt.gross), cashRounding: n(paid.rounding), isEmergency: false, note: req.note ?? null, customerId: cust?.id ?? null, customerName: cust?.nameEn ?? null, customerVat: cust?.vatNumber ?? null, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id },
-        lines.map((l) => ({ id: id(), variantId: l.item.variantId, productType: l.item.productType as SaleLine['productType'], descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, qty: n(l.qty), unitPrice: n(l.unitPrice), listPrice: n(l.listPrice), discount: n(l.discount), net: n(l.net), taxRate: 5, tax: n(l.tax), gross: n(l.gross), returnedQty: 0, returnable: n(l.qty) })),
+        lines.map((l) => ({ id: id(), variantId: l.item.variantId, productType: l.item.productType as SaleLine['productType'], descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, qty: n(l.qty), unitPrice: n(l.unitPrice), listPrice: n(l.listPrice), discount: n(l.discount), net: n(l.net), taxRate: 5, tax: n(l.tax), gross: n(l.gross), returnedQty: 0, returnable: n(l.qty), deviceUnitId: unitOf(l), identifier: unitOf(l) ? dev.identifier(unitOf(l)!) : null })),
         tenders, false, s.id, t);
+      for (const l of lines) { const uid = unitOf(l); if (uid) dev.sold(uid, saleId, d.sale.number, l.net, l.gross, l.tax); }
       return delay(summary(d, paid.paid, tenders.reduce((a, p) => a + (p.tendered == null ? 0n : p.tendered - p.amount), 0n)));
     },
     async returnSale(originalId, r) {
@@ -345,8 +398,9 @@ export function createMockPos(ctx: MockPosContext): PosApi {
       const lines: SaleLine[] = r.lines.map((x) => {
         const l = o.detail.lines.find((y) => y.id === x.lineId)!;
         const a = wrap(() => apportionReturn({ qty: toBaisa(l.qty), net: toBaisa(l.net), tax: toBaisa(l.tax), gross: toBaisa(l.gross), discount: toBaisa(l.discount), returnedQty: toBaisa(l.returnedQty), returnedNet: 0n, returnedTax: 0n, returnedGross: 0n, returnedDiscount: 0n }, toBaisa(x.qty)));
+        if (l.deviceUnitId) dev.returned(l.deviceUnitId, r.id, 'CN', x.code, false);
         l.returnedQty += x.qty; l.returnable -= x.qty;
-        if (x.restock && l.productType !== 'service') move(l.variantId, toBaisa(x.qty));
+        if (!l.deviceUnitId && x.restock && l.productType !== 'service') move(l.variantId, toBaisa(x.qty));
         return { ...l, id: id(), qty: x.qty, net: n(a.net), tax: n(a.tax), gross: n(a.gross), discount: n(a.discount), returnedQty: 0, returnable: 0 };
       });
       const gross = lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
@@ -365,7 +419,7 @@ export function createMockPos(ctx: MockPosContext): PosApi {
       if (!o) throw problem(404, 'GEN-404', 'That sale was not found.');
       if (o.shiftId !== s.id || o.detail.lines.some((l) => l.returnedQty > 0)) throw problem(409, 'POS-013', 'This sale can no longer be voided; use a return.');
       if (!can(u, 'POS.SALE.VOID')) { if (!v.approvalId) throw problem(403, 'AUTH-403', "Voiding a sale needs a manager's approval."); useApproval(v.approvalId, 'POS.SALE.VOID', u.id); }
-      for (const l of o.detail.lines) { l.returnedQty = l.qty; l.returnable = 0; if (l.productType !== 'service') move(l.variantId, toBaisa(l.qty)); }
+      for (const l of o.detail.lines) { l.returnedQty = l.qty; l.returnable = 0; if (l.deviceUnitId) dev.returned(l.deviceUnitId, v.id, 'CN', null, true); else if (l.productType !== 'service') move(l.variantId, toBaisa(l.qty)); }
       const tenders: Tender[] = o.payments.map((p) => ({ method: p.method as Tender['method'], amount: p.amount, cardTerminal: p.cardTerminal }));
       const d = write({ ...o.detail.sale, id: v.id, number: next('cn', 'CN'), docType: 'credit_note', creditReason: 'void', originalSaleId: originalId, originalNumber: o.detail.sale.number, completedAt: now(), note: v.reason, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id }, o.detail.lines.map((l) => ({ ...l, id: id() })), tenders, true, s.id, t);
       o.detail.creditNotes.push({ id: d.sale.id, number: d.sale.number, creditReason: 'void', grossTotal: d.sale.grossTotal });
@@ -391,7 +445,7 @@ export function createMockPos(ctx: MockPosContext): PosApi {
         saleId: s.id, number: s.number, docType: s.docType, titleEn, titleAr, originalNumber: s.originalNumber, creditReason: s.creditReason, localTime: s.completedAt, terminalCode: s.terminalCode, cashierName: s.cashierName,
         customerName: s.customerName, customerVat: s.customerVat, business: { nameEn: b.legalNameEn, nameAr: b.legalNameAr, vatNumber: b.vatNumber, crNumber: b.crNumber, addressEn: null, addressAr: null, phone: '+968 2400 0000' },
         branch: { nameEn: 'Muscat - Ruwi', nameAr: 'مسقط - روي', vatNumber: null, crNumber: null, addressEn: null, addressAr: null, phone: null },
-        lines: x.detail.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.net, tax: l.tax, gross: l.gross, taxRate: l.taxRate })),
+        lines: x.detail.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.net, tax: l.tax, gross: l.gross, taxRate: l.taxRate, serial: l.deviceUnitId ? dev.identifier(l.deviceUnitId) : null })),
         net: s.netTotal, discount: s.discountTotal, tax: s.taxTotal, gross: s.grossTotal, cashRounding: s.cashRounding, total: n(toBaisa(s.grossTotal) + toBaisa(s.cashRounding)),
         taxBreakdown: [{ rate: 5, net: s.netTotal, tax: s.taxTotal }], payments: x.detail.payments.map((p) => ({ method: p.method, amount: Math.abs(p.amount), tendered: p.tendered, change: p.changeGiven, cardTerminal: p.cardTerminal })),
         qrPayload: s.qrPayload, footerEn: policy.receiptFooterEn, footerAr: policy.receiptFooterAr, isCopy: !!reprint, isEmergency: false, paperWidthMm: 80,

@@ -2,7 +2,9 @@
 // minimal-API endpoints return untyped results, so a generated client would type the requests only. Instead a server
 // test checks that every path this client calls exists on the server (ApiContractTests).
 import { posMethods, type PosApi } from './pos';
+import { deviceMethods, type DeviceApi } from './devices';
 export * from './pos';
+export * from './devices';
 
 export interface Problem {
   title: string;
@@ -141,7 +143,7 @@ export interface BackupStatus {
 export interface JoinRequest { mainUrl: string; setupCode: string; token: string; confirmedFingerprint: string; serverName?: string }
 
 /** Everything the web app calls. The real client and the in-memory mock both implement it. */
-export interface KiteApi extends PosApi {
+export interface KiteApi extends PosApi, DeviceApi {
   setupStatus(): Promise<{ configured: boolean; role: string | null }>;
   setup(req: SetupRequest): Promise<{ businessId: string; branchId: string; ownerUserId: string }>;
   login(username: string, password: string): Promise<Tokens>;
@@ -323,6 +325,7 @@ export function createHttpApi(baseUrl = ''): KiteApi {
     runBackup: (kind: string) => post('/api/v1/backups/run', { kind }),
     backupRecoveryKey: (password: string) => post('/api/v1/backups/recovery-key', { password }),
     ...posMethods({ get, post, put, del, blob, setToken: (t: string) => { accessToken = t; } }),
+    ...deviceMethods({ get, post, put, del }),
   });
   return api;
 }

@@ -6,7 +6,7 @@ export interface Item {
   variantId: string; sku: string; productType: string; tracking: string; descriptionEn: string; descriptionAr: string;
   taxCodeId: string; taxKind: string; taxRate: number | string; listPrice: number | string | null; minPrice: number | string | null; warrantyDays: number; active: boolean;
 }
-export interface CartLine { variantId: string; qty: string | number; unitPrice?: string | number | null; discount?: string | number | null; approvalId?: string | null }
+export interface CartLine { variantId: string; qty: string | number; unitPrice?: string | number | null; discount?: string | number | null; approvalId?: string | null; deviceUnitId?: string | null }
 export interface Limit { percent: number | string; amount: number | string; unlimited: boolean }
 export interface Priced {
   lineNo: number; item: Item; qty: Baisa; listPrice: Baisa; unitPrice: Baisa; discount: Baisa; net: Baisa; tax: Baisa; gross: Baisa;
@@ -38,7 +38,8 @@ export function allowedDiscount(lineAmount: Baisa, limit: Limit): Baisa {
 
 export function priceLine(lineNo: number, line: CartLine, item: Item, inclusive: boolean, limit: Limit): Priced {
   if (!item.active) throw new PosError('CAT-004', `${item.sku} is inactive.`);
-  if (item.tracking !== 'none') throw new PosError('CAT-003', `${item.sku} is sold by IMEI or serial number.`);
+  if (item.tracking !== 'none' && !line.deviceUnitId) throw new PosError('DEV-002', `${item.sku} is sold by IMEI or serial number: scan the device.`);
+  if (line.deviceUnitId && toBaisa(line.qty) !== 1000n) throw new PosError('VAL-001', 'A device is sold one at a time.');
   if (item.taxKind === 'margin') throw new PosError('VAL-001', `${item.sku} uses the margin scheme.`);
   if (item.listPrice == null && line.unitPrice == null) throw new PosError('CAT-001', `${item.sku} has no price.`);
   const qty = toBaisa(line.qty);

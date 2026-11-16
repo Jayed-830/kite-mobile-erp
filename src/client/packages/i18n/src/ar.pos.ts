@@ -8,7 +8,7 @@ export const posAr: typeof posEn = {
     price: 'السعر', priceHelp: 'كما يدفعه العميل (شاملًا الضريبة إذا كانت أسعارك شاملة).', minPrice: 'أدنى سعر', min: 'الأدنى',
     taxCode: 'الرمز الضريبي', warranty: 'الضمان (بالأيام)', serialized: 'IMEI / رقم تسلسلي', changePrice: 'تغيير السعر', addBarcode: 'إضافة باركود', removeBarcode: 'حذف الباركود',
     effectiveFrom: 'يبدأ في', effectiveHelp: 'اتركه فارغًا ليبدأ اليوم. ينتهي السعر الحالي في اليوم السابق.', priceFrom: 'السعر منذ {date}',
-    deviceNote: 'تُتتبع الهواتف برقم IMEI. يمكن إضافتها الآن وتُباع من مخزون الأجهزة في التحديث القادم.',
+    deviceNote: 'تُتابع الهواتف برقم IMEI: يدخل كل هاتف المخزون بمسح رقمه، ويُباع بمسحه عند نقطة البيع.',
     types: { device: 'جهاز (هاتف، جهاز لوحي)', accessory: 'إكسسوار', spare_part: 'قطعة غيار', service: 'خدمة', consumable: 'مستهلكات' },
   },
   inventory: {
@@ -34,7 +34,7 @@ export const posAr: typeof posEn = {
     requester: 'من', reason: 'السبب', when: 'الوقت', approve: 'موافقة', reject: 'رفض',
     actions: {
       POS_DISCOUNT_ABOVE_LIMIT: 'خصم أعلى من الحد', POS_PRICE_OVERRIDE: 'تغيير السعر أو البيع تحت الحد الأدنى', POS_SALE_VOID: 'إلغاء عملية بيع', POS_REFUND: 'استرداد (متأخر أو كبير)',
-      POS_CASH_PAY_OUT: 'صرف نقد', POS_DRAWER_NO_SALE: 'فتح الدرج (بدون بيع)', POS_SHIFT_ACCEPT_VARIANCE: 'قبول فرق النقد',
+      POS_CASH_PAY_OUT: 'صرف نقد', POS_DRAWER_NO_SALE: 'فتح الدرج (بدون بيع)', POS_SHIFT_ACCEPT_VARIANCE: 'قبول فرق النقد', DEVICE_SELL_DAMAGED: 'بيع جهاز به ضرر',
     },
   },
   salesReports: {

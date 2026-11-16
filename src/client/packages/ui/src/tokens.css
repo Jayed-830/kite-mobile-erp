@@ -284,3 +284,27 @@ dialog.modal::backdrop { background: rgb(10 14 22 / 45%); }
   .print-area .receipt { box-shadow: none; }
   @page { size: 80mm auto; margin: 0; }
 }
+
+/* ---------------------------------------------------------------- Phase 5: devices */
+.mono { font-family: var(--font-mono, ui-monospace, "Cascadia Mono", Consolas, monospace); letter-spacing: 0.02em; }
+.row.wrap { flex-wrap: wrap; }
+dl.figures { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-4); margin: 0; }
+dl.figures dt { color: var(--text-2); }
+dl.figures dd { margin: 0; text-align: end; }
+dl.figures .strong { font-weight: 700; color: var(--text-1); border-block-start: 1px solid var(--border); padding-block-start: var(--space-2); }
+.timeline { list-style: none; margin: 0; padding: 0; border-inline-start: 2px solid var(--border); }
+.timeline li { position: relative; padding: var(--space-2) var(--space-4); }
+.timeline li::before { content: ""; position: absolute; inset-inline-start: -6px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+.checklist { display: flex; flex-direction: column; }
+.checklist-item { display: flex; align-items: center; gap: var(--space-3); padding-block: var(--space-2); border-block-end: 1px solid var(--border); flex-wrap: wrap; }
+.checklist-item:last-child { border-block-end: none; }
+.checklist-item .field { min-width: 140px; margin: 0; }
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.segmented .seg { background: var(--surface); border: none; padding: 8px 16px; min-height: 40px; cursor: pointer; color: var(--text-2); font: inherit; }
+.segmented .seg + .seg { border-inline-start: 1px solid var(--border); }
+.segmented .seg.active.pass { background: var(--success-bg, #e3f5e8); color: var(--success, #1b7a3a); font-weight: 600; }
+.segmented .seg.active.fail { background: var(--danger-bg, #fde7e7); color: var(--danger, #b42318); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chips .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2, var(--surface)); }
+.unit-line { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: 13px; }
+.r-serial { font-size: 11px; }

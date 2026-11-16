@@ -186,7 +186,7 @@ export function ReturnDialog({ policy, onDone, onClose, onApproval }: {
   const { t, pick } = useI18n();
   const [number, setNumber] = useState('');
   const [sale, setSale] = useState<SaleDetail | null>(null);
-  const [picked, setPicked] = useState<Record<string, { qty: string; restock: boolean }>>({});
+  const [picked, setPicked] = useState<Record<string, { qty: string; restock: boolean; code?: string }>>({});
   const [method, setMethod] = useState<'cash' | 'card'>('cash');
   const [cardTerminal, setCardTerminal] = useState('BANK-1');
   const [reason, setReason] = useState('');
@@ -212,7 +212,7 @@ export function ReturnDialog({ policy, onDone, onClose, onApproval }: {
     setBusy(true); setError(null);
     const id = crypto.randomUUID();
     try {
-      const lines = sale.lines.filter((l) => picked[l.id] && Number(picked[l.id]!.qty) > 0).map((l) => ({ lineId: l.id, qty: Number(picked[l.id]!.qty), restock: picked[l.id]!.restock }));
+      const lines = sale.lines.filter((l) => picked[l.id] && Number(picked[l.id]!.qty) > 0).map((l) => ({ lineId: l.id, qty: Number(picked[l.id]!.qty), restock: l.deviceUnitId ? false : picked[l.id]!.restock, code: l.deviceUnitId ? picked[l.id]!.code ?? null : null }));
       const r = await api.returnSale(sale.sale.id, { id, lines, reason, approvalId, refunds: refund === 0n ? [] : [method === 'cash' ? { method: 'cash', amount: b2n(refund) } : { method: 'card', amount: b2n(refund), cardTerminal }] });
       onDone(r.id);
     } catch (e) {
@@ -232,7 +232,14 @@ export function ReturnDialog({ policy, onDone, onClose, onApproval }: {
           {sale.lines.map((l) => (
             <div key={l.id} className="row line-editor">
               <span className="grow">{pick(l.descriptionEn, l.descriptionAr)} <span className="muted">· {qty(l.qty)} × {fmt(l.unitPrice)}</span></span>
-              {l.returnable > 0 ? (
+              {l.returnable > 0 && l.deviceUnitId ? (
+                // A device comes back as the very unit sold on this line (11.5) and goes to inspection, not back on sale.
+                <>
+                  <span className="ltr muted">{l.identifier}</span>
+                  <TextField label={t('devices.till.scanReturned')} help={t('devices.till.goesToInspection')} value={picked[l.id]?.code ?? ''} dir="ltr" autoComplete="off"
+                    onChange={(e) => setPicked({ ...picked, [l.id]: { qty: e.target.value.trim() ? '1' : '', restock: false, code: e.target.value } })} />
+                </>
+              ) : l.returnable > 0 ? (
                 <>
                   <TextField label={t('pos.returnQty', { max: qty(l.returnable) })} value={picked[l.id]?.qty ?? ''} inputMode="decimal" dir="ltr"
                     onChange={(e) => setPicked({ ...picked, [l.id]: { qty: e.target.value, restock: picked[l.id]?.restock ?? l.productType !== 'service' } })} />

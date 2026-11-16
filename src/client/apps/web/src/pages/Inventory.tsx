@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { can, type PosItem, type ReasonCode } from '@kite/api';
+import { can, type DeviceCondition, type PosItem, type ReasonCode } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Checkbox, DataTable, Modal, PageHeader, SelectField, Spinner, TextField } from '@kite/ui';
 import { ErrorBox, formatDateTime, useApi, useAuth } from '../core';
 import { fmt, parseAmount, qty } from '../money';
+import { ReceiveOptions, toUnitInputs, UnitScanner, type ScannedUnit } from '../devices/bits';
 
 type Tab = 'stock' | 'adjust' | 'counts' | 'exceptions';
 const REASONS: ReasonCode[] = ['damaged', 'lost', 'found', 'expired', 'correction', 'other'];
@@ -93,12 +94,18 @@ function AdjustTab({ onDone }: { onDone: () => void }) {
   const { t, pick } = useI18n();
   const [kind, setKind] = useState<'opening' | 'adjustment'>('adjustment');
   const [note, setNote] = useState('');
-  const [lines, setLines] = useState<{ item: PosItem; qty: string; cost: string; reason: ReasonCode }[]>([]);
+  type Line = { item: PosItem; qty: string; cost: string; reason: ReasonCode; units: ScannedUnit[]; condition: DeviceCondition; status: 'in_stock' | 'under_inspection' };
+  const [lines, setLines] = useState<Line[]>([]);
   const branchId = me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';
+  const tracked = (l: Line) => l.item.tracking !== 'none';
+  const set = (i: number, patch: Partial<Line>) => setLines(lines.map((x, j) => j === i ? { ...x, ...patch } : x));
   const post = useMutation({
     mutationFn: () => api.postAdjustment({
       branchId, kind, note,
-      lines: lines.map((l) => ({ variantId: l.item.variantId, qty: Number(l.qty), unitCost: kind === 'opening' || Number(l.qty) > 0 ? parseAmount(l.cost) : null, reasonCode: kind === 'opening' ? 'opening' : l.reason })),
+      lines: lines.map((l) => tracked(l)
+        // Devices come in one scanned IMEI at a time, each at the cost given (11.3).
+        ? { variantId: l.item.variantId, qty: l.units.length, unitCost: parseAmount(l.cost), reasonCode: kind === 'opening' ? 'opening' : 'found', units: toUnitInputs(l.units, l.condition, l.status, parseAmount(l.cost)) }
+        : { variantId: l.item.variantId, qty: Number(l.qty), unitCost: kind === 'opening' || Number(l.qty) > 0 ? parseAmount(l.cost) : null, reasonCode: kind === 'opening' ? 'opening' : l.reason }),
     }),
     onSuccess: async () => { setLines([]); setNote(''); await qc.invalidateQueries({ queryKey: ['balances'] }); onDone(); },
   });
@@ -112,8 +119,19 @@ function AdjustTab({ onDone }: { onDone: () => void }) {
         <TextField label={t('inventory.note')} value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
       <p className="muted">{kind === 'opening' ? t('inventory.openingHelp') : t('inventory.adjustHelp')}</p>
-      <ItemPicker label={t('inventory.addItem')} onPick={(item) => setLines((ls) => ls.some((l) => l.item.variantId === item.variantId) ? ls : [...ls, { item, qty: '', cost: '', reason: 'correction' }])} />
-      {lines.map((l, i) => (
+      <ItemPicker label={t('inventory.addItem')} onPick={(item) => setLines((ls) => ls.some((l) => l.item.variantId === item.variantId) ? ls
+        : [...ls, { item, qty: '', cost: '', reason: item.tracking !== 'none' ? 'found' : 'correction', units: [], condition: 'brand_new', status: 'in_stock' }])} />
+      {lines.map((l, i) => tracked(l) ? (
+        <div key={l.item.variantId} className="card stack line-editor">
+          <div className="row">
+            <strong className="grow">{pick(l.item.descriptionEn, l.item.descriptionAr)} <span className="ltr muted">{l.item.sku}</span></strong>
+            <TextField label={t('inventory.unitCost')} value={l.cost} onChange={(e) => set(i, { cost: e.target.value })} inputMode="decimal" dir="ltr" />
+            <Button size="sm" variant="ghost" onClick={() => setLines(lines.filter((_, j) => j !== i))}>{t('pos.remove')}</Button>
+          </div>
+          <ReceiveOptions condition={l.condition} status={l.status} onChange={(condition, status) => set(i, { condition, status })} />
+          <UnitScanner units={l.units} tracking={l.item.tracking} onChange={(units) => set(i, { units })} />
+        </div>
+      ) : (
         <div key={l.item.variantId} className="row line-editor">
           <strong className="grow">{pick(l.item.descriptionEn, l.item.descriptionAr)} <span className="ltr muted">{l.item.sku}</span></strong>
           <TextField label={t('inventory.qty')} value={l.qty} onChange={(e) => setLines(lines.map((x, j) => j === i ? { ...x, qty: e.target.value } : x))} inputMode="decimal" dir="ltr" help={kind === 'adjustment' ? t('inventory.qtyHelp') : undefined} />

@@ -34,6 +34,8 @@ export function ReceiptView({ r }: { r: ReceiptModel }) {
           <div>{l.descriptionEn}</div>
           <div dir="rtl">{l.descriptionAr}</div>
           <div className="r-pair"><span className="ltr">{qty(l.qty)} × {fmt(l.unitPrice)}{l.discount ? `  −${fmt(l.discount)}` : ''}</span><span className="ltr">{fmt(l.gross)}</span></div>
+          {l.serial && <div className="r-small ltr r-serial">{l.serial}</div>}
+          {l.warrantyUntil && <div className="r-pair r-small"><span>Warranty until <span className="ltr">{l.warrantyUntil.slice(0, 10)}</span></span><span dir="rtl">الضمان حتى</span></div>}
         </div>
       ))}
       <hr />

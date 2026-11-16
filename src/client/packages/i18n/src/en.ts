@@ -1,7 +1,9 @@
 import { posEn } from './en.pos';
+import { devicesEn } from './en.devices';
 // English strings. Arabic (ar.ts) must have exactly the same keys; a test enforces it.
 export const en = {
   ...posEn,
+  ...devicesEn,
   app: {
     name: 'KITE MOBILE ERP',
     by: 'by Nextdab',
@@ -44,6 +46,8 @@ export const en = {
     stock: 'Stock',
     catalog: 'Products',
     inventory: 'Inventory',
+    devices: 'Devices',
+    deviceSettings: 'Device settings',
     posSettings: 'POS and printers',
     dashboard: 'Dashboard',
     users: 'Users',
@@ -473,7 +477,7 @@ export const en = {
       'LIC-015': 'A newer licence is already in use.',
       'CAT-001': 'This item has no price today. Ask a manager to set one.',
       'CAT-002': 'No item has that barcode or SKU.',
-      'CAT-003': 'Phones and other IMEI or serial items are sold from device stock, which arrives in a later update.',
+      'CAT-003': 'That stock movement breaks a stock rule: phones and other serialized items move one device at a time, and services are not stocked.',
       'CAT-004': 'This item is inactive and cannot be sold.',
       'INV-001': 'Not enough stock for this sale.',
       'INV-002': 'This stock count is already posted or cancelled.',
@@ -497,6 +501,19 @@ export const en = {
       'POS-018': 'An emergency record could not be applied; a manager will review it.',
       'POS-019': 'Emergency mode is not switched on for this terminal.',
       'PRN-001': 'The printer did not answer. Check that it is on and connected.',
+      'DEV-001': 'That is not a valid IMEI: the check digit is wrong or it does not have 15 digits. Scan it again.',
+      'DEV-002': 'This item is sold by IMEI or serial number. Scan the device.',
+      'DEV-003': 'No device with that IMEI or serial number was found.',
+      'DEV-004': 'That device cannot be sold now: it is not in stock at this branch.',
+      'DEV-005': 'That device is in another till’s cart. Remove it there, or wait until that cart lets it go.',
+      'DEV-006': 'That step is not allowed for the device in its current state.',
+      'DEV-007': 'That IMEI or serial number already belongs to another device.',
+      'DEV-008': 'This device is damaged: selling it needs a manager’s approval and telling the customer.',
+      'DEV-009': 'Scan the returned device: it must be the device sold on that line.',
+      'DEV-010': 'This refurbishment order is completed or the device already has an open order.',
+      'DEV-011': 'Answer every checklist item, and give a note when deciding differently from the checklist.',
+      'DEV-012': 'Scan one IMEI or serial number for each device.',
+      'DEV-013': 'The device and the stock ledger would disagree, so nothing was saved. Reload and try again.',
       'BAK-001': 'Backups are not configured on this server.',
       'BAK-002': 'A backup is already running.',
       'BAK-003': 'The backup could not be completed.',

@@ -5,7 +5,7 @@
 import QRCode from 'qrcode';
 
 export interface ReceiptParty { nameEn: string; nameAr: string; vatNumber: string | null; crNumber: string | null; addressEn: string | null; addressAr: string | null; phone: string | null }
-export interface ReceiptLine { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number }
+export interface ReceiptLine { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; serial?: string | null; warrantyUntil?: string | null }
 export interface ReceiptModel {
   saleId: string; number: string; docType: string; titleEn: string; titleAr: string; originalNumber: string | null; creditReason: string | null;
   localTime: string; terminalCode: string; cashierName: string; customerName: string | null; customerVat: string | null;
@@ -74,6 +74,8 @@ export function drawReceipt(r: ReceiptModel, make: (w: number, h: number) => Can
     text(l.descriptionEn, 22, 'left');
     text(l.descriptionAr, 24, 'right', true);
     pair(`${qtyText(l.qty)} x ${money(l.unitPrice)}${l.discount ? `  -${money(l.discount)}` : ''}`, money(l.gross), 22);
+    if (l.serial) text(l.serial, 18, 'left');
+    if (l.warrantyUntil) pair(`Warranty until ${l.warrantyUntil.slice(0, 10)}`, 'الضمان', 18);
     y += px(4);
   }
   rule();

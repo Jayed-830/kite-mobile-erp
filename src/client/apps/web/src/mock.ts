@@ -41,6 +41,14 @@ const PERMISSIONS: Permission[] = [
   ['POS.DRAWER.NO_SALE', 'sales', 'Open the drawer without a sale', 'فتح الدرج بدون بيع'],
   ['POS.RECEIPT.REPRINT', 'sales', 'Reprint receipts', 'إعادة طباعة الإيصالات'],
   ['POS.SHIFT.ACCEPT_VARIANCE', 'sales', 'Accept a cash difference at shift close', 'قبول فرق النقد عند إغلاق الوردية'],
+  ['DEVICE.VIEW', 'device', 'View device units, their history, costs and profit', 'عرض الأجهزة وسجلها وتكاليفها وأرباحها'],
+  ['DEVICE.INSPECT', 'refurb', 'Inspect devices and decide restock, refurbish or parts', 'فحص الأجهزة وتقرير إعادتها للمخزون أو تجديدها أو تخصيصها للقطع'],
+  ['DEVICE.REFURBISH', 'refurb', 'Work refurbishment orders: parts, labour, outside work', 'تنفيذ أوامر التجديد: القطع والأجور والأعمال الخارجية'],
+  ['DEVICE.PRICE', 'device', 'Set the selling price of a device unit', 'تحديد سعر بيع الجهاز'],
+  ['DEVICE.SELL_DAMAGED', 'device', 'Sell a damaged device (with disclosure on the receipt)', 'بيع جهاز به ضرر (مع الإفصاح في الإيصال)'],
+  ['DEVICE.WRITE_OFF', 'device', 'Write off device units', 'شطب الأجهزة'],
+  ['DEVICE.HOLD', 'device', 'Put device units on hold and release them', 'إيقاف الأجهزة مؤقتًا والإفراج عنها'],
+  ['DEVICE.SETTINGS', 'refurb', 'Manage grades, inspection checklists and the labour rate', 'إدارة الدرجات وقوائم الفحص وسعر الأجور'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -78,7 +86,8 @@ export function createMockApi(opts: MockOptions): KiteApi {
     { id: id(), code: 'owner', nameEn: 'Owner', nameAr: 'المالك', isSystem: true, version: 1, permissions: PERMISSIONS.map((p) => p.code) },
     { id: id(), code: 'branch_manager', nameEn: 'Branch manager', nameAr: 'مدير الفرع', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'TERMINALS.APPROVE', 'USERS.VIEW', 'AUDIT.VIEW', 'POS.SELL',
       'POS.DISCOUNT.ABOVE_LIMIT', 'POS.PRICE.OVERRIDE', 'POS.SALE.VOID', 'POS.REFUND', 'POS.DRAWER.NO_SALE', 'POS.RECEIPT.REPRINT', 'POS.SHIFT.ACCEPT_VARIANCE', 'POS.SHIFT.OPEN',
-      'POS.CASH.PAY_OUT', 'POS.REPORTS.VIEW', 'APPROVALS.DECIDE', 'CATALOG.VIEW', 'CATALOG.MANAGE', 'CATALOG.PRICE.MANAGE', 'INV.VIEW', 'INV.ADJUST', 'INV.COUNT', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE'] },
+      'POS.CASH.PAY_OUT', 'POS.REPORTS.VIEW', 'APPROVALS.DECIDE', 'CATALOG.VIEW', 'CATALOG.MANAGE', 'CATALOG.PRICE.MANAGE', 'INV.VIEW', 'INV.ADJUST', 'INV.COUNT', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE',
+      'DEVICE.VIEW', 'DEVICE.INSPECT', 'DEVICE.REFURBISH', 'DEVICE.PRICE', 'DEVICE.SELL_DAMAGED', 'DEVICE.WRITE_OFF', 'DEVICE.HOLD', 'DEVICE.SETTINGS'] },
     { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE'] },
     { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.REVIEW'] },
   ];

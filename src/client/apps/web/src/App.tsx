@@ -25,6 +25,11 @@ import { ApprovalsPage } from './pages/Approvals';
 import { SalesPage } from './pages/Sales';
 import { PosSettingsPage } from './pages/PosSettings';
 import { PosApp } from './pos/PosApp';
+import { DevicesPage } from './devices/DevicesPage';
+import { DevicePage } from './devices/DevicePage';
+import { InspectPage } from './devices/InspectPage';
+import { RefurbPage } from './devices/RefurbPage';
+import { DeviceSettingsPage } from './devices/DeviceSettingsPage';
 import { useI18n } from '@kite/i18n';
 
 function Guarded() {
@@ -57,6 +62,11 @@ function AppRoutes() {
         <Route path="account" element={<AccountPage />} />
         <Route path="catalog" element={<CatalogPage />} />
         <Route path="inventory" element={<InventoryPage />} />
+        <Route path="devices" element={<DevicesPage />} />
+        <Route path="devices/:id" element={<DevicePage />} />
+        <Route path="devices/:id/inspect" element={<InspectPage />} />
+        <Route path="refurbishments/:id" element={<RefurbPage />} />
+        <Route path="settings/devices" element={<DeviceSettingsPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="sales" element={<SalesPage />} />

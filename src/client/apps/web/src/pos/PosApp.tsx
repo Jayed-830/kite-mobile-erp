@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, can, type ApprovalAction, type Customer, type PosItem, type ShiftFigures, type TenderInput } from '@kite/api';
+import { ApiError, can, type ApprovalAction, type Customer, type PosItem, type PosUnit, type ShiftFigures, type TenderInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Modal, SelectField, Spinner, TextField, useTheme } from '@kite/ui';
-import { fromBaisa, PosError, priceLine, totals, UNLIMITED, type Item, type Priced, type ReceiptModel } from '@kite/pos';
+import { classifyCode, fromBaisa, PosError, priceLine, totals, UNLIMITED, type Item, type Priced, type ReceiptModel } from '@kite/pos';
 import { ErrorBox, useApi, useAuth } from '../core';
 import { fmt, fmtB, qty } from '../money';
 import { FiguresView } from '../pages/Sales';
 import { ApprovalDialog, CashDialog, CloseShiftDialog, CustomerDialog, DenominationCount, PayDialog, ReturnDialog } from './dialogs';
 import { desktop, isEmergencyMode, openDrawer, printReceipt, printRoute } from './printing';
 import { ReceiptView } from './ReceiptView';
+import { ConditionBadge, Ident } from '../devices/bits';
 import { loadTerminal, newDeviceKey, saveTerminal, type StoredTerminal } from './terminalStore';
 
 /** The touch POS (10.1-10.5): this device as a terminal, sign-in, shift, selling, payments, receipts, returns, cash and close. */
@@ -135,11 +136,16 @@ function TerminalSignIn({ terminal, onForget }: { terminal: StoredTerminal; onFo
 }
 
 // ------------------------------------------------------------------ the till
-interface CartRow { key: string; item: PosItem; qty: string; discount: string; unitPrice: string | null }
-type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void';
+interface CartRow { key: string; item: PosItem; qty: string; discount: string; unitPrice: string | null; unit?: PosUnit | null; damagedApprovalId?: string | null }
+type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | { pickUnits: PosItem };
 interface ApprovalAsk { action: ApprovalAction; retry: (approvalId: string) => void }
 
 const asItem = (i: PosItem): Item => ({ ...i, taxRate: i.taxRate, listPrice: i.listPrice, minPrice: i.minPrice });
+/** A device unit as a cart item: its own description (condition, grade), price and minimum (12.1). */
+const unitItem = (u: PosUnit, base?: PosItem): PosItem => ({
+  variantId: u.variantId, sku: u.sku, productType: u.productType as PosItem['productType'], tracking: u.tracking as PosItem['tracking'], descriptionEn: u.descriptionEn, descriptionAr: u.descriptionAr,
+  taxCodeId: base?.taxCodeId ?? '', taxKind: base?.taxKind ?? 'standard', taxRate: u.taxRate, listPrice: u.listPrice, minPrice: u.minPrice, warrantyDays: u.warrantyDays, active: true, stock: 1, barcode: null,
+});
 
 function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (printerId: string | null) => void }) {
   const api = useApi();
@@ -196,7 +202,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   const priced = useMemo(() => {
     const out: (Priced | PosError)[] = [];
     cart.forEach((r, i) => {
-      try { out.push(priceLine(i + 1, { variantId: r.item.variantId, qty: r.qty || '0', discount: r.discount || '0', unitPrice: r.unitPrice }, asItem(r.item), pricesIncludeTax, limit)); }
+      try { out.push(priceLine(i + 1, { variantId: r.item.variantId, qty: r.qty || '0', discount: r.discount || '0', unitPrice: r.unitPrice, deviceUnitId: r.unit?.unitId ?? null }, asItem(r.item), pricesIncludeTax, limit)); }
       catch (e) { out.push(e instanceof PosError ? e : new PosError('VAL-001', String(e))); }
     });
     return out;
@@ -207,6 +213,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
 
   const add = useCallback((item: PosItem, fromScan = false) => {
     setError(null);
+    if (item.tracking !== 'none') { setDialog({ pickUnits: item }); setSearch(''); setHits(null); return; }   // a phone: choose the very device
     setCart((c) => {
       const i = c.findIndex((r) => r.item.variantId === item.variantId && r.unitPrice === null && !r.discount);
       if (i >= 0) return c.map((r, j) => (j === i ? { ...r, qty: String(Number(r.qty) + 1) } : r));
@@ -216,14 +223,42 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
     searchRef.current?.focus();
   }, []);
 
+  // A device (11.5): leased to this cart so no other till can sell it, then added as its own line. A damaged one needs a
+  // manager's approval before it goes in the cart (12.1).
+  const addUnit = useCallback(async (u: PosUnit, damagedApprovalId?: string) => {
+    setError(null);
+    if (cart.some((r) => r.unit?.unitId === u.unitId)) return;
+    if (u.condition === 'damaged' && !damagedApprovalId && !can(me, 'DEVICE.SELL_DAMAGED')) {
+      setApproval({ action: 'DEVICE.SELL_DAMAGED', retry: (aid) => { setApproval(null); void addUnit(u, aid); } });
+      return;
+    }
+    try {
+      await api.reserveUnit(u.unitId, cartId);
+      setCart((c) => [...c, { key: crypto.randomUUID(), item: unitItem(u), qty: '1', discount: '', unitPrice: null, unit: u, damagedApprovalId: damagedApprovalId ?? null }]);
+      setDialog(null);
+    } catch (e) { setError(e); }
+    searchRef.current?.focus();
+  }, [api, cart, cartId, me]);
+  const releaseUnits = (rows: CartRow[]) => { for (const r of rows) if (r.unit) void api.releaseUnit(r.unit.unitId, cartId).catch(() => undefined); };
+
   // A scanner types the code and Enter, often faster than the server answers: the box is cleared at once so the next
-  // scan starts clean, and each code is looked up on its own.
+  // scan starts clean, and each code is looked up on its own. 15 digits are an IMEI (check digit verified here first).
   const scan = async () => {
     const q = search.trim();
     if (!q) return;
     setSearch(''); setHits(null); setError(null);
-    try { add(await api.posItemByBarcode(q), true); }
-    catch (e) {
+    const code = classifyCode(q);
+    if (code.kind === 'invalid_imei') {
+      setError(new ApiError({ status: 400, code: 'DEV-001', title: code.value.length === 15 ? `${code.value} is not a valid IMEI: the check digit is wrong. Scan it again.` : `${code.value} is not an IMEI: an IMEI has 15 digits.` }));
+      return;
+    }
+    try {
+      if (code.kind === 'imei') { await addUnit(await api.posUnitByCode(code.value)); return; }
+      add(await api.posItemByBarcode(q), true);
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'CAT-002' && code.kind === 'serial') {
+        try { await addUnit(await api.posUnitByCode(code.value)); return; } catch (e2) { if (!(e2 instanceof ApiError && e2.code === 'DEV-003')) { setError(e2); return; } }
+      }
       if (e instanceof ApiError && e.code === 'CAT-002') { setSearch(q); setHits(await api.posItems(q, undefined, 20)); } else setError(e);
     }
   };
@@ -241,7 +276,8 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
     setPaying(true); setPayError(null);
     try {
       const res = await api.completeSale(cartId, {
-        lines: cart.map((r) => ({ variantId: r.item.variantId, qty: Number(r.qty), discount: r.discount ? Number(r.discount) : null, unitPrice: r.unitPrice === null ? null : Number(r.unitPrice) })),
+        lines: cart.map((r) => ({ variantId: r.item.variantId, qty: Number(r.qty), discount: r.discount ? Number(r.discount) : null, unitPrice: r.unitPrice === null ? null : Number(r.unitPrice),
+          deviceUnitId: r.unit?.unitId ?? null, damagedApprovalId: r.damagedApprovalId ?? null })),
         payments: tenders, docType: taxInvoice ? 'tax_invoice' : 'simplified_invoice', customerId: customer?.id ?? null, expectedTotal: Number(fromBaisa(sum.gross)), approvalId,
       });
       setDialog(null);
@@ -260,7 +296,10 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   };
 
   const park = async () => {
-    try { await api.park({ id: cartId, label: customer?.nameEn ?? null, cart: { rows: cart, customer, taxInvoice } }); newSale(); setNotice(t('pos.parked')); }
+    try {
+      await api.park({ id: cartId, label: customer?.nameEn ?? null, cart: { rows: cart, customer, taxInvoice }, deviceUnitIds: cart.filter((r) => r.unit).map((r) => r.unit!.unitId) });
+      newSale(); setNotice(t('pos.parked'));
+    }
     catch (e) { setError(e); }
   };
 
@@ -306,7 +345,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         <ErrorBox error={error} />
         <div className="tiles">
           {(hits ?? quick.data ?? []).map((i) => (
-            <button key={i.variantId} className="tile" onClick={() => add(i)} disabled={!i.active || i.tracking !== 'none'}>
+            <button key={i.variantId} className="tile" onClick={() => (i.tracking !== 'none' ? setDialog({ pickUnits: i }) : add(i))} disabled={!i.active}>
               <span className="tile-name">{pick(i.descriptionEn, i.descriptionAr)}</span>
               <span className="tile-meta"><span className="ltr">{i.sku}</span>{i.productType !== 'service' && <span className={i.stock <= 0 ? 'neg' : 'muted'}>{t('pos.inStock', { qty: qty(i.stock) })}</span>}</span>
               <span className="tile-price num">{fmt(i.listPrice)}</span>
@@ -329,17 +368,19 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
             return (
               <div key={r.key} className={`cart-line${bad ? ' bad' : ''}`}>
                 <div className="cart-desc"><strong>{pick(r.item.descriptionEn, r.item.descriptionAr)}</strong><span className="ltr muted">{r.item.sku}</span>
+                  {r.unit && <span className="unit-line"><Ident value={r.unit.imei1 ?? r.unit.serial} /> <ConditionBadge condition={r.unit.condition} grade={r.unit.gradeCode} /></span>}
+                  {r.unit?.condition === 'damaged' && <Badge tone="warning">{t('devices.till.damaged')}</Badge>}
                   {!bad && (p.needsDiscountApproval || p.needsPriceOverride) && <Badge tone="warning">{t('pos.needsApproval')}</Badge>}
                   {bad && <span className="neg">{p.message}</span>}
                 </div>
-                <div className="qty-step">
+                {r.unit ? <span className="qty-step num">1</span> : <div className="qty-step">
                   <button aria-label={t('pos.less')} onClick={() => setCart(cart.map((x, j) => j === i ? { ...x, qty: String(Math.max(1, Number(x.qty) - 1)) } : x))}>−</button>
                   <input className="input" aria-label={t('inventory.qty')} value={r.qty} inputMode="decimal" dir="ltr" onChange={(e) => setCart(cart.map((x, j) => j === i ? { ...x, qty: e.target.value } : x))} />
                   <button aria-label={t('pos.more')} onClick={() => setCart(cart.map((x, j) => j === i ? { ...x, qty: String(Number(x.qty) + 1) } : x))}>+</button>
-                </div>
+                </div>}
                 <input className="input disc" aria-label={t('pos.discount')} placeholder={t('pos.discount')} value={r.discount} inputMode="decimal" dir="ltr" onChange={(e) => setCart(cart.map((x, j) => j === i ? { ...x, discount: e.target.value } : x))} />
                 <span className="num line-total">{bad ? '—' : fmtB(p.gross)}</span>
-                <button className="link-button" aria-label={t('pos.remove')} onClick={() => setCart(cart.filter((_, j) => j !== i))}>×</button>
+                <button className="link-button" aria-label={t('pos.remove')} onClick={() => { releaseUnits([r]); setCart(cart.filter((_, j) => j !== i)); }}>×</button>
               </div>
             );
           })}
@@ -352,7 +393,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         </div>
         <div className="pos-actions">
           <Button onClick={() => void park()} disabled={cart.length === 0}>{t('pos.park')}</Button>
-          <Button onClick={newSale} disabled={cart.length === 0}>{t('pos.clear')}</Button>
+          <Button onClick={() => { releaseUnits(cart); newSale(); }} disabled={cart.length === 0}>{t('pos.clear')}</Button>
           <Button variant="primary" className="pay-btn" disabled={!cartValid} onClick={() => { setPayError(null); setDialog('pay'); }}>{t('pos.pay')} {fmtB(sum.gross)}</Button>
         </div>
       </section>
@@ -365,7 +406,11 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         onDone={async (id) => { setDialog(null); const r = await api.receipt(id); setReceipt({ r, cash: r.payments.some((p) => p.method === 'cash') }); void printReceipt(api, r, route, r.payments.some((p) => p.method === 'cash')); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
       {dialog === 'close' && policy.data && <CloseShiftDialog policy={policy.data} figures={shift.data.figures} onClose={() => setDialog(null)} onApproval={(a, retry) => ask(a, (id) => { setApproval(null); retry(id); })}
         onClosed={(r) => { setDialog(null); setZReport(r); }} />}
-      {dialog === 'parked' && <ParkedDialog onClose={() => setDialog(null)} onRecall={(c) => { setDialog(null); setCartId(c.id); setCart(c.rows); setCustomer(c.customer); setTaxInvoice(c.taxInvoice); }} />}
+      {dialog === 'parked' && <ParkedDialog onClose={() => setDialog(null)} onRecall={async (c) => {
+        setDialog(null); setCartId(c.id); setCart(c.rows); setCustomer(c.customer); setTaxInvoice(c.taxInvoice);
+        for (const r of c.rows) if (r.unit) { try { await api.reserveUnit(r.unit.unitId, c.id); } catch (e) { setError(e); } }
+      }} />}
+      {dialog && typeof dialog === 'object' && <UnitPicker item={dialog.pickUnits} inCart={cart.filter((r) => r.unit).map((r) => r.unit!.unitId)} onClose={() => setDialog(null)} onPick={(u) => void addUnit(u)} />}
       {dialog === 'x' && <XReport id={s.id} onClose={() => setDialog(null)} />}
       {dialog === 'printer' && <PrinterDialog current={terminal.printerId} onClose={() => setDialog(null)} onPick={(p) => { onPrinter(p); setDialog(null); }} />}
       {approval && <ApprovalDialog action={approval.action} onClose={() => setApproval(null)} onApproved={(id) => approval.retry(id)} />}
@@ -424,7 +469,28 @@ function OpenShift({ denominations, onOpened }: { denominations: number[]; onOpe
   );
 }
 
-function ParkedDialog({ onClose, onRecall }: { onClose: () => void; onRecall: (c: { id: string; rows: CartRow[]; customer: Customer | null; taxInvoice: boolean }) => void }) {
+/** Tapping a phone shows the units of that item in stock here: each with its IMEI, condition, grade and own price. */
+function UnitPicker({ item, inCart, onPick, onClose }: { item: PosItem; inCart: string[]; onPick: (u: PosUnit) => void; onClose: () => void }) {
+  const api = useApi();
+  const { t, pick } = useI18n();
+  const units = useQuery({ queryKey: ['posUnits', item.variantId], queryFn: () => api.posUnits(item.variantId) });
+  return (
+    <Modal open title={`${t('devices.till.pickUnit')}: ${pick(item.descriptionEn, item.descriptionAr)}`} onClose={onClose} footer={<Button onClick={onClose}>{t('app.close')}</Button>}>
+      <ErrorBox error={units.error} />
+      {units.isLoading && <Spinner label={t('app.loading')} />}
+      {units.data?.length === 0 && <p className="muted">{t('devices.till.noUnits')}</p>}
+      <div className="picker-list">
+        {units.data?.filter((u) => !inCart.includes(u.unitId)).map((u) => (
+          <button key={u.unitId} className="picker-item" disabled={u.reservedUntil != null} onClick={() => onPick(u)}>
+            <Ident value={u.imei1 ?? u.serial} /><ConditionBadge condition={u.condition} grade={u.gradeCode} /><span className="num">{fmt(u.listPrice)}</span>
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function ParkedDialog({ onClose, onRecall }: { onClose: () => void; onRecall: (c: { id: string; rows: CartRow[]; customer: Customer | null; taxInvoice: boolean }) => void | Promise<void> }) {
   const api = useApi();
   const { t, lang } = useI18n();
   const list = useQuery({ queryKey: ['parked'], queryFn: () => api.parked() });
