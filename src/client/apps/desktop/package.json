@@ -1,18 +1,25 @@
 {
   "name": "kite-desktop",
   "private": true,
-  "version": "0.2.0",
-  "description": "KITE MOBILE ERP Windows desktop app (Electron shell). © Nextdab",
+  "version": "0.4.0",
+  "description": "KITE MOBILE ERP Windows desktop app (Electron shell). \u00a9 Nextdab",
   "author": "Nextdab",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder --win --config electron-builder.yml"
+    "dist": "npm run build && electron-builder --win --config electron-builder.yml",
+    "test": "npm run build && node --test test/desktop.test.mjs",
+    "bundle-web": "vite build --config ../web/vite.config.ts --base ./ --outDir ../desktop/static/app --emptyOutDir"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "electron": "^39.8.10",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "better-sqlite3-multiple-ciphers": "^12.11.1",
+    "hash-wasm": "^4.13.0"
   }
 }

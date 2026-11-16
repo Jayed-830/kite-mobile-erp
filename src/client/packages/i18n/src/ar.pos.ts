@@ -81,6 +81,7 @@ export const posAr: typeof posEn = {
     closeTitle: 'إغلاق الوردية', blindHelp: 'عُدَّ النقد في الدرج. لا يُعرض المبلغ المتوقع (إغلاق أعمى).', countHelp: 'عُدَّ النقد في الدرج.',
     batches: 'دفعات أجهزة البنك', batchTotal: 'إجمالي الدفعة المطبوع من {terminal}', batchReason: 'سبب الفرق',
     varianceReason: 'العد لا يطابق. اذكر السبب (يجب أن يقبله المدير).', shiftClosed: 'أُغلقت الوردية {number}',
+    emergencyMode: 'وضع الطوارئ', emergencyUploaded: 'أُرسل {count} من سجلات الطوارئ إلى الخادم، وحُفظ {conflicts} للمراجعة.', endEmergency: 'العودة إلى الخادم',
     emergency: 'طوارئ', printerDesktop: 'يطبع تطبيق ويندوز على الطابعة المختارة في إعداداته.', browserPrint: 'الطباعة عبر المتصفح',
   },
 };

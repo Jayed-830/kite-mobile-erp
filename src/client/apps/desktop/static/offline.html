@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+  <title>KITE MOBILE ERP: server not reachable</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f6f7fb; color: #141a26; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #fff; border: 1px solid #dde1ea; border-radius: 10px; padding: 32px; width: min(520px, 92vw); }
+    h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 20px 0 6px; }
+    p { color: #4b556a; margin: 0 0 12px; } .muted { font-size: 13px; color: #6b7489; word-break: break-all; }
+    label { font-weight: 600; font-size: 13px; display: block; margin: 8px 0 4px; }
+    input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid #dde1ea; border-radius: 6px; font: inherit; direction: ltr; }
+    button { margin-top: 12px; min-height: 44px; width: 100%; border: 1px solid #0b5fff; border-radius: 6px; background: #0b5fff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    button.alt { background: #fff; color: #0b5fff; }
+    .err { color: #c4231b; font-size: 13px; margin-top: 8px; min-height: 18px; }
+    .ar { direction: rtl; text-align: right; margin-top: 20px; border-top: 1px solid #dde1ea; padding-top: 12px; color: #4b556a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>The KITE server cannot be reached</h1>
+    <p>Check the network cable or Wi-Fi of this till and of the server PC, then try again.</p>
+    <p class="muted" id="reason"></p>
+    <button class="alt" id="retry">Try again</button>
+    <h2>Emergency mode</h2>
+    <p id="em-info">Keep selling from this till's own copy of the catalog. Sales are numbered from this till's emergency series and sent to the server when it is back.</p>
+    <form id="f">
+      <label for="u">Manager username</label><input id="u" autocomplete="off" />
+      <label for="p">PIN</label><input id="p" type="password" inputmode="numeric" autocomplete="off" />
+      <div class="err" id="err"></div>
+      <button type="submit" id="start">Start emergency mode</button>
+    </form>
+    <div class="ar">تعذّر الوصول إلى خادم كايت. تحقق من الشبكة ثم أعد المحاولة، أو ابدأ وضع الطوارئ برمز المدير لمواصلة البيع، وتُرسَل المبيعات إلى الخادم عند عودته.</div>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    document.getElementById('reason').textContent = q.get('reason') || '';
+    document.getElementById('retry').addEventListener('click', () => window.kiteDesktop.retry());
+    window.kiteDesktop.emergency.status().then((s) => {
+      if (!s.snapshotAt) { document.getElementById('em-info').textContent = 'Emergency mode is not available: this till has never received a snapshot from the server (it must be a Windows terminal with emergency mode switched on).'; document.getElementById('start').disabled = true; }
+      else if (s.pending) document.getElementById('em-info').textContent += ' ' + s.pending + ' record(s) are waiting to be sent.';
+    }).catch(() => {});
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const r = await window.kiteDesktop.emergency.start(document.getElementById('u').value, document.getElementById('p').value);
+      if (!r.ok) document.getElementById('err').textContent = r.error || 'Could not start emergency mode.';
+    });
+  </script>
+</body>
+</html>

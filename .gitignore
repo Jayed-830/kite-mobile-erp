@@ -27,3 +27,4 @@ src/server/Kite.Host/wwwroot/
 poc/**/output/
 release/
 e2e/shots/
+src/client/apps/desktop/static/app/

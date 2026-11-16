@@ -4,12 +4,28 @@
 import type { KiteApi } from '@kite/api';
 import { DRAWER_KICK, receiptBytes, toBase64, type CanvasLike, type ReceiptModel } from '@kite/pos';
 
+export interface DesktopEmergency {
+  status(): Promise<unknown>;
+  snapshot(): Promise<unknown>;
+  saveSnapshot(s: unknown): Promise<{ ok: boolean; error?: string }>;
+  append(kind: string, payload: unknown): Promise<unknown>;
+  pending(): Promise<unknown[]>;
+  records(): Promise<unknown[]>;
+  markUploaded(results: unknown[]): Promise<void>;
+  verifyPin(username: string, pin: string): Promise<unknown>;
+  start(username: string, pin: string): Promise<{ ok: boolean; error?: string }>;
+  end(): Promise<{ ok: boolean; error?: string }>;
+}
 export interface DesktopBridge {
   print(bytesBase64: string): Promise<{ ok: boolean; error?: string }>;
   openDrawer(): Promise<{ ok: boolean; error?: string }>;
   printerName(): Promise<string | null>;
+  emergency?: DesktopEmergency;
 }
-declare global { interface Window { kiteDesktop?: DesktopBridge & Record<string, unknown> } }
+declare global { interface Window { kiteDesktop?: DesktopBridge } }
+
+/** True when the Windows app runs its bundled POS because the server cannot be reached. */
+export const isEmergencyMode = () => typeof window !== 'undefined' && !!window.kiteDesktop?.emergency && new URLSearchParams(window.location.search).get('emergency') === '1';
 
 export const desktop = (): DesktopBridge | null => (typeof window !== 'undefined' && window.kiteDesktop ? window.kiteDesktop : null);
 

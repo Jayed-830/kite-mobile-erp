@@ -8,16 +8,19 @@ import { ErrorBox, useApi, useAuth } from '../core';
 import { fmt, fmtB, qty } from '../money';
 import { FiguresView } from '../pages/Sales';
 import { ApprovalDialog, CashDialog, CloseShiftDialog, CustomerDialog, DenominationCount, PayDialog, ReturnDialog } from './dialogs';
-import { openDrawer, printReceipt, printRoute } from './printing';
+import { desktop, isEmergencyMode, openDrawer, printReceipt, printRoute } from './printing';
 import { ReceiptView } from './ReceiptView';
 import { loadTerminal, newDeviceKey, saveTerminal, type StoredTerminal } from './terminalStore';
 
 /** The touch POS (10.1-10.5): this device as a terminal, sign-in, shift, selling, payments, receipts, returns, cash and close. */
 export function PosApp() {
   const { stage, me } = useAuth();
-  const [terminal, setTerminal] = useState<StoredTerminal | null>(() => loadTerminal());
+  const emergency = isEmergencyMode();
+  const [terminal, setTerminal] = useState<StoredTerminal | null>(() => (emergency ? null : loadTerminal()));
+  const snap = useQuery({ queryKey: ['emergencyTerminal'], queryFn: async () => ((await window.kiteDesktop!.emergency!.snapshot()) as { terminal: { id: string; code: string; branchId: string } }).terminal, enabled: emergency });
   const { t } = useI18n();
-  if (stage === 'loading') return <div className="center-page"><Spinner label={t('app.loading')} /></div>;
+  if (stage === 'loading' || (emergency && !snap.data)) return <div className="center-page"><Spinner label={t('app.loading')} /></div>;
+  if (emergency && !terminal) { const x = snap.data!; setTerminal({ terminalId: x.id, deviceKey: '', code: x.code, branchId: x.branchId, printerId: null }); return null; }
   if (!terminal) return <RegisterTerminal onRegistered={(x) => { saveTerminal(x); setTerminal(x); }} />;
   if (stage !== 'signedIn' || !me) return <TerminalSignIn terminal={terminal} onForget={() => { saveTerminal(null); setTerminal(null); }} />;
   return <Till terminal={terminal} onPrinter={(printerId) => { const x = { ...terminal, printerId }; saveTerminal(x); setTerminal(x); }} />;
@@ -162,6 +165,30 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   const [zReport, setZReport] = useState<{ figures: ShiftFigures; counted: number; variance: number; number: string } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const route = printRoute(terminal.printerId);
+  const emergency = isEmergencyMode();
+
+  // Windows app online: keep the emergency snapshot fresh and send what emergency mode recorded (6.4).
+  useEffect(() => {
+    const em = desktop()?.emergency;
+    if (!em || emergency) return;
+    let live = true;
+    const sync = async () => {
+      try {
+        const pending = (await em.pending()) as { seq: number; id: string; kind: string; recordedAt: string; monotonicMs: number; payload: unknown }[];
+        if (pending.length) {
+          const res = await api.uploadEmergency(pending.map((r) => ({ id: r.id, seq: r.seq, kind: r.kind as 'sale', recordedAt: r.recordedAt, monotonicMs: r.monotonicMs, payload: r.payload })));
+          await em.markUploaded(res.results.map((x) => ({ seq: x.seq, result: x.result, detail: x.detail })));
+          const conflicts = res.results.filter((x) => x.result === 'conflict').length;
+          if (live) setNotice(t('pos.emergencyUploaded', { count: String(res.results.length), conflicts: String(conflicts) }));
+          void qc.invalidateQueries({ queryKey: ['currentShift'] });
+        }
+        await em.saveSnapshot(await api.emergencySnapshot());
+      } catch { /* not an emergency terminal, or the server is busy: try again later */ }
+    };
+    void sync();
+    const timer = setInterval(() => void sync(), 10 * 60_000);
+    return () => { live = false; clearInterval(timer); };
+  }, [api, emergency, qc, t]);
   const pricesIncludeTax = me?.business.pricesIncludeTax ?? true;
   const limit = can(me, 'POS.DISCOUNT.ABOVE_LIMIT') ? UNLIMITED : { percent: 5, amount: 2, unlimited: false };
 
@@ -243,7 +270,9 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         <FiguresView f={zReport.figures} />
         <div className="fig strong"><span>{t('salesReports.counted')}</span><span className="num">{fmt(zReport.counted)}</span></div>
         <div className="fig strong"><span>{t('salesReports.variance')}</span><span className="num">{fmt(zReport.variance)}</span></div>
-        <Button variant="primary" onClick={() => void signOut()}>{t('app.signOut')}</Button>
+        {emergency
+          ? <Button variant="primary" onClick={() => void desktop()?.emergency?.end()}>{t('pos.endEmergency')}</Button>
+          : <Button variant="primary" onClick={() => void signOut()}>{t('app.signOut')}</Button>}
       </PosFrame>
     );
   }
@@ -257,6 +286,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         <strong>KITE POS</strong>
         <span className="muted">{pick(me!.branches[0]?.nameEn ?? '', me!.branches[0]?.nameAr ?? '')} · <span className="ltr">{terminal.code}</span> · {pick(me!.user.displayNameEn, me!.user.displayNameAr)}</span>
         <Badge tone="success"><span className="ltr">{s.number}</span></Badge>
+        {emergency && <Badge tone="danger">{t('pos.emergencyMode')}</Badge>}
         <span className="spacer" />
         <Button size="sm" onClick={() => setDialog('parked')}>{t('pos.recall')}</Button>
         <Button size="sm" onClick={() => setDialog('return')}>{t('pos.return')}</Button>

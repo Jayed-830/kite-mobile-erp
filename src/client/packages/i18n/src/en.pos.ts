@@ -79,6 +79,7 @@ export const posEn = {
     closeTitle: 'Close shift', blindHelp: 'Count the cash in the drawer. The expected amount is not shown (blind close).', countHelp: 'Count the cash in the drawer.',
     batches: 'Bank terminal batches', batchTotal: 'Batch total printed by {terminal}', batchReason: 'Reason for a difference',
     varianceReason: 'The count does not match. Give the reason (a manager must accept it).', shiftClosed: 'Shift {number} closed',
+    emergencyMode: 'Emergency mode', emergencyUploaded: '{count} emergency record(s) sent to the server, {conflicts} kept for review.', endEmergency: 'Back to the server',
     emergency: 'Emergency', printerDesktop: 'This Windows app prints to the printer chosen in its settings.', browserPrint: 'Print with the browser',
   },
 };

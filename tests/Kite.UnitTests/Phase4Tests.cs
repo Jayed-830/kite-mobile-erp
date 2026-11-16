@@ -335,3 +335,21 @@ public class PosVectorTests
         }
     }
 }
+
+/// <summary>Emergency mode checks PINs offline in the Windows app: its Argon2id hashes and the server's must be the same format.</summary>
+public class PinHashCompatibilityTests
+{
+    [Fact]
+    public void The_server_verifies_pin_hashes_written_by_the_windows_app()
+    {
+        var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot.Path, "tests", "vectors", "pin-hash-vectors.json"))).RootElement;
+        var hasher = new Kite.Identity.Argon2PasswordHasher();
+        foreach (var v in doc.GetProperty("vectors").EnumerateArray())
+        {
+            Assert.True(hasher.Verify(v.GetProperty("pin").GetString()!, v.GetProperty("hash").GetString()!));
+            Assert.False(hasher.Verify("0000", v.GetProperty("hash").GetString()!));
+        }
+        // And the other way: the shape the server writes is the PHC form the app's verifier reads.
+        Assert.Matches(@"^\$argon2id\$v=19\$m=\d+,t=\d+,p=\d+\$[A-Za-z0-9+/]+\$[A-Za-z0-9+/]+$", new Kite.Identity.Argon2PasswordHasher(Kite.Identity.Argon2Options.ForTests).Hash("2468"));
+    }
+}

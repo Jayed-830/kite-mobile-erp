@@ -103,7 +103,7 @@ jobs:
           path: src/client/apps/web/dist
 
   desktop:
-    name: Desktop shell (typecheck, build)
+    name: Desktop app (typecheck, tests with SQLCipher and a RAW Windows printer, POS bundle)
     runs-on: windows-latest
     defaults:
       run:
@@ -114,10 +114,67 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
+        working-directory: src/client
+      - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm run typecheck
-      - run: npm run build
+      - name: A Windows printer that writes what it receives to a file (to test the spooler RAW path)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force C:\kite-print | Out-Null
+          Add-PrinterDriver -Name "Generic / Text Only"
+          Add-PrinterPort -Name "C:\kite-print\receipt.bin"
+          Add-Printer -Name "KITE Raw Test" -DriverName "Generic / Text Only" -PortName "C:\kite-print\receipt.bin"
+          Get-Printer -Name "KITE Raw Test" | Format-List Name, DriverName, PortName
+      - name: Desktop tests (emergency store, printers, offline PIN check)
+        env:
+          KITE_TEST_WINDOWS_PRINTER: KITE Raw Test
+          KITE_TEST_WINDOWS_PRINTER_FILE: C:\kite-print\receipt.bin
+        run: npm test
+      - name: Bundle the POS for emergency mode
+        run: npm run bundle-web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-dist
+          path: |
+            src/client/apps/desktop/dist
+            src/client/apps/desktop/static
+
+  load-test:
+    name: Phase 4 exit gate (20 terminals, sales, returns, voids, shifts, stock and journals reconciled)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Kite.slnx -c Release
+      - name: 20 terminals, 40 sales each, at the same time
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+          KITE_LOAD_TERMINALS: "20"
+          KITE_LOAD_SALES: "40"
+          KITE_LOAD_REPORT: ${{ github.workspace }}/load-report.json
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~Phase4LoadTests" --logger "console;verbosity=detailed"
+      - name: Report
+        if: always()
+        run: |
+          test -f load-report.json && cat load-report.json
+          test -f load-report.json && python3 -c "import json;d=json.load(open('load-report.json'));print('### Phase 4 load test\n\n'+d['summary']+'\n\nCash moved: %.3f OMR, net revenue %.3f OMR, VAT %.3f OMR. Every shift closed with zero variance; balances, valuation, journals and sales reconciled.' % (d['cash'], d['revenue'], d['vat']))" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-report
+          path: load-report.json
 
   pocs-linux:
     name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)

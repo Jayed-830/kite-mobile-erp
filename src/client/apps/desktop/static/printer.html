@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+  <title>KITE MOBILE ERP: receipt printer</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f6f7fb; color: #141a26; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    .card { background: #fff; border: 1px solid #dde1ea; border-radius: 10px; padding: 32px; width: min(520px, 92vw); }
+    h1 { font-size: 22px; margin: 0 0 12px; } p { color: #4b556a; }
+    label { font-weight: 600; font-size: 13px; display: block; margin: 10px 0 4px; }
+    input, select { width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid #dde1ea; border-radius: 6px; font: inherit; }
+    .row { display: flex; gap: 8px; } .row > * { flex: 1; }
+    button { margin-top: 14px; min-height: 44px; width: 100%; border: 1px solid #0b5fff; border-radius: 6px; background: #0b5fff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    button.alt { background: #fff; color: #0b5fff; }
+    .msg { font-size: 13px; margin-top: 8px; min-height: 18px; } .err { color: #c4231b; } .ok { color: #0f7b3e; }
+    .hide { display: none; }
+  </style>
+</head>
+<body>
+  <form class="card" id="f">
+    <h1>Receipt printer · طابعة الإيصالات</h1>
+    <label for="mode">Connected by</label>
+    <select id="mode"><option value="none">No printer</option><option value="windows">USB (printer installed in Windows)</option><option value="network">Network (IP address, port 9100)</option></select>
+    <div id="win"><label for="name">Windows printer</label><select id="name"></select></div>
+    <div id="net" class="row"><div><label for="host">IP address</label><input id="host" placeholder="192.168.1.50" dir="ltr" /></div><div><label for="port">Port</label><input id="port" value="9100" dir="ltr" /></div></div>
+    <div class="row"><div><label for="paper">Paper</label><select id="paper"><option value="80">80 mm</option><option value="58">58 mm</option></select></div>
+      <div><label for="drawer">Cash drawer</label><select id="drawer"><option value="1">Connected to the printer</option><option value="0">None</option></select></div></div>
+    <div class="msg" id="msg"></div>
+    <button type="submit">Save</button>
+    <button type="button" class="alt" id="test">Open the drawer (test)</button>
+    <button type="button" class="alt" id="back">Back to KITE</button>
+  </form>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const show = () => { $('win').classList.toggle('hide', $('mode').value !== 'windows'); $('net').classList.toggle('hide', $('mode').value !== 'network'); };
+    const msg = (t, ok) => { $('msg').textContent = t; $('msg').className = 'msg ' + (ok ? 'ok' : 'err'); };
+    (async () => {
+      const printers = await window.kiteDesktop.listPrinters();
+      $('name').innerHTML = printers.map((p) => `<option>${p.replace(/[<&]/g, '')}</option>`).join('') || '<option value="">(no Windows printers found)</option>';
+      const p = await window.kiteDesktop.getPrinter();
+      $('mode').value = p.mode || 'none'; if (p.name) $('name').value = p.name; $('host').value = p.host || ''; $('port').value = p.port || 9100;
+      $('paper').value = String(p.paperWidthMm || 80); $('drawer').value = p.drawer === false ? '0' : '1';
+      show();
+    })();
+    $('mode').addEventListener('change', show);
+    $('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const r = await window.kiteDesktop.setPrinter({ mode: $('mode').value, name: $('name').value, host: $('host').value, port: Number($('port').value) || 9100, paperWidthMm: Number($('paper').value), drawer: $('drawer').value === '1' });
+      msg(r.ok ? 'Saved.' : r.error, r.ok);
+    });
+    $('test').addEventListener('click', async () => { const r = await window.kiteDesktop.openDrawer(); msg(r.ok ? 'Drawer kick sent.' : r.error, r.ok); });
+    $('back').addEventListener('click', () => window.kiteDesktop.retry());
+  </script>
+</body>
+</html>

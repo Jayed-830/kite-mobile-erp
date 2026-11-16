@@ -1,0 +1,13 @@
+{
+ "comment": "Argon2id PIN hashes in PHC form written by hash-wasm (the Windows app). Kite.Identity.Argon2PasswordHasher must verify them, and the app verifies the server hashes the same way.",
+ "vectors": [
+  {
+   "pin": "2468",
+   "hash": "$argon2id$v=19$m=65536,t=3,p=2$s7oPp1eWkoytJm+UBRxuHQ$Zjt7dl01w4CTm2s3hgD1DoCG6xiGqeGHYmpxRTl6nO8"
+  },
+  {
+   "pin": "135790",
+   "hash": "$argon2id$v=19$m=1024,t=1,p=1$ICFWQAwOY+ohQkaaPeZkPg$Q8lZtk+jKcYHz6MSL18PWdlDgVSr1glq/U5uwSYSXh4"
+  }
+ ]
+}
