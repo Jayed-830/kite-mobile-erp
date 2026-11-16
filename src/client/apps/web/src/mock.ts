@@ -49,6 +49,10 @@ const PERMISSIONS: Permission[] = [
   ['DEVICE.WRITE_OFF', 'device', 'Write off device units', 'شطب الأجهزة'],
   ['DEVICE.HOLD', 'device', 'Put device units on hold and release them', 'إيقاف الأجهزة مؤقتًا والإفراج عنها'],
   ['DEVICE.SETTINGS', 'refurb', 'Manage grades, inspection checklists and the labour rate', 'إدارة الدرجات وقوائم الفحص وسعر الأجور'],
+  ['DEVICE.IMEI.CORRECT', 'device', 'Correct a wrongly scanned or typed IMEI (the old one is kept)', 'تصحيح رقم IMEI مُسح أو كُتب خطأً (يُحفظ القديم)'],
+  ['DEVICE.CONFLICTS', 'device', 'See IMEI conflicts and settle emergency phone sales', 'عرض تعارضات IMEI وتسوية مبيعات الهواتف في وضع الطوارئ'],
+  ['DEVICE.BLOCKLIST', 'device', 'Add and remove IMEIs on the blocked list (head office)', 'إضافة أرقام IMEI إلى قائمة الحظر وإزالتها (المكتب الرئيسي)'],
+  ['DEVICE.COUNT', 'device', 'Count devices by IMEI', 'جرد الأجهزة برقم IMEI'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -87,7 +91,8 @@ export function createMockApi(opts: MockOptions): KiteApi {
     { id: id(), code: 'branch_manager', nameEn: 'Branch manager', nameAr: 'مدير الفرع', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'TERMINALS.APPROVE', 'USERS.VIEW', 'AUDIT.VIEW', 'POS.SELL',
       'POS.DISCOUNT.ABOVE_LIMIT', 'POS.PRICE.OVERRIDE', 'POS.SALE.VOID', 'POS.REFUND', 'POS.DRAWER.NO_SALE', 'POS.RECEIPT.REPRINT', 'POS.SHIFT.ACCEPT_VARIANCE', 'POS.SHIFT.OPEN',
       'POS.CASH.PAY_OUT', 'POS.REPORTS.VIEW', 'APPROVALS.DECIDE', 'CATALOG.VIEW', 'CATALOG.MANAGE', 'CATALOG.PRICE.MANAGE', 'INV.VIEW', 'INV.ADJUST', 'INV.COUNT', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE',
-      'DEVICE.VIEW', 'DEVICE.INSPECT', 'DEVICE.REFURBISH', 'DEVICE.PRICE', 'DEVICE.SELL_DAMAGED', 'DEVICE.WRITE_OFF', 'DEVICE.HOLD', 'DEVICE.SETTINGS'] },
+      'DEVICE.VIEW', 'DEVICE.INSPECT', 'DEVICE.REFURBISH', 'DEVICE.PRICE', 'DEVICE.SELL_DAMAGED', 'DEVICE.WRITE_OFF', 'DEVICE.HOLD', 'DEVICE.SETTINGS',
+      'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT'] },
     { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE'] },
     { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.REVIEW'] },
   ];

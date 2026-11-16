@@ -1,7 +1,7 @@
 // In-memory Phase 4 server for tests, `npm run dev:mock` and design review: catalog, stock, customers, shifts, sales,
 // returns, approvals, printers. Prices and totals use the same arithmetic as the real server (@kite/pos), but the real
 // server is the source of truth and checks everything again.
-import { ApiError, type DeviceApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
+import { ApiError, type DeviceApi, type DeviceIdentityApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
   type SaleDetail, type SaleLine, type SaleListRow, type Shift, type ShiftFigures, type TenderInput, type Terminal, type Tokens, type User } from '@kite/api';
 import { createMockDevices } from './mockDevices';
 import { apportionReturn, checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
@@ -30,7 +30,7 @@ const n = (b: bigint) => toNumber(b);
 interface StockRow { qty: bigint; value: bigint }
 interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null }[] }
 
-export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi {
+export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi {
   const products: ProductView[] = [];
   const stock = new Map<string, StockRow>();
   const customers: Customer[] = [];
@@ -156,6 +156,9 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi {
   ] as const) {
     dev.receive(vid, { imei1: imei, unitCost: cost, condition, status, gradeId: grade == null ? null : dev.gradeId(grade) }, cost);
   }
+  // Phase 6: a Galaxy whose IMEI head office also found at the Sohar branch (an open conflict), and one IMEI on the blocked list.
+  dev.seedConflict(dev.receive(galaxy, { imei1: '356938035643809', unitCost: 118, condition: 'brand_new', status: 'in_stock' }, 118).id, 'B02');
+  dev.seedBlocked('351756051523993', 'Reported stolen', 'ROP 22/118');
 
   const write = (detail: Omit<SaleDetail['sale'], 'qrPayload' | 'einvoiceUuid'>, lines: SaleLine[], tenders: Tender[], refund: boolean, shiftId: string, t: Terminal): SaleDetail => {
     const uuid = id();
@@ -182,6 +185,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi {
 
   return {
     ...dev.api,
+    ...dev.identity,
     async brands() { ctx.need('CATALOG.VIEW'); return delay([]); },
     async createBrand(b) { ctx.need('CATALOG.MANAGE'); return delay({ id: id(), ...b, status: 'active', version: 1 }); },
     async categories() { ctx.need('CATALOG.VIEW'); return delay([]); },
@@ -507,6 +511,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi {
     async emergencySnapshot() { terminal(); return delay({ items: products.flatMap((p) => p.variants.map((v) => posItem(v.variant.id))), policy, users: [] }); },
     async uploadEmergency(records) { terminal(); return delay({ results: records.map((r) => ({ id: r.id, seq: r.seq, result: 'applied' as const, detail: null, duplicate: false })) }); },
     async emergencyRecords() { ctx.need('POS.REPORTS.VIEW'); return delay([]); },
+    async settleEmergency(rid) { ctx.need('DEVICE.CONFLICTS'); return delay({ recordId: rid, outcome: 'dismissed', saleId: null }); },
   };
 }
 

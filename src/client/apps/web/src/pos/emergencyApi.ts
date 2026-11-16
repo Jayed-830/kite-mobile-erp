@@ -1,12 +1,14 @@
 // Emergency mode (6.4) inside the Windows app: the same POS screens run from the app's bundled copy and talk to this
 // local API instead of the server. Sales are priced with the shared POS arithmetic against the last snapshot, kept in
 // the app's encrypted store with this terminal's own numbers, and uploaded in order when the server is back.
-import { ApiError, type KiteApi, type Me, type PosItem, type PosPolicy, type SaleInput, type Shift, type ShiftFigures, type TenderInput, type Tokens } from '@kite/api';
+import { ApiError, type KiteApi, type Me, type PosItem, type PosPolicy, type PosUnit, type SaleInput, type Shift, type ShiftFigures, type TenderInput, type Tokens } from '@kite/api';
 import { checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
 
 export interface SnapshotUser { id: string; username: string; displayNameEn: string; displayNameAr: string | null; permissions: string[]; discountLimitPercent?: number; discountLimitAmount?: number }
 export interface Snapshot {
   generatedAt: string; businessDate: string; numberPrefix: string; policy: PosPolicy; items: PosItem[]; barcodes: { code: string; variantId: string }[]; users: SnapshotUser[];
+  /** Phones in stock here when the snapshot was made (6.4): a phone can be sold in emergency mode; the server settles a clash later. */
+  units?: PosUnit[];
   business: { legalNameEn: string; legalNameAr: string; tradeNameEn: string | null; tradeNameAr: string | null; vatNumber: string | null; crNumber: string | null; pricesIncludeTax: boolean; addressEn: string | null; addressAr: string | null; phone: string | null };
   terminal: { id: string; code: string; branchId: string; branchCode: string; branchNameEn: string; branchNameAr: string };
 }
@@ -70,6 +72,21 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
     if (!i) throw new ApiError({ status: 400, code: 'CAT-002', title: 'An item in the cart is not in this till\'s catalog copy.' });
     return i;
   };
+  // A phone sells at its own price, condition and warranty, as on the server (11.5).
+  const unitOf = (uid: string) => {
+    const u = snap!.units?.find((x) => x.unitId === uid);
+    if (!u) throw new ApiError({ status: 409, code: 'DEV-003', title: 'That phone is not in this till\'s copy of the stock.' });
+    return u;
+  };
+  const lineItem = (l: { variantId: string; deviceUnitId?: string | null }): Item => {
+    const base = itemOf(l.variantId);
+    if (!l.deviceUnitId) return base;
+    const u = unitOf(l.deviceUnitId);
+    return { ...base, listPrice: u.listPrice ?? base.listPrice, minPrice: u.minPrice ?? base.minPrice, warrantyDays: u.warrantyDays, taxRate: u.taxRate } as Item;
+  };
+  const soldHere = async () => new Set((await records()).filter((r) => r.kind === 'sale')
+    .flatMap((r) => ((r.payload.lines ?? []) as { deviceUnitId?: string | null }[]).map((l) => l.deviceUnitId).filter((x): x is string => !!x)));
+  const ident = (u: PosUnit) => u.imei1 ?? u.serial ?? u.unitId;
   const tokens = (): Tokens => ({ accessToken: 'emergency', accessExpiresAt: new Date(Date.now() + 864e5).toISOString(), refreshToken: '', refreshExpiresAt: new Date(Date.now() + 864e5).toISOString(), mfaRequired: false, mustChangePassword: false });
 
   const impl: Partial<KiteApi> = {
@@ -129,7 +146,7 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
     async quote(q: SaleInput) {
       const s = await load(); const u = need();
       const limit = u.permissions.includes('POS.DISCOUNT.ABOVE_LIMIT') ? UNLIMITED : { percent: u.discountLimitPercent ?? 0, amount: u.discountLimitAmount ?? 0, unlimited: false };
-      const lines = wrap(() => q.lines.map((l, i) => priceLine(i + 1, l, itemOf(l.variantId), s.business.pricesIncludeTax, limit)));
+      const lines = wrap(() => q.lines.map((l, i) => priceLine(i + 1, l, lineItem(l), s.business.pricesIncludeTax, limit)));
       const t = totals(lines);
       return { lines: lines.map((l) => ({ lineNo: l.lineNo, variantId: l.item.variantId, sku: l.item.sku, descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, qty: n(l.qty), listPrice: n(l.listPrice), unitPrice: n(l.unitPrice), discount: n(l.discount), net: n(l.net), tax: n(l.tax), gross: n(l.gross), taxRate: Number(l.item.taxRate), needsPriceOverride: l.needsPriceOverride, needsDiscountApproval: l.needsDiscountApproval })),
         totals: { net: n(t.net), discount: n(t.discount), tax: n(t.tax), gross: n(t.gross) }, cashDue: n(t.gross) };
@@ -139,7 +156,9 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
       const shift = await openShift();
       if (!shift) throw new ApiError({ status: 409, code: 'POS-001', title: 'Open a shift on this till first.' });
       const limit = u.permissions.includes('POS.DISCOUNT.ABOVE_LIMIT') ? UNLIMITED : { percent: u.discountLimitPercent ?? 0, amount: u.discountLimitAmount ?? 0, unlimited: false };
-      const lines = wrap(() => req.lines.map((l, i) => priceLine(i + 1, l, itemOf(l.variantId), s.business.pricesIncludeTax, limit)));
+      const lines = wrap(() => req.lines.map((l, i) => priceLine(i + 1, l, lineItem(l), s.business.pricesIncludeTax, limit)));
+      const sold = await soldHere();
+      for (const l of req.lines) if (l.deviceUnitId && sold.has(l.deviceUnitId)) throw new ApiError({ status: 409, code: 'DEV-004', title: `${ident(unitOf(l.deviceUnitId))} was already sold on this till.` });
       const used = new Set<string>();
       for (const l of lines) {
         const action = l.needsPriceOverride && !u.permissions.includes('POS.PRICE.OVERRIDE') ? 'POS.PRICE.OVERRIDE' : l.needsDiscountApproval ? 'POS.DISCOUNT.ABOVE_LIMIT' : null;
@@ -154,7 +173,8 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
       const rec = (await bridge.append('sale', {
         saleId, shiftId: shift.shiftId, cashierId: u.id, cashRounding: n(paid.rounding),
         lines: lines.map((l) => ({ variantId: l.item.variantId, qty: n(l.qty), unitPrice: n(l.unitPrice), listPrice: n(l.listPrice), discount: n(l.discount), net: n(l.net), tax: n(l.tax), gross: n(l.gross),
-          taxRate: Number(l.item.taxRate), taxCodeId: l.item.taxCodeId, productType: l.item.productType, descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, warrantyDays: l.item.warrantyDays })),
+          taxRate: Number(l.item.taxRate), taxCodeId: l.item.taxCodeId, productType: l.item.productType, descriptionEn: l.item.descriptionEn, descriptionAr: l.item.descriptionAr, warrantyDays: l.item.warrantyDays,
+          deviceUnitId: req.lines[l.lineNo - 1]!.deviceUnitId ?? null, identifier: req.lines[l.lineNo - 1]!.deviceUnitId ? ident(unitOf(req.lines[l.lineNo - 1]!.deviceUnitId!)) : null })),
         payments: (req.payments ?? []).map((p) => ({ method: p.method, amount: p.amount, tendered: p.tendered ?? null, cardTerminal: p.cardTerminal ?? null, approvalCode: p.approvalCode ?? null, reference: p.reference ?? null })),
       })) as StoredRecord;
       const change = tenders.reduce((a, p) => a + (p.tendered == null ? 0n : p.tendered - p.amount), 0n);
@@ -164,7 +184,7 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
       const s = await load();
       const rec = (await records()).find((r) => r.kind === 'sale' && r.payload.saleId === saleId);
       if (!rec) throw new ApiError({ status: 404, code: 'GEN-404', title: 'That sale was not found on this till.' });
-      const p = rec.payload as { number: string; cashRounding: number; cashierId: string; lines: { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number }[]; payments: { method: string; amount: number; tendered: number | null; cardTerminal: string | null }[] };
+      const p = rec.payload as { number: string; cashRounding: number; cashierId: string; lines: { descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; identifier?: string | null }[]; payments: { method: string; amount: number; tendered: number | null; cardTerminal: string | null }[] };
       const net = p.lines.reduce((a, l) => a + toBaisa(l.net), 0n), tax = p.lines.reduce((a, l) => a + toBaisa(l.tax), 0n), gross = p.lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
       const rates = [...new Set(p.lines.map((l) => l.taxRate))];
       const cashier = s.users.find((x) => x.id === p.cashierId);
@@ -174,7 +194,7 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
         customerName: null, customerVat: null,
         business: { nameEn: s.business.tradeNameEn ?? s.business.legalNameEn, nameAr: s.business.tradeNameAr ?? s.business.legalNameAr, vatNumber: s.business.vatNumber, crNumber: s.business.crNumber, addressEn: s.business.addressEn, addressAr: s.business.addressAr, phone: s.business.phone },
         branch: { nameEn: s.terminal.branchNameEn, nameAr: s.terminal.branchNameAr, vatNumber: null, crNumber: null, addressEn: null, addressAr: null, phone: null },
-        lines: p.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.net, tax: l.tax, gross: l.gross, taxRate: l.taxRate })),
+        lines: p.lines.map((l) => ({ descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount, net: l.net, tax: l.tax, gross: l.gross, taxRate: l.taxRate, serial: l.identifier ?? null })),
         net: n(net), discount: n(p.lines.reduce((a, l) => a + toBaisa(l.discount), 0n)), tax: n(tax), gross: n(gross), cashRounding: p.cashRounding, total: n(gross + toBaisa(p.cashRounding)),
         taxBreakdown: rates.map((rate) => ({ rate, net: n(p.lines.filter((l) => l.taxRate === rate).reduce((a, l) => a + toBaisa(l.net), 0n)), tax: n(p.lines.filter((l) => l.taxRate === rate).reduce((a, l) => a + toBaisa(l.tax), 0n)) })),
         payments: p.payments.map((x) => ({ method: x.method, amount: x.amount, tendered: x.tendered, change: x.tendered == null ? null : n(toBaisa(x.tendered) - toBaisa(x.amount)), cardTerminal: x.cardTerminal })),
@@ -236,6 +256,26 @@ export function createEmergencyApi(bridge: EmergencyBridge): KiteApi {
     async park(c) { need(); parked.set(c.id, { label: c.label ?? null, cart: c.cart, at: new Date().toISOString() }); },
     async parked() { need(); return [...parked].map(([pid, p]) => ({ id: pid, label: p.label, parkedAt: p.at, parkedBy: user?.displayNameEn ?? '', terminalCode: snap?.terminal.code ?? '', cart: JSON.stringify(p.cart) })); },
     async recall(pid) { need(); const p = parked.get(pid); if (!p) throw new ApiError({ status: 404, code: 'GEN-404', title: 'That parked cart was already recalled.' }); parked.delete(pid); return p.cart; },
+    // Phones (6.4): from the snapshot, less those already sold on this till. No other till can be asked, so a lease is not taken.
+    async posUnits(vid) {
+      const s = await load(); need('POS.SELL');
+      const sold = await soldHere();
+      return (s.units ?? []).filter((u) => u.variantId === vid && !sold.has(u.unitId));
+    },
+    async posUnitByCode(code, vid) {
+      const s = await load(); need('POS.SELL');
+      const c = code.trim();
+      const u = (s.units ?? []).find((x) => x.imei1 === c || x.imei2 === c || x.serial === c);
+      if (!u) throw new ApiError({ status: 404, code: 'DEV-003', title: `${c} is not a phone in stock in this till's copy of the stock.` });
+      if (vid && u.variantId !== vid) {
+        const chosen = s.items.find((i) => i.variantId === vid);
+        throw new ApiError({ status: 409, code: 'DEV-016', title: `${ident(u)} is a ${u.descriptionEn}, not the ${chosen?.descriptionEn ?? 'model'} you chose. Check the device in your hand.` });
+      }
+      if ((await soldHere()).has(u.unitId)) throw new ApiError({ status: 409, code: 'DEV-004', title: `${ident(u)} was already sold on this till.` });
+      return u;
+    },
+    async reserveUnit(uid) { await load(); need('POS.SELL'); unitOf(uid); return { unitId: uid, reservedUntil: new Date(Date.now() + 15 * 60_000).toISOString() }; },
+    async releaseUnit() { /* nothing is leased in emergency mode */ },
     async printers() { return []; },
     async customers() { return []; },
   };

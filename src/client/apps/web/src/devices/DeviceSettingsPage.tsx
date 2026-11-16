@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { can, type ChecklistItemDef, type Grade } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Button, Card, Checkbox, PageHeader, SelectField, Spinner, TextField } from '@kite/ui';
-import { ErrorBox, useApi, useAuth } from '../core';
+import { ErrorBox, formatDateTime, useApi, useAuth } from '../core';
 import { parseAmount } from '../money';
 
 /** Device settings (12.1, 12.2, 12.4): the labour rate, how long carts hold a device, grades and their price share, the inspection checklist. */
@@ -15,6 +15,8 @@ export function DeviceSettingsPage() {
       <RatesCard />
       <GradesCard />
       <ChecklistCard />
+      <TacCard />
+      <SerialFormatsCard />
     </div>
   );
 }
@@ -29,12 +31,14 @@ function RatesCard() {
   const [cart, setCart] = useState('');
   const [parked, setParked] = useState('');
   const [step, setStep] = useState('0.1');
+  const [strict, setStrict] = useState(false);
   useEffect(() => {
     if (!s.data) return;
     setRate(s.data.labourRatePerHour.toFixed(3)); setCart(String(s.data.reservationMinutes)); setParked(String(s.data.parkedReservationMinutes)); setStep(String(s.data.suggestedPriceStep));
+    setStrict(!!s.data.strictCentralCheck);
   }, [s.data]);
   const save = useMutation({
-    mutationFn: () => api.saveDeviceSettings({ labourRatePerHour: parseAmount(rate) ?? 0, reservationMinutes: Number(cart), parkedReservationMinutes: Number(parked), suggestedPriceStep: Number(step), version: s.data!.version }),
+    mutationFn: () => api.saveDeviceSettings({ labourRatePerHour: parseAmount(rate) ?? 0, reservationMinutes: Number(cart), parkedReservationMinutes: Number(parked), suggestedPriceStep: Number(step), strictCentralCheck: strict, version: s.data!.version }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['deviceSettings'] }),
   });
   if (s.isLoading) return <Spinner label={t('app.loading')} />;
@@ -49,6 +53,7 @@ function RatesCard() {
         <TextField label={t('devices.settings.reservationMinutes')} value={cart} onChange={(e) => setCart(e.target.value.replace(/\D/g, ''))} inputMode="numeric" dir="ltr" disabled={!edit} />
         <TextField label={t('devices.settings.parkedMinutes')} value={parked} onChange={(e) => setParked(e.target.value.replace(/\D/g, ''))} inputMode="numeric" dir="ltr" disabled={!edit} />
       </div>
+      <Checkbox label={<><strong>{t('imei.settings.strict')}</strong><br /><span className="muted">{t('imei.settings.strictHelp')}</span></>} checked={strict} disabled={!edit} onChange={(e) => setStrict(e.target.checked)} />
       <ErrorBox error={s.error ?? save.error} />
       {save.isSuccess && <Alert tone="success">{t('app.saved')}</Alert>}
       {edit && <div className="row"><Button variant="primary" busy={save.isPending} onClick={() => save.mutate()}>{t('app.save')}</Button></div>}
@@ -147,3 +152,67 @@ function ChecklistCard() {
     </Card>
   );
 }
+
+/** The model table (TAC): the first 8 digits of an IMEI name the model, so receiving can warn when a scan does not match the item. */
+function TacCard() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { me } = useAuth();
+  const { t, lang } = useI18n();
+  const sum = useQuery({ queryKey: ['tacSummary'], queryFn: () => api.tacSummary() });
+  const [csv, setCsv] = useState('');
+  const run = useMutation({ mutationFn: () => api.importTac(csv), onSuccess: async () => { setCsv(''); await qc.invalidateQueries({ queryKey: ['tacSummary'] }); } });
+  const edit = can(me, 'DEVICE.SETTINGS');
+  return (
+    <Card>
+      <h3>{t('imei.settings.tac')}</h3>
+      <p className="muted">{t('imei.settings.tacHelp')}</p>
+      {sum.data && <p>{t('imei.settings.tacCount', { count: String(sum.data.count) })}{sum.data.lastImportedAt && <span className="muted"> · {t('imei.settings.tacLast', { when: formatDateTime(sum.data.lastImportedAt, lang) })}</span>}</p>}
+      {edit && (
+        <div className="row wrap">
+          <label className="field"><span>{t('imei.settings.tacFile')}</span>
+            <input type="file" accept=".csv,text/csv,text/plain" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setCsv(await readText(f)); }} /></label>
+          <Button variant="primary" disabled={!csv} busy={run.isPending} onClick={() => run.mutate()}>{t('imei.settings.tacImport')}</Button>
+        </div>
+      )}
+      {run.data && <Alert tone="success">{t('imei.settings.tacImported', { imported: String(run.data.imported), skipped: String(run.data.skipped) })}</Alert>}
+      <ErrorBox error={sum.error ?? run.error} />
+    </Card>
+  );
+}
+
+/** Serial number formats per brand: a serial number that does not match the brand's pattern is refused at receiving. */
+function SerialFormatsCard() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { me } = useAuth();
+  const { t, pick } = useI18n();
+  const rows = useQuery({ queryKey: ['serialFormats'], queryFn: () => api.serialFormats() });
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const save = useMutation({ mutationFn: (x: { id: string; pattern: string }) => api.setSerialFormat(x.id, x.pattern.trim() || null), onSuccess: () => qc.invalidateQueries({ queryKey: ['serialFormats'] }) });
+  const edit = can(me, 'DEVICE.SETTINGS');
+  return (
+    <Card>
+      <h3>{t('imei.settings.serialFormats')}</h3>
+      <p className="muted">{t('imei.settings.serialHelp')}</p>
+      <ErrorBox error={rows.error ?? save.error} />
+      {(rows.data ?? []).map((b) => (
+        <div key={b.id} className="row wrap">
+          <TextField label={`${t('imei.settings.pattern')}: ${pick(b.nameEn, b.nameAr)}`} placeholder={t('imei.settings.noPattern')} dir="ltr" disabled={!edit}
+            value={draft[b.id] ?? b.serialPattern ?? ''} onChange={(e) => setDraft({ ...draft, [b.id]: e.target.value })} />
+          {edit && <Button busy={save.isPending && save.variables?.id === b.id} disabled={draft[b.id] === undefined || draft[b.id] === (b.serialPattern ?? '')}
+            onClick={() => save.mutate({ id: b.id, pattern: draft[b.id] ?? '' })}>{t('app.save')}</Button>}
+        </div>
+      ))}
+      {save.isSuccess && <Alert tone="success">{t('imei.settings.saved')}</Alert>}
+    </Card>
+  );
+}
+
+/** Reads a small text file the user picked (FileReader works in every browser the app supports). */
+const readText = (f: Blob) => new Promise<string>((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result ?? ''));
+  r.onerror = () => reject(r.error ?? new Error('The file could not be read.'));
+  r.readAsText(f);
+});

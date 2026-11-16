@@ -1,14 +1,14 @@
 // English strings for Phase 5 (device units, inspections, refurbishment). ar.devices.ts must have the same keys.
 export const devicesEn = {
   devices: {
-    title: 'Devices', tabs: { stock: 'Device stock', inspections: 'Inspections', refurbishment: 'Refurbishment', reports: 'Reports' },
+    title: 'Devices', tabs: { stock: 'Device stock', inspections: 'Inspections', refurbishment: 'Refurbishment', reports: 'Reports', conflicts: 'IMEI conflicts', blocked: 'Blocked IMEIs', counts: 'Count devices' },
     searchHint: 'IMEI, serial, SKU or name', allStatuses: 'All statuses', allConditions: 'All conditions', empty: 'No devices yet.', inShop: 'In the shop',
     imei: 'IMEI', imei2: 'IMEI 2', serial: 'Serial number', identifier: 'IMEI / serial', item: 'Item', status: 'Status', condition: 'Condition', grade: 'Grade', noGrade: 'No grade',
     cost: 'Cost', price: 'Price', age: 'Age (days)', received: 'Received', branch: 'Branch', number: 'Number', when: 'When', none: 'None',
     statuses: {
       in_stock: 'In stock', under_inspection: 'Waiting for inspection', returned_inspection: 'Returned, waiting for inspection', refurbishing: 'Being refurbished',
       for_parts: 'For parts', supplier_return: 'To return to supplier', sold: 'Sold', in_transit: 'In transit', quarantined: 'On hold', supplier_returned: 'Returned to supplier',
-      written_off: 'Written off',
+      written_off: 'Written off', reversed: 'Receipt reversed',
     },
     conditions: { brand_new: 'New', used: 'Used', refurbished: 'Refurbished', damaged: 'Damaged', for_parts: 'For parts' },
     back: 'All devices', costTitle: 'Cost of this device', acquisition: 'Bought for', parts: 'Parts', labour: 'Labour', external: 'Outside work', total: 'Total cost',
@@ -20,7 +20,7 @@ export const devicesEn = {
     events: {
       received: 'Received', inspected: 'Inspected', cost_added: 'Cost added', refurb_completed: 'Refurbishment completed', sold: 'Sold', sale_voided: 'Sale voided',
       returned: 'Returned by the customer', written_off: 'Written off', held: 'Put on hold', released: 'Released', price_set: 'Price set', supplier_returned: 'Returned to supplier',
-      transferred_out: 'Sent to another branch', transferred_in: 'Received from another branch',
+      transferred_out: 'Sent to another branch', transferred_in: 'Received from another branch', identifier_corrected: 'IMEI corrected', receipt_reversed: 'Receipt reversed',
     },
     inspectTitle: 'Inspect {item}', checklist: 'Checklist', pass: 'Pass', fail: 'Fail', suggestion: 'The checklist suggests: {outcome}', failedItems: 'Failed: {items}',
     incomplete: 'Answer every item to see the suggestion.', decision: 'Decision',

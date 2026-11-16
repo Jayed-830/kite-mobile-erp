@@ -308,3 +308,8 @@ dl.figures .strong { font-weight: 700; color: var(--text-1); border-block-start:
 .chips .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2, var(--surface)); }
 .unit-line { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: 13px; }
 .r-serial { font-size: 11px; }
+
+/* Phase 6: IMEI checks while scanning, conflict sides, holds and identifiers */
+.chips .chip.chip-error { border-color: var(--danger); background: var(--danger-soft); }
+ul.plain { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.figures-row { gap: var(--space-5); }

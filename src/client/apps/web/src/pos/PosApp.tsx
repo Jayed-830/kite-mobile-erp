@@ -474,15 +474,28 @@ function UnitPicker({ item, inCart, onPick, onClose }: { item: PosItem; inCart: 
   const api = useApi();
   const { t, pick } = useI18n();
   const units = useQuery({ queryKey: ['posUnits', item.variantId], queryFn: () => api.posUnits(item.variantId) });
+  // Scanning the phone in hand is safer than tapping one from the list: the server refuses a phone of another model (DEV-016).
+  const [code, setCode] = useState('');
+  const [scanError, setScanError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+  const scan = async () => {
+    if (!code.trim()) return;
+    setBusy(true); setScanError(null);
+    try { onPick(await api.posUnitByCode(classifyCode(code).value || code.trim(), item.variantId)); } catch (e) { setScanError(e); } finally { setBusy(false); setCode(''); }
+  };
   return (
     <Modal open title={`${t('devices.till.pickUnit')}: ${pick(item.descriptionEn, item.descriptionAr)}`} onClose={onClose} footer={<Button onClick={onClose}>{t('app.close')}</Button>}>
-      <ErrorBox error={units.error} />
+      <form onSubmit={(e) => { e.preventDefault(); void scan(); }}>
+        <TextField label={t('imei.till.scanDevice')} help={t('imei.till.scanOrPick')} value={code} dir="ltr" autoComplete="off" autoFocus disabled={busy} onChange={(e) => setCode(e.target.value)} />
+      </form>
+      <ErrorBox error={scanError ?? units.error} />
       {units.isLoading && <Spinner label={t('app.loading')} />}
       {units.data?.length === 0 && <p className="muted">{t('devices.till.noUnits')}</p>}
       <div className="picker-list">
         {units.data?.filter((u) => !inCart.includes(u.unitId)).map((u) => (
           <button key={u.unitId} className="picker-item" disabled={u.reservedUntil != null} onClick={() => onPick(u)}>
-            <Ident value={u.imei1 ?? u.serial} /><ConditionBadge condition={u.condition} grade={u.gradeCode} /><span className="num">{fmt(u.listPrice)}</span>
+            <span><Ident value={u.imei1 ?? u.serial} />{u.centralState === 'pending' && <> <Badge tone="warning">{t('imei.till.pending')}</Badge></>}</span>
+            <ConditionBadge condition={u.condition} grade={u.gradeCode} /><span className="num">{fmt(u.listPrice)}</span>
           </button>
         ))}
       </div>

@@ -3,14 +3,14 @@ import type { devicesEn } from './en.devices';
 
 export const devicesAr: typeof devicesEn = {
   devices: {
-    title: 'الأجهزة', tabs: { stock: 'مخزون الأجهزة', inspections: 'الفحص', refurbishment: 'التجديد', reports: 'التقارير' },
+    title: 'الأجهزة', tabs: { stock: 'مخزون الأجهزة', inspections: 'الفحص', refurbishment: 'التجديد', reports: 'التقارير', conflicts: 'تعارضات IMEI', blocked: 'أرقام IMEI المحظورة', counts: 'جرد الأجهزة' },
     searchHint: 'رقم IMEI أو الرقم التسلسلي أو رمز الصنف أو الاسم', allStatuses: 'كل الحالات', allConditions: 'كل الأوضاع', empty: 'لا توجد أجهزة بعد.', inShop: 'في المحل',
     imei: 'رقم IMEI', imei2: 'رقم IMEI الثاني', serial: 'الرقم التسلسلي', identifier: 'رقم IMEI / التسلسلي', item: 'الصنف', status: 'الحالة', condition: 'الوضع', grade: 'الدرجة',
     noGrade: 'بلا درجة', cost: 'التكلفة', price: 'السعر', age: 'العمر (أيام)', received: 'تاريخ الاستلام', branch: 'الفرع', number: 'الرقم', when: 'الوقت', none: 'لا يوجد',
     statuses: {
       in_stock: 'في المخزون', under_inspection: 'بانتظار الفحص', returned_inspection: 'مرتجع بانتظار الفحص', refurbishing: 'قيد التجديد',
       for_parts: 'للقطع', supplier_return: 'للإرجاع إلى المورد', sold: 'مباع', in_transit: 'قيد النقل', quarantined: 'موقوف', supplier_returned: 'أُرجع إلى المورد',
-      written_off: 'مشطوب',
+      written_off: 'مشطوب', reversed: 'أُلغي استلامه',
     },
     conditions: { brand_new: 'جديد', used: 'مستعمل', refurbished: 'مجدد', damaged: 'به ضرر', for_parts: 'للقطع' },
     back: 'كل الأجهزة', costTitle: 'تكلفة هذا الجهاز', acquisition: 'سعر الشراء', parts: 'القطع', labour: 'الأجور', external: 'أعمال خارجية', total: 'إجمالي التكلفة',
@@ -22,7 +22,7 @@ export const devicesAr: typeof devicesEn = {
     events: {
       received: 'استُلم', inspected: 'فُحص', cost_added: 'أُضيفت تكلفة', refurb_completed: 'اكتمل التجديد', sold: 'بيع', sale_voided: 'أُلغي البيع',
       returned: 'أرجعه العميل', written_off: 'شُطب', held: 'أُوقف مؤقتًا', released: 'أُفرج عنه', price_set: 'حُدد السعر', supplier_returned: 'أُرجع إلى المورد',
-      transferred_out: 'أُرسل إلى فرع آخر', transferred_in: 'استُلم من فرع آخر',
+      transferred_out: 'أُرسل إلى فرع آخر', transferred_in: 'استُلم من فرع آخر', identifier_corrected: 'صُحّح رقم IMEI', receipt_reversed: 'أُلغي الاستلام',
     },
     inspectTitle: 'فحص {item}', checklist: 'قائمة الفحص', pass: 'سليم', fail: 'فاشل', suggestion: 'تقترح القائمة: {outcome}', failedItems: 'البنود الفاشلة: {items}',
     incomplete: 'أجب عن كل البنود لترى الاقتراح.', decision: 'القرار',

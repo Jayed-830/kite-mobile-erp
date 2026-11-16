@@ -1,7 +1,9 @@
 // Phase 5 API: device units (identity, cost, history), inspections, refurbishment, grades, checklists, device
 // settings, the till's unit lookups and leases, and the device reports.
 export type DeviceStatus = 'in_stock' | 'under_inspection' | 'returned_inspection' | 'refurbishing' | 'for_parts' | 'supplier_return' | 'sold' | 'in_transit'
-  | 'quarantined' | 'supplier_returned' | 'written_off';
+  | 'quarantined' | 'supplier_returned' | 'written_off' | 'reversed';
+/** Where a unit stands with head office (Phase 6): verified, received while head office was away, or in an IMEI conflict. */
+export type CentralState = 'verified' | 'pending' | 'conflict';
 export type DeviceCondition = 'brand_new' | 'used' | 'refurbished' | 'damaged' | 'for_parts';
 export type InspectionOutcome = 'restock' | 'refurbish' | 'for_parts' | 'supplier_return';
 
@@ -9,6 +11,7 @@ export interface DeviceRow {
   id: string; branchCode: string; variantId: string; sku: string; descriptionEn: string; descriptionAr: string; productType: string; status: DeviceStatus;
   heldFromStatus: DeviceStatus | null; condition: DeviceCondition; gradeCode: string | null; gradeNameEn: string | null; gradeNameAr: string | null;
   acquisitionCost: number; accumulatedCost: number; sellingPrice: number | null; imei1: string | null; imei2: string | null; serial: string | null; receivedAt: string; ageDays: number; version: number;
+  centralState?: CentralState | null;
 }
 export interface DeviceEvent {
   seq: number; eventType: string; fromStatus: DeviceStatus | null; toStatus: DeviceStatus; fromCondition: DeviceCondition | null; toCondition: DeviceCondition; gradeCode: string | null;
@@ -27,7 +30,11 @@ export interface DeviceDetail {
   inspections: { id: string; number: string; reason: string; outcome: InspectionOutcome; suggestedOutcome: InspectionOutcome; resultCondition: DeviceCondition; gradeCode: string | null; batteryHealth: number | null; note: string | null; results: string; inspectedAt: string; inspectedBy: string }[];
   refurbishments: { id: string; number: string; status: 'open' | 'completed'; problem: string | null; workDone: string | null; openedAt: string; completedAt: string | null; technicianName: string | null; total: number }[];
   sales: { saleId: string; number: string; docType: string; creditReason: string | null; completedAt: string; net: number; tax: number; gross: number; cost: number; profit: number | null; customerName: string | null }[];
+  holds?: DeviceHold[];
+  identifiers?: { kind: 'imei' | 'serial' | 'eid'; slot: number; value: string; entry: 'scan' | 'manual'; status: 'active' | 'retired'; createdAt: string; retiredAt: string | null; retiredReason: string | null }[];
+  central?: { state: CentralState; checkedAt: string | null; attempts: number; lastError: string | null };
 }
+export interface DeviceHold { id: string; reason: 'manager' | 'imei_conflict' | 'blocked_imei'; conflictId: string | null; blockedId: string | null; note: string | null; heldAt: string; releasedAt: string | null; releaseNote: string | null }
 export interface UnitInput {
   imei1?: string | null; imei2?: string | null; serial?: string | null; unitCost?: number | null; condition?: DeviceCondition; status?: 'in_stock' | 'under_inspection';
   gradeId?: string | null; sellingPrice?: number | null; warrantyDays?: number | null; entry?: 'scan' | 'manual';
@@ -40,10 +47,11 @@ export interface GradeInput { code: string; nameEn: string; nameAr: string; pric
 export interface ChecklistItemDef { code: string; labelEn: string; labelAr: string; kind: 'pass_fail' | 'percent' | 'text'; required: boolean; minPercent: number | null; onFail: 'refurbish' | 'damaged' | 'for_parts' }
 export interface Checklist { id: string; categoryId: string | null; categoryName: string | null; nameEn: string; nameAr: string; status: string; version: number; items: ChecklistItemDef[] }
 export interface ChecklistInput { nameEn: string; nameAr: string; items: ChecklistItemDef[]; categoryId?: string | null; version?: number }
-export interface DeviceSettings { labourRatePerHour: number; reservationMinutes: number; parkedReservationMinutes: number; suggestedPriceStep: number; version: number }
+export interface DeviceSettings { labourRatePerHour: number; reservationMinutes: number; parkedReservationMinutes: number; suggestedPriceStep: number; version: number; strictCentralCheck?: boolean }
 export interface PosUnit {
   unitId: string; variantId: string; sku: string; productType: string; tracking: string; descriptionEn: string; descriptionAr: string; taxRate: number; listPrice: number | null;
   minPrice: number | null; condition: DeviceCondition; gradeCode: string | null; imei1: string | null; imei2: string | null; serial: string | null; warrantyDays: number; reservedUntil: string | null;
+  centralState?: CentralState | null;
 }
 export interface InspectionQueueRow { id: string; branchCode: string; sku: string; descriptionEn: string; descriptionAr: string; status: DeviceStatus; condition: DeviceCondition; imei1: string | null; serial: string | null; accumulatedCost: number; receivedAt: string }
 export interface InspectionInput { answers: Record<string, string | null>; outcome: InspectionOutcome; condition: DeviceCondition; gradeId?: string | null; sellingPrice?: number | null; note?: string | null; technicianId?: string | null; version?: number }
@@ -62,7 +70,7 @@ export interface RefurbCost {
 export interface RefurbCostInput { kind: 'part' | 'labour' | 'external'; variantId?: string; qty?: number; minutes?: number; technicianId?: string | null; vendor?: string; reference?: string | null; amount?: number; note?: string | null }
 
 export interface DeviceApi {
-  devices(f: { status?: string; condition?: string; branchId?: string; variantId?: string; q?: string; limit?: number }): Promise<DeviceRow[]>;
+  devices(f: { status?: string; condition?: string; branchId?: string; variantId?: string; q?: string; central?: CentralState; limit?: number }): Promise<DeviceRow[]>;
   deviceLookup(code: string): Promise<{ id: string }>;
   device(id: string): Promise<DeviceDetail>;
   setDevicePrice(id: string, p: { sellingPrice: number | null; warrantyDays?: number | null; version: number }): Promise<void>;
@@ -78,7 +86,7 @@ export interface DeviceApi {
   deviceChecklist(unitId: string): Promise<{ checklistId: string | null; items: ChecklistItemDef[]; grades: { id: string; code: string; nameEn: string; nameAr: string; pricePercent: number }[] }>;
   createChecklist(c: ChecklistInput): Promise<{ id: string }>;
   updateChecklist(id: string, c: ChecklistInput): Promise<void>;
-  posUnitByCode(code: string): Promise<PosUnit>;
+  posUnitByCode(code: string, variantId?: string): Promise<PosUnit>;
   posUnits(variantId: string): Promise<PosUnit[]>;
   reserveUnit(id: string, cartId: string): Promise<{ unitId: string; reservedUntil: string }>;
   releaseUnit(id: string, cartId: string): Promise<void>;
@@ -121,7 +129,7 @@ export function deviceMethods(h: Http): DeviceApi {
     deviceChecklist: (unitId) => get(`/api/v1/devices/${unitId}/checklist`),
     createChecklist: (c) => post('/api/v1/devices/checklists', c),
     updateChecklist: (id, c) => put(`/api/v1/devices/checklists/${id}`, c),
-    posUnitByCode: (code) => get(`/api/v1/pos/units/code/${encodeURIComponent(code)}`),
+    posUnitByCode: (code, variantId) => get(`/api/v1/pos/units/code/${encodeURIComponent(code)}${qs({ variantId })}`),
     posUnits: (variantId) => get(`/api/v1/pos/units${qs({ variantId })}`),
     reserveUnit: (id, cartId) => post(`/api/v1/pos/units/${id}/reserve`, { cartId }),
     releaseUnit: (id, cartId) => del(`/api/v1/pos/units/${id}/reserve${qs({ cartId })}`),

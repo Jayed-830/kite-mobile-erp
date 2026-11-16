@@ -1,4 +1,9 @@
 // Phase 4 API: catalog, customers, inventory, POS (shifts, sales, returns, approvals), receipts, printers, emergency.
+export interface EmergencyRecordRow {
+  id: string; terminalCode: string; branchCode: string; seq: number; kind: string; recordedAt: string; receivedAt: string; result: string; detail: string | null;
+  number?: string | null; gross?: number; deviceLines?: string | null; settledOutcome?: 'applied' | 'dismissed' | null; settledAt?: string | null; settledBy?: string | null;
+  settledNote?: string | null; settledSaleNumber?: string | null;
+}
 // Amounts arrive as JSON numbers with at most three decimals; the POS package turns them into exact baisa.
 import type { ReceiptModel } from '@kite/pos';
 
@@ -114,7 +119,7 @@ export interface PosApi {
   updateCustomer(id: string, c: CustomerInput): Promise<Customer>;
   balances(f: { branchId?: string; q?: string; lowOnly?: boolean }): Promise<Balance[]>;
   movements(variantId: string, branchId?: string): Promise<Movement[]>;
-  postAdjustment(a: AdjustmentInput): Promise<{ id: string; number: string }>;
+  postAdjustment(a: AdjustmentInput): Promise<{ id: string; number: string; units?: number; centralPending?: number }>;
   adjustments(branchId?: string): Promise<AdjustmentRow[]>;
   startCount(c: { branchId: string; note?: string }): Promise<{ id: string; number: string }>;
   counts(branchId?: string): Promise<CountRow[]>;
@@ -160,7 +165,8 @@ export interface PosApi {
   pinLoginAt(username: string, pin: string, terminal: TerminalCredentials): Promise<import('./index').Tokens>;
   emergencySnapshot(): Promise<unknown>;
   uploadEmergency(records: EmergencyRecord[]): Promise<{ results: EmergencyResult[] }>;
-  emergencyRecords(result?: string): Promise<{ id: string; terminalCode: string; branchCode: string; seq: number; kind: string; recordedAt: string; receivedAt: string; result: string; detail: string | null }[]>;
+  emergencyRecords(result?: string, devices?: boolean): Promise<EmergencyRecordRow[]>;
+  settleEmergency(id: string, s: { action: 'apply' | 'dismiss'; substitutions?: { line: number; deviceUnitId: string }[]; note?: string | null }): Promise<{ recordId: string; outcome: string; saleId: string | null }>;
 }
 
 type Http = {
@@ -255,6 +261,7 @@ export function posMethods(h: Http): PosApi {
     },
     emergencySnapshot: () => get('/api/v1/pos/emergency/snapshot'),
     uploadEmergency: (records) => post('/api/v1/pos/emergency/records', { records }),
-    emergencyRecords: (result) => get(`/api/v1/pos/emergency/records${qs({ result })}`),
+    emergencyRecords: (result, devices) => get(`/api/v1/pos/emergency/records${qs({ result, devices })}`),
+    settleEmergency: (id, s) => post(`/api/v1/pos/emergency/records/${id}/settle`, s),
   };
 }

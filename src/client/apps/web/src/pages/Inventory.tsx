@@ -15,6 +15,7 @@ export function InventoryPage() {
   const { t } = useI18n();
   const { me } = useAuth();
   const [tab, setTab] = useState<Tab>('stock');
+  const [notice, setNotice] = useState<string | null>(null);
   const tabs: [Tab, string, boolean][] = [
     ['stock', t('inventory.stock'), true], ['adjust', t('inventory.adjust'), can(me, 'INV.ADJUST')],
     ['counts', t('inventory.counts'), can(me, 'INV.COUNT')], ['exceptions', t('inventory.exceptions'), true],
@@ -25,8 +26,9 @@ export function InventoryPage() {
       <div className="tabs" role="tablist">
         {tabs.filter((x) => x[2]).map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{label}</button>)}
       </div>
+      {notice && <Alert tone="warning">{notice}</Alert>}
       {tab === 'stock' && <StockTab />}
-      {tab === 'adjust' && <AdjustTab onDone={() => setTab('stock')} />}
+      {tab === 'adjust' && <AdjustTab onDone={(pending) => { setNotice(pending > 0 ? t('imei.check.pendingNotice', { count: String(pending) }) : null); setTab('stock'); }} />}
       {tab === 'counts' && <CountsTab />}
       {tab === 'exceptions' && <ExceptionsTab />}
     </div>
@@ -87,7 +89,7 @@ export function ItemPicker({ onPick, label }: { onPick: (i: PosItem) => void; la
   );
 }
 
-function AdjustTab({ onDone }: { onDone: () => void }) {
+function AdjustTab({ onDone }: { onDone: (centralPending: number) => void }) {
   const api = useApi();
   const qc = useQueryClient();
   const { me } = useAuth();
@@ -107,7 +109,7 @@ function AdjustTab({ onDone }: { onDone: () => void }) {
         ? { variantId: l.item.variantId, qty: l.units.length, unitCost: parseAmount(l.cost), reasonCode: kind === 'opening' ? 'opening' : 'found', units: toUnitInputs(l.units, l.condition, l.status, parseAmount(l.cost)) }
         : { variantId: l.item.variantId, qty: Number(l.qty), unitCost: kind === 'opening' || Number(l.qty) > 0 ? parseAmount(l.cost) : null, reasonCode: kind === 'opening' ? 'opening' : l.reason }),
     }),
-    onSuccess: async () => { setLines([]); setNote(''); await qc.invalidateQueries({ queryKey: ['balances'] }); onDone(); },
+    onSuccess: async (r) => { setLines([]); setNote(''); await qc.invalidateQueries({ queryKey: ['balances'] }); await qc.invalidateQueries({ queryKey: ['devices'] }); onDone(r.centralPending ?? 0); },
   });
   return (
     <div className="card stack">
@@ -129,7 +131,7 @@ function AdjustTab({ onDone }: { onDone: () => void }) {
             <Button size="sm" variant="ghost" onClick={() => setLines(lines.filter((_, j) => j !== i))}>{t('pos.remove')}</Button>
           </div>
           <ReceiveOptions condition={l.condition} status={l.status} onChange={(condition, status) => set(i, { condition, status })} />
-          <UnitScanner units={l.units} tracking={l.item.tracking} onChange={(units) => set(i, { units })} />
+          <UnitScanner units={l.units} tracking={l.item.tracking} variantId={l.item.variantId} onChange={(units) => set(i, { units })} />
         </div>
       ) : (
         <div key={l.item.variantId} className="row line-editor">
@@ -145,7 +147,8 @@ function AdjustTab({ onDone }: { onDone: () => void }) {
         </div>
       ))}
       <ErrorBox error={post.error} />
-      <div className="row"><Button variant="primary" disabled={lines.length === 0} busy={post.isPending} onClick={() => post.mutate()}>{t('inventory.post')}</Button></div>
+      {lines.some((l) => l.units.some((u) => u.problem)) && <Alert tone="error">{t('imei.check.blockedNotice')}</Alert>}
+      <div className="row"><Button variant="primary" disabled={lines.length === 0 || lines.some((l) => l.units.some((u) => u.problem))} busy={post.isPending} onClick={() => post.mutate()}>{t('inventory.post')}</Button></div>
     </div>
   );
 }

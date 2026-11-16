@@ -1,11 +1,13 @@
 import type { Dictionary } from './en';
 import { posAr } from './ar.pos';
 import { devicesAr } from './ar.devices';
+import { imeiAr } from './ar.imei';
 
 // Arabic strings: first draft for professional review (blueprint 20.1).
 export const ar: Dictionary = {
   ...posAr,
   ...devicesAr,
+  ...imeiAr,
   app: {
     name: 'كايت موبايل ERP',
     by: 'من نكستداب',

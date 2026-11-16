@@ -7,6 +7,7 @@ import { Alert, Button, Card, DataTable, Modal, PageHeader, SelectField, Spinner
 import { ErrorBox, formatDateTime, useApi, useAuth } from '../core';
 import { fmt, parseAmount } from '../money';
 import { ConditionBadge, Ident, StatusBadge } from './bits';
+import { CentralBadge, DeviceIdentityCards, IdentityDialog } from './identity';
 
 /** One device's page (11.6): identity, how its cost was built up, its price, and its whole history with the profit of each sale. */
 export function DevicePage() {
@@ -16,18 +17,21 @@ export function DevicePage() {
   const { me } = useAuth();
   const navigate = useNavigate();
   const d = useQuery({ queryKey: ['device', id], queryFn: () => api.device(id) });
-  const [dialog, setDialog] = useState<'price' | 'hold' | 'release' | 'writeOff' | null>(null);
+  const [dialog, setDialog] = useState<'price' | 'hold' | 'release' | 'writeOff' | 'correct' | 'reverse' | null>(null);
   if (d.isLoading) return <Spinner label={t('app.loading')} />;
   if (!d.data) return <ErrorBox error={d.error} />;
   const { unit: u, cost, price } = d.data;
   const openOrder = d.data.refurbishments.find((r) => r.status === 'open');
+  const openHolds = (d.data.holds ?? []).filter((h) => !h.releasedAt);
+  const conflictHold = openHolds.some((h) => h.reason === 'imei_conflict');
+  const managerHold = openHolds.some((h) => h.reason === 'manager') || (u.status === 'quarantined' && openHolds.length === 0);
   return (
     <div className="stack">
       <PageHeader title={pick(u.descriptionEn, u.descriptionAr)}>
         <Link className="btn btn-ghost" to="/app/devices">{t('devices.back')}</Link>
       </PageHeader>
       <div className="row wrap">
-        <StatusBadge status={u.status} /> <ConditionBadge condition={u.condition} grade={u.gradeCode} />
+        <StatusBadge status={u.status} /> <ConditionBadge condition={u.condition} grade={u.gradeCode} /> <CentralBadge state={d.data.central?.state} />
         <span>{t('devices.imei')}: <Ident value={u.imei1} /></span>
         {u.imei2 && <span>{t('devices.imei2')}: <Ident value={u.imei2} /></span>}
         {u.serial && <span>{t('devices.serial')}: <Ident value={u.serial} /></span>}
@@ -38,7 +42,9 @@ export function DevicePage() {
           <Button variant="primary" onClick={() => navigate(`/app/devices/${u.id}/inspect`)}>{t('devices.inspect')}</Button>}
         {openOrder && <Button variant="primary" onClick={() => navigate(`/app/refurbishments/${openOrder.id}`)}>{t('devices.openRefurb')}</Button>}
         {can(me, 'DEVICE.PRICE') && !['sold', 'written_off', 'supplier_returned'].includes(u.status) && <Button onClick={() => setDialog('price')}>{t('devices.setPrice')}</Button>}
-        {can(me, 'DEVICE.HOLD') && u.status === 'quarantined' && <Button onClick={() => setDialog('release')}>{t('devices.release')}</Button>}
+        {can(me, 'DEVICE.HOLD') && u.status === 'quarantined' && managerHold && <Button onClick={() => setDialog('release')}>{t('devices.release')}</Button>}
+        {can(me, 'DEVICE.IMEI.CORRECT') && !['written_off', 'supplier_returned', 'reversed', 'in_transit'].includes(u.status) && <Button onClick={() => setDialog('correct')}>{t('imei.identifiers.correct')}</Button>}
+        {can(me, 'DEVICE.WRITE_OFF') && conflictHold && <Button variant="danger" onClick={() => setDialog('reverse')}>{t('imei.identifiers.reverse')}</Button>}
         {can(me, 'DEVICE.HOLD') && !['quarantined', 'sold', 'written_off', 'supplier_returned', 'in_transit'].includes(u.status) && <Button onClick={() => setDialog('hold')}>{t('devices.hold')}</Button>}
         {can(me, 'DEVICE.WRITE_OFF') && (u.status === 'in_stock' || u.status === 'for_parts') && <Button variant="danger" onClick={() => setDialog('writeOff')}>{t('devices.writeOff')}</Button>}
       </div>
@@ -64,6 +70,7 @@ export function DevicePage() {
           </dl>
         </Card>
       </div>
+      <DeviceIdentityCards detail={d.data} />
       <h3>{t('devices.history')}</h3>
       <ol className="timeline">
         {d.data.events.map((e) => (
@@ -110,7 +117,8 @@ export function DevicePage() {
             { key: 'k', header: t('devices.costs'), render: (r) => <span className="num">{fmt(r.total)}</span> },
           ]} />
       </>)}
-      {dialog && <DeviceDialog kind={dialog} detail={d.data} onClose={() => setDialog(null)} />}
+      {(dialog === 'correct' || dialog === 'reverse') && <IdentityDialog kind={dialog} detail={d.data} onClose={() => setDialog(null)} />}
+      {dialog && dialog !== 'correct' && dialog !== 'reverse' && <DeviceDialog kind={dialog} detail={d.data} onClose={() => setDialog(null)} />}
     </div>
   );
 }

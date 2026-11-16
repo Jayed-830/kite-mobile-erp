@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useApi } from '../core';
 import type { DeviceCondition, DeviceStatus, UnitInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { classifyCode } from '@kite/pos';
@@ -38,11 +39,15 @@ function useEntryTiming() {
   };
 }
 
-export interface ScannedUnit { code: string; kind: 'imei' | 'serial'; entry: 'scan' | 'manual' }
+export interface ScannedUnit { code: string; kind: 'imei' | 'serial'; entry: 'scan' | 'manual'; problem?: string | null; hint?: string | null; hintMismatch?: boolean; localOnly?: boolean; checking?: boolean }
 
-/** Receiving devices (11.3): one scan per device; the IMEI's check digit is verified as it is scanned. */
-export function UnitScanner({ units, onChange, tracking }: { units: ScannedUnit[]; onChange: (u: ScannedUnit[]) => void; tracking: string }) {
+/** Receiving devices (11.3, 6.1): one scan per device; the IMEI's check digit is verified as it is scanned, then the server checks
+ *  the blocked list, this business's devices and (online) head office, and gives a model hint from the TAC table. */
+export function UnitScanner({ units, onChange, tracking, variantId }: { units: ScannedUnit[]; onChange: (u: ScannedUnit[]) => void; tracking: string; variantId?: string }) {
   const { t } = useI18n();
+  const api = useApi();
+  const latest = useRef(units);
+  latest.current = units;
   const [value, setValue] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const timing = useEntryTiming();
@@ -51,9 +56,14 @@ export function UnitScanner({ units, onChange, tracking }: { units: ScannedUnit[
     const entry = timing.take(value.trim().length);
     if (c.kind === 'invalid_imei' || c.kind === 'unknown' || (tracking === 'imei' && c.kind !== 'imei')) { setProblem(`${c.value || value}: ${t('devices.invalidImei')}`); return; }
     if (units.some((u) => u.code === c.value)) { setProblem(`${c.value}: ${t('devices.scannedTwice')}`); setValue(''); return; }
-    onChange([...units, { code: c.value, kind: c.kind as 'imei' | 'serial', entry }]);
+    const added: ScannedUnit = { code: c.value, kind: c.kind as 'imei' | 'serial', entry, checking: true };
+    onChange([...units, added]);
     setProblem(null);
     setValue('');
+    void api.checkIdentifiers({ codes: [c.value], variantId: variantId ?? null }).then(([r]) => r, () => null).then((r) => {
+      const patch: Partial<ScannedUnit> = r ? { checking: false, problem: r.problem?.message ?? null, hint: r.hint, hintMismatch: !!r.hintMismatch, localOnly: r.centralChecked === false } : { checking: false };
+      onChange(latest.current.map((u) => u.code === c.value ? { ...u, ...patch } : u));
+    });
   };
   return (
     <div className="stack unit-scanner">
@@ -61,7 +71,12 @@ export function UnitScanner({ units, onChange, tracking }: { units: ScannedUnit[
         onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { timing.onKey(); if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
       <div className="chips">
         {units.map((u) => (
-          <span key={u.code} className="chip"><Ident value={u.code} />{u.entry === 'manual' && <Badge tone="warning">✎</Badge>}
+          <span key={u.code} className={`chip${u.problem ? ' chip-error' : ''}`} title={u.problem ?? u.hint ?? undefined} data-testid="scanned-unit">
+            <Ident value={u.code} />{u.entry === 'manual' && <Badge tone="warning">✎</Badge>}
+            {u.checking && <span className="muted">…</span>}
+            {u.problem && <Badge tone="danger">{u.problem}</Badge>}
+            {!u.problem && u.hint && <Badge tone={u.hintMismatch ? 'warning' : 'default'}>{u.hint}</Badge>}
+            {!u.problem && u.localOnly && <Badge tone="warning">{t('imei.check.localOnly')}</Badge>}
             <button className="link-button" aria-label={`${t('devices.remove')} ${u.code}`} onClick={() => onChange(units.filter((x) => x.code !== u.code))}>×</button></span>
         ))}
       </div>

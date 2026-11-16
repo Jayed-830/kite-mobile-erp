@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { can, type DeviceCondition, type DeviceStatus } from '@kite/api';
+import { can, type CentralState, type DeviceCondition, type DeviceStatus } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { DataTable, PageHeader, SelectField, Spinner, TextField } from '@kite/ui';
 import { ErrorBox, formatDate, useApi, useAuth } from '../core';
 import { fmt } from '../money';
 import { ConditionBadge, Ident, StatusBadge } from './bits';
+import { BlockedTab, CentralBadge, CentralBanner, ConflictsTab, CountsTab, ImeiLookup } from './identity';
 
-type Tab = 'stock' | 'inspections' | 'refurbishment' | 'reports';
-const STATUSES: DeviceStatus[] = ['in_stock', 'under_inspection', 'returned_inspection', 'refurbishing', 'for_parts', 'quarantined', 'sold', 'written_off'];
+type Tab = 'stock' | 'inspections' | 'refurbishment' | 'conflicts' | 'blocked' | 'counts' | 'reports';
+const STATUSES: DeviceStatus[] = ['in_stock', 'under_inspection', 'returned_inspection', 'refurbishing', 'for_parts', 'quarantined', 'sold', 'written_off', 'reversed'];
 const CONDITIONS: DeviceCondition[] = ['brand_new', 'used', 'refurbished', 'damaged', 'for_parts'];
 
 /** Devices (blueprint 11, 12): every unit with its IMEI, status, condition, grade and own cost; inspections and refurbishment. */
@@ -17,16 +18,21 @@ export function DevicesPage() {
   const { t } = useI18n();
   const { me } = useAuth();
   const [tab, setTab] = useState<Tab>('stock');
-  const tabs: [Tab, boolean][] = [['stock', true], ['inspections', can(me, 'DEVICE.INSPECT')], ['refurbishment', true], ['reports', true]];
+  const tabs: [Tab, boolean][] = [['stock', true], ['inspections', can(me, 'DEVICE.INSPECT')], ['refurbishment', true], ['conflicts', can(me, 'DEVICE.CONFLICTS')],
+    ['blocked', true], ['counts', can(me, 'DEVICE.COUNT')], ['reports', true]];
   return (
     <div className="stack">
       <PageHeader title={t('devices.title')} />
+      <CentralBanner />
       <div className="tabs" role="tablist">
         {tabs.filter((x) => x[1]).map(([k]) => <button key={k} role="tab" aria-selected={tab === k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{t(`devices.tabs.${k}`)}</button>)}
       </div>
       {tab === 'stock' && <StockTab />}
       {tab === 'inspections' && <InspectionsTab />}
       {tab === 'refurbishment' && <RefurbTab />}
+      {tab === 'conflicts' && <ConflictsTab />}
+      {tab === 'blocked' && <BlockedTab />}
+      {tab === 'counts' && <CountsTab />}
       {tab === 'reports' && <ReportsTab />}
     </div>
   );
@@ -38,7 +44,8 @@ function StockTab() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('in_stock,under_inspection,returned_inspection,refurbishing,for_parts,quarantined');
   const [condition, setCondition] = useState('');
-  const rows = useQuery({ queryKey: ['devices', q, status, condition], queryFn: () => api.devices({ q: q || undefined, status: status || undefined, condition: condition || undefined }) });
+  const [central, setCentral] = useState<CentralState | ''>('');
+  const rows = useQuery({ queryKey: ['devices', q, status, condition, central], queryFn: () => api.devices({ q: q || undefined, status: status || undefined, condition: condition || undefined, central: central || undefined }) });
   return (
     <div className="stack">
       <div className="row">
@@ -52,6 +59,10 @@ function StockTab() {
           <option value="">{t('devices.allConditions')}</option>
           {CONDITIONS.map((c) => <option key={c} value={c}>{t(`devices.conditions.${c}`)}</option>)}
         </SelectField>
+        <SelectField label={t('imei.central.filter')} value={central} onChange={(e) => setCentral(e.target.value as CentralState | '')}>
+          <option value="">{t('imei.central.any')}</option>
+          {(['pending', 'conflict', 'verified'] as const).map((c) => <option key={c} value={c}>{t(`imei.central.${c}`)}</option>)}
+        </SelectField>
       </div>
       <ErrorBox error={rows.error} />
       {rows.isLoading ? <Spinner label={t('app.loading')} /> : (
@@ -59,13 +70,14 @@ function StockTab() {
           columns={[
             { key: 'i', header: t('devices.identifier'), render: (r) => <Link className="link-button" to={`/app/devices/${r.id}`}><Ident value={r.imei1 ?? r.serial} /></Link> },
             { key: 'd', header: t('devices.item'), render: (r) => <span>{pick(r.descriptionEn, r.descriptionAr)} <span className="ltr muted">{r.sku}</span></span> },
-            { key: 's', header: t('devices.status'), render: (r) => <StatusBadge status={r.status} /> },
+            { key: 's', header: t('devices.status'), render: (r) => <><StatusBadge status={r.status} />{r.centralState && r.centralState !== 'verified' && <> <CentralBadge state={r.centralState} /></>}</> },
             { key: 'c', header: t('devices.condition'), render: (r) => <ConditionBadge condition={r.condition} grade={r.gradeCode} /> },
             { key: 'k', header: t('devices.cost'), render: (r) => <span className="num">{fmt(r.accumulatedCost)}</span> },
             { key: 'p', header: t('devices.price'), render: (r) => <span className="num">{fmt(r.sellingPrice)}</span> },
             { key: 'a', header: t('devices.age'), render: (r) => <span className="num">{r.ageDays}</span> },
           ]} />
       )}
+      <ImeiLookup />
     </div>
   );
 }
