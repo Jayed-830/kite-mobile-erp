@@ -12,6 +12,7 @@ export const imeiEn = {
     holds: {
       title: 'Holds', reasons: { manager: 'Manager hold', imei_conflict: 'IMEI conflict', blocked_imei: 'Blocked IMEI' }, open: 'On hold', released: 'Released {when}',
       releaseNote: 'Release note', heldOn: 'Held {when}',
+      explain: { imei_conflict: 'Head office found this IMEI on another device: correct the IMEI or reverse the receipt.', blocked_imei: 'This IMEI is on the blocked list at head office.' },
     },
     identifiers: {
       title: 'IMEIs and serial numbers', kinds: { imei: 'IMEI', serial: 'Serial number' }, active: 'In use', retired: 'Replaced', entries: { scan: 'Scanned', manual: 'Typed' },

@@ -14,6 +14,7 @@ export const imeiAr: typeof imeiEn = {
     holds: {
       title: 'الإيقافات', reasons: { manager: 'إيقاف من المدير', imei_conflict: 'تعارض في IMEI', blocked_imei: 'IMEI محظور' }, open: 'موقوف', released: 'أُفرج عنه {when}',
       releaseNote: 'ملاحظة الإفراج', heldOn: 'أُوقف {when}',
+      explain: { imei_conflict: 'وجد المكتب الرئيسي رقم IMEI هذا على جهاز آخر: صحّح الرقم أو ألغِ الاستلام.', blocked_imei: 'رقم IMEI هذا في قائمة الحظر لدى المكتب الرئيسي.' },
     },
     identifiers: {
       title: 'أرقام IMEI والأرقام التسلسلية', kinds: { imei: 'رقم IMEI', serial: 'الرقم التسلسلي' }, active: 'مستخدم', retired: 'مستبدل', entries: { scan: 'بالماسح', manual: 'بالكتابة' },

@@ -174,6 +174,8 @@ public static class AuthEndpoints
                 mfaPending = http.User.HasClaim(KiteClaims.MfaPending, "true"),
                 mustChangePassword = http.User.HasClaim(KiteClaims.MustChangePassword, "true"),
                 serverRole = server.Role,
+                // A branch server works for its own branch only: the web app uses it for receiving, counts and terminals there.
+                serverBranchId = server.Role == "branch" ? server.BranchId : null,
             });
         }).RequireSignedIn(allowMfaPending: true, allowPasswordChangePending: true);
 

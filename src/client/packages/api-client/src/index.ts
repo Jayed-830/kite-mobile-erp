@@ -53,6 +53,8 @@ export interface Me {
   mfaPending: boolean;
   mustChangePassword: boolean;
   serverRole: string;
+  /** On a branch server: the branch it serves (receiving, counts and terminals happen there). */
+  serverBranchId?: string | null;
 }
 
 export interface SetupRequest {

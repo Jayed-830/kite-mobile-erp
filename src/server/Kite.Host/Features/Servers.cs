@@ -421,6 +421,9 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
             if (await t.ExecuteScalarAsync<long>("SELECT count(*) FROM core.business") > 0)
                 throw new KiteException(ErrorCodes.SetupAlreadyDone, "This server is already set up.", 409);
             await BranchSnapshot.ImportAsync(t, reg.Snapshot, secrets);
+            // The business data every server needs (POS policy, default price list, device settings and grades...), as setup does
+            // on head office; without it a branch that has just joined could not sell or price anything until it was restarted.
+            await Phase4Seed.EnsureAsync(t, await t.ExecuteScalarAsync<Guid>("SELECT id FROM core.business"));
             await t.ExecuteAsync("UPDATE core.server SET is_self = true, sync_url = @url, installation_id = @mid WHERE id = @id",
                 new { url, id = reg.ServerId, mid = MachineId.New() });
             await PkiService.InsertCertAsync(t, cert, "branch_server", reg.ServerId, reg.BranchId, null);

@@ -139,3 +139,6 @@ export function formatDate(iso: string | null | undefined, lang: 'en' | 'ar'): s
   if (!iso) return '—';
   return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-OM-u-nu-latn' : 'en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(iso.slice(0, 10)));
 }
+
+/** The branch the signed-in user works in here: a branch server's own branch, else the user's default, else the first they can see. */
+export const workBranchId = (me: Me | null | undefined): string => me?.serverBranchId ?? me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';

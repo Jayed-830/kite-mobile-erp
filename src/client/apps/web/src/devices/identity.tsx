@@ -7,7 +7,7 @@ import { can, type CentralState, type CountResult, type DeviceDetail, type Emerg
 import { useI18n } from '@kite/i18n';
 import { classifyCode } from '@kite/pos';
 import { Alert, Badge, Button, Card, Checkbox, DataTable, Modal, SelectField, Spinner, TextField } from '@kite/ui';
-import { ErrorBox, formatDateTime, useApi, useAuth } from '../core';
+import { ErrorBox, formatDateTime, useApi, useAuth, workBranchId } from '../core';
 import { fmt } from '../money';
 import { ConditionBadge, Ident, StatusBadge } from './bits';
 
@@ -116,7 +116,9 @@ export function ConflictsTab() {
               <ul className="plain">
                 {c.sides.map((x) => (
                   <li key={x.unitId}>
-                    <span className="ltr">{x.branchCode}</span> · {pick(x.descriptionEn, x.descriptionAr)} · <StatusBadge status={x.unitStatus} />
+                    <span className="ltr">{x.branchCode}</span> · {pick(x.descriptionEn, x.descriptionAr)}
+                    {/* Once settled, a side's status is as it was with this IMEI; the outcome says what happened, so only open conflicts show it. */}
+                    {c.status === 'open' && <> · <StatusBadge status={x.unitStatus} /></>}
                     {x.outcome && <> · <Badge tone={x.outcome === 'kept' ? 'success' : 'default'}>{t(`imei.conflicts.outcomes.${x.outcome}`)}</Badge></>}
                     {x.local && <> · <Link className="link-button" to={`/app/devices/${x.unitId}`}>{t('imei.conflicts.openDevice')}</Link></>}
                   </li>
@@ -274,7 +276,7 @@ export function CountsTab() {
   const qc = useQueryClient();
   const { t, lang } = useI18n();
   const { me } = useAuth();
-  const branchId = me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';
+  const branchId = workBranchId(me);
   const list = useQuery({ queryKey: ['deviceCounts'], queryFn: () => api.deviceCounts() });
   const stock = useQuery({ queryKey: ['devices', 'models'], queryFn: () => api.devices({ status: 'in_stock,under_inspection,returned_inspection,refurbishing,for_parts,quarantined' }) });
   const models = useMemo(() => {
@@ -423,7 +425,8 @@ export function DeviceIdentityCards({ detail }: { detail: DeviceDetail }) {
             {holds.map((h) => (
               <li key={h.id}>
                 <Badge tone={h.releasedAt ? 'default' : 'danger'}>{t(`imei.holds.reasons.${h.reason}`)}</Badge>{' '}
-                {h.note}
+                {h.reason !== 'manager' && !h.releasedAt && <>{t(`imei.holds.explain.${h.reason}`)} </>}
+                {h.note && <bdi dir={h.reason === 'manager' ? 'auto' : 'ltr'}>{h.note}</bdi>}
                 <span className="muted"> · {t('imei.holds.heldOn', { when: formatDateTime(h.heldAt, lang) })}{h.releasedAt ? ` · ${t('imei.holds.released', { when: formatDateTime(h.releasedAt, lang) })}` : ''}{h.releaseNote ? ` · ${h.releaseNote}` : ''}</span>
               </li>
             ))}

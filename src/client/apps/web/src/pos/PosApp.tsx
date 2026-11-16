@@ -4,7 +4,7 @@ import { ApiError, can, type ApprovalAction, type Customer, type PosItem, type P
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Modal, SelectField, Spinner, TextField, useTheme } from '@kite/ui';
 import { classifyCode, fromBaisa, PosError, priceLine, totals, UNLIMITED, type Item, type Priced, type ReceiptModel } from '@kite/pos';
-import { ErrorBox, useApi, useAuth } from '../core';
+import { ErrorBox, useApi, useAuth, workBranchId } from '../core';
 import { fmt, fmtB, qty } from '../money';
 import { FiguresView } from '../pages/Sales';
 import { ApprovalDialog, CashDialog, CloseShiftDialog, CustomerDialog, DenominationCount, PayDialog, ReturnDialog } from './dialogs';
@@ -53,7 +53,7 @@ function RegisterTerminal({ onRegistered }: { onRegistered: (t: StoredTerminal) 
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const branches = useQuery({ queryKey: ['branches'], queryFn: () => api.branches(), enabled: stage === 'signedIn' });
-  useEffect(() => { if (branches.data?.[0] && !form.branchId) setForm((f) => ({ ...f, branchId: me?.user.defaultBranchId ?? branches.data[0]!.id })); }, [branches.data, form.branchId, me]);
+  useEffect(() => { if (branches.data?.[0] && !form.branchId) setForm((f) => ({ ...f, branchId: workBranchId(me) || branches.data[0]!.id })); }, [branches.data, form.branchId, me]);
 
   if (pending) {
     return (

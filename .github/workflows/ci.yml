@@ -697,3 +697,85 @@ jobs:
         with:
           name: e2e-phase5-screenshots
           path: ${{ runner.temp }}/e2e-phase5-shots/
+
+  e2e-phase6:
+    name: End-to-end Phase 6 (head office + branch server, online IMEI check, head office stopped and restarted, conflict settled, blocked list)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create the head office and branch databases and roles (the installer's job on each server in production)
+        run: |
+          for db in kite_main kite_branch; do
+            createdb $db
+            psql -v ON_ERROR_STOP=1 -d $db -f db/bootstrap/00_bootstrap.sql
+          done
+          psql -v ON_ERROR_STOP=1 -d kite_main -c "ALTER ROLE kite_migrator PASSWORD 'e2e-migrator'; ALTER ROLE kite_app PASSWORD 'e2e-app';"
+      - name: Build the web app into the server, and the server
+        run: |
+          bash scripts/build-web.sh
+          dotnet build src/server/Kite.Host -c Release
+      - name: Start the Nextdab stub (checks its signing against the Nextdab Admin vectors first)
+        working-directory: e2e
+        run: |
+          npm ci
+          STUB_KEY_FILE="$RUNNER_TEMP/stub-key.txt" nohup node nextdab-stub.mjs > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/stub-key.txt" ] && break; sleep 1; done
+          cat "$RUNNER_TEMP/stub.log"
+          test -s "$RUNNER_TEMP/stub-key.txt"
+      - name: Browser walk-through (the script starts both servers, and stops and restarts head office)
+        working-directory: e2e
+        env:
+          KITE_HOST_DIR: ${{ github.workspace }}/src/server/Kite.Host
+          WORK_DIR: ${{ runner.temp }}/e2e6
+          STUB_KEY_FILE: ${{ runner.temp }}/stub-key.txt
+          MAIN_PG: Host=localhost;Port=5432;Database=kite_main
+          BRANCH_PG: Host=localhost;Port=5432;Database=kite_branch
+          SHOTS_DIR: ${{ runner.temp }}/e2e-phase6-shots
+        run: node phase6.mjs
+      - name: Databases after the walk-through (registry, conflicts, holds, instructions)
+        if: always()
+        run: |
+          psql -d kite_main -c "SELECT c.value, c.status, c.resolution, (SELECT string_agg(b.code || ':' || s.unit_status || ':' || coalesce(s.outcome, '-'), ', ' ORDER BY b.code) FROM device.imei_conflict_side s JOIN core.branch b ON b.id = s.branch_id WHERE s.conflict_id = c.id) AS sides FROM device.imei_conflict c;" || true
+          psql -d kite_main -c "SELECT r.value, r.status, b.code AS branch, r.unit_status FROM device.central_registry r JOIN core.branch b ON b.id = r.branch_id ORDER BY r.value, r.status;" || true
+          psql -d kite_main -c "SELECT seq, kind, value, note, created_at FROM device.central_instruction ORDER BY seq;" || true
+          psql -d kite_branch -c "SELECT r.value, r.status, r.entry, u.status, c.state FROM device.imei_registry r JOIN device.device_unit u ON u.id = r.device_unit_id LEFT JOIN device.central_check c ON c.device_unit_id = u.id ORDER BY r.created_at;" || true
+          psql -d kite_branch -c "SELECT reason, note, held_at, released_at, release_note FROM device.unit_hold ORDER BY held_at;" || true
+          psql -d kite_main -c "SELECT (SELECT ok FROM audit.verify_chain()) AS head_office_audit_chain_ok;" || true
+          psql -d kite_branch -c "SELECT (SELECT ok FROM audit.verify_chain()) AS branch_audit_chain_ok;" || true
+      - name: Print screenshots for review
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/e2e-phase6-shots/*.jpg; do
+            [ -f "$f" ] || continue
+            echo "SHOT-BEGIN $(basename "$f")"; base64 -w 40000 "$f"; echo "SHOT-END"
+          done
+      - name: Server logs
+        if: always()
+        run: |
+          echo "=== head office ==="; tail -n 200 "$RUNNER_TEMP/e2e6/main.log" || true
+          echo "=== branch ==="; tail -n 200 "$RUNNER_TEMP/e2e6/branch.log" || true
+          echo "=== stub ==="; cat "$RUNNER_TEMP/stub.log" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-phase6-screenshots
+          path: ${{ runner.temp }}/e2e-phase6-shots/

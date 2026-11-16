@@ -79,8 +79,9 @@ public static class DeviceIdentity
                 {
                     r["centralChecked"] = answer is not null;
                     var hit = answer?.FirstOrDefault(a => a.Value == (string)r["value"]!);
-                    if (hit?.State == "blocked") r["problem"] = Problem(ErrorCodes.ImeiBlocked, $"{r["value"]} is on the blocked list: {hit.BlockedReason}.");
-                    else if (hit?.Holder is { } h) r["problem"] = Problem(ErrorCodes.DeviceIdentifierTaken, $"{r["value"]} is already registered: {CentralRegistry.Describe(h)}.");
+                    var label = (string)r["kind"]! == "serial" ? "Serial number" : "IMEI";
+                    if (hit?.State == "blocked") r["problem"] = Problem(ErrorCodes.ImeiBlocked, $"{label} {r["value"]} is on the blocked list: {hit.BlockedReason}.");
+                    else if (hit?.Holder is { } h) r["problem"] = Problem(ErrorCodes.DeviceIdentifierTaken, $"{label} {r["value"]} is already registered: {CentralRegistry.Describe(h)}.");
                 }
             }
             return Results.Ok(results);

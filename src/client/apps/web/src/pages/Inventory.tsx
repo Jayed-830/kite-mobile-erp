@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { can, type DeviceCondition, type PosItem, type ReasonCode } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Checkbox, DataTable, Modal, PageHeader, SelectField, Spinner, TextField } from '@kite/ui';
-import { ErrorBox, formatDateTime, useApi, useAuth } from '../core';
+import { ErrorBox, formatDateTime, useApi, useAuth, workBranchId } from '../core';
 import { fmt, parseAmount, qty } from '../money';
 import { ReceiveOptions, toUnitInputs, UnitScanner, type ScannedUnit } from '../devices/bits';
 
@@ -74,7 +74,7 @@ export function ItemPicker({ onPick, label }: { onPick: (i: PosItem) => void; la
   const { me } = useAuth();
   const { t, pick } = useI18n();
   const [q, setQ] = useState('');
-  const branchId = me?.user.defaultBranchId ?? me?.branches[0]?.id;
+  const branchId = workBranchId(me);
   const hits = useQuery({ queryKey: ['posItems', q, branchId], queryFn: () => api.posItems(q, branchId, 8), enabled: q.trim().length >= 2 });
   return (
     <div className="stack picker">
@@ -98,7 +98,7 @@ function AdjustTab({ onDone }: { onDone: (centralPending: number) => void }) {
   const [note, setNote] = useState('');
   type Line = { item: PosItem; qty: string; cost: string; reason: ReasonCode; units: ScannedUnit[]; condition: DeviceCondition; status: 'in_stock' | 'under_inspection' };
   const [lines, setLines] = useState<Line[]>([]);
-  const branchId = me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';
+  const branchId = workBranchId(me);
   const tracked = (l: Line) => l.item.tracking !== 'none';
   const set = (i: number, patch: Partial<Line>) => setLines(lines.map((x, j) => j === i ? { ...x, ...patch } : x));
   const post = useMutation({
@@ -158,7 +158,7 @@ function CountsTab() {
   const qc = useQueryClient();
   const { me } = useAuth();
   const { t, lang } = useI18n();
-  const branchId = me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';
+  const branchId = workBranchId(me);
   const counts = useQuery({ queryKey: ['counts'], queryFn: () => api.counts() });
   const [open, setOpen] = useState<string | null>(null);
   const start = useMutation({ mutationFn: () => api.startCount({ branchId }), onSuccess: async (c) => { await qc.invalidateQueries({ queryKey: ['counts'] }); setOpen(c.id); } });

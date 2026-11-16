@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { can, type PosPolicy, type PrinterInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { Alert, Badge, Button, Card, Checkbox, DataTable, Modal, PageHeader, SelectField, TextField } from '@kite/ui';
-import { ErrorBox, useApi, useAuth } from '../core';
+import { ErrorBox, useApi, useAuth, workBranchId } from '../core';
 
 /** POS policy (returns, refunds, rounding, blind close) and the shop's network printers. */
 export function PosSettingsPage() {
@@ -61,7 +61,7 @@ function Printers() {
   const [form, setForm] = useState<PrinterInput | null>(null);
   const save = useMutation({ mutationFn: (f: PrinterInput) => api.createPrinter(f), onSuccess: async () => { setForm(null); await qc.invalidateQueries({ queryKey: ['printers'] }); } });
   const test = useMutation({ mutationFn: (id: string) => api.printJob(id, { kind: 'test' }), onSettled: () => qc.invalidateQueries({ queryKey: ['printers'] }) });
-  const branchId = me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';
+  const branchId = workBranchId(me);
   return (
     <Card className="stack">
       <div className="row"><h2>{t('posSettings.printers')}</h2><span className="spacer" />
