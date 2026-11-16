@@ -140,4 +140,16 @@ public static class ErrorCodes
     public const string StoreCreditShort = "TRD-006";
     public const string TradeInCivilId = "TRD-007";
     public const string TradeInNoValue = "TRD-008";
+    // Phase 8: repairs and WhatsApp
+    public const string RepairTransition = "REP-001";
+    public const string RepairState = "REP-002";
+    public const string RepairDepositShort = "REP-003";
+    public const string RepairCollection = "REP-004";
+    public const string RepairEstimate = "REP-005";
+    public const string RepairPasscode = "REP-006";
+    public const string RepairNotFound = "REP-007";
+    public const string WhatsAppState = "WA-001";
+    public const string WhatsAppWindow = "WA-002";
+    public const string WhatsAppConsent = "WA-003";
+    public const string WebAddress = "WA-004";
 }

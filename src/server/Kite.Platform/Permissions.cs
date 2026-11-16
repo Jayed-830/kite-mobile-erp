@@ -77,6 +77,14 @@ public static class Permissions
     public const string TradeInPayout = "TRADEIN.PAYOUT";
     public const string TradeInView = "TRADEIN.VIEW";
     public const string TradeInSettings = "TRADEIN.SETTINGS";
+    public const string RepairView = "REPAIR.VIEW";
+    public const string RepairIntake = "REPAIR.INTAKE";
+    public const string RepairWork = "REPAIR.WORK";
+    public const string RepairAssign = "REPAIR.ASSIGN";
+    public const string RepairCancel = "REPAIR.CANCEL";
+    public const string RepairSettings = "REPAIR.SETTINGS";
+    public const string NotifSettings = "NOTIF.SETTINGS";
+    public const string NotifReply = "NOTIF.REPLY";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -112,16 +120,21 @@ public static class RoleTemplates
             Permissions.DeviceImeiCorrect, Permissions.DeviceConflicts, Permissions.DeviceBlocklist, Permissions.DeviceCount,
             Permissions.TradeInCreate, Permissions.TradeInApprove, Permissions.TradeInStoreCredit, Permissions.TradeInPayout, Permissions.TradeInView,
             Permissions.TradeInSettings,
+            Permissions.RepairView, Permissions.RepairIntake, Permissions.RepairWork, Permissions.RepairAssign, Permissions.RepairCancel,
+            Permissions.RepairSettings, Permissions.RepairCredentialView, Permissions.NotifSettings, Permissions.NotifReply,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
              Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen,
-             Permissions.PosCashPayOut, Permissions.DeviceView, Permissions.TradeInCreate, Permissions.TradeInView], 10m, 10.000m),
+             Permissions.PosCashPayOut, Permissions.DeviceView, Permissions.TradeInCreate, Permissions.TradeInView,
+             Permissions.RepairView, Permissions.RepairIntake, Permissions.NotifReply], 10m, 10.000m),
         new("cashier", "Cashier", "أمين صندوق",
             [Permissions.PosSell, Permissions.PosReceiptReprint, Permissions.CatalogView, Permissions.CustomersView, Permissions.CustomersManage,
-             Permissions.PosShiftOpen, Permissions.TradeInCreate, Permissions.TradeInView], 5m, 2.000m),
+             Permissions.PosShiftOpen, Permissions.TradeInCreate, Permissions.TradeInView, Permissions.RepairView, Permissions.RepairIntake,
+             Permissions.NotifReply], 5m, 2.000m),
         new("technician", "Technician", "فني",
-            [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView]),
+            [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView,
+             Permissions.RepairView, Permissions.RepairWork]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
             [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount,
              Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceCount, Permissions.DeviceImeiCorrect]),
@@ -131,7 +144,7 @@ public static class RoleTemplates
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
             Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
             Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView, Permissions.DeviceView,
-            Permissions.TradeInView,
+            Permissions.TradeInView, Permissions.RepairView,
         ]),
     ];
 }

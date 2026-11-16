@@ -109,6 +109,7 @@ DeviceIdentity.Map(app);
 DeviceCounts.Map(app);
 TradeInEndpoints.Map(app);
 RefurbishmentEndpoints.Map(app);
+RepairEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>

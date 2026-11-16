@@ -155,7 +155,7 @@ public sealed class TradeInPostingTests
     [Fact]
     public void Earlier_defaults_are_recognised_for_the_upgrade()
     {
-        Assert.Equal(2, PostingRuleTemplates.Earlier.Count);
+        Assert.Equal(3, PostingRuleTemplates.Earlier.Count);
         Assert.Equal(10, PostingRuleTemplates.Version2.Count);
         var v2 = PostingRuleTemplates.Version2.Single(r => r.EventType == PostingRuleTemplates.Sale).Definition.ToJson();
         Assert.Contains("device_used", v2, StringComparison.Ordinal);

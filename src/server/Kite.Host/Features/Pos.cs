@@ -38,7 +38,8 @@ public sealed record ShiftFigures(
     int SalesCount, decimal SalesGross, decimal SalesNet, decimal SalesTax, decimal SalesDiscount, int CreditNotesCount, decimal CreditNotesGross,
     decimal CashRounding, decimal CashPayments, decimal CardPayments, decimal TransferPayments, decimal PayIns, decimal PayOuts, decimal Drops,
     int NoSales, decimal OpeningFloat, decimal ExpectedCash, IReadOnlyList<CardTerminalTotal> CardByTerminal,
-    decimal TradeInCredit = 0m, decimal StoreCreditPayments = 0m, decimal TradeInPayouts = 0m);
+    decimal TradeInCredit = 0m, decimal StoreCreditPayments = 0m, decimal TradeInPayouts = 0m,
+    decimal RepairDeposits = 0m, decimal RepairDepositRefunds = 0m, decimal RepairDepositsApplied = 0m);
 
 public sealed record CardTerminalTotal(string CardTerminal, decimal Total);
 
@@ -361,13 +362,19 @@ public static class PosEndpoints
             "SELECT coalesce(card_terminal, '') AS CardTerminal, sum(amount) AS Total FROM sales.payment WHERE shift_id = @id AND method = 'card' GROUP BY 1 ORDER BY 1",
             new { id = s.Id })).ToArray();
         decimal E(string k) => ev.TryGetValue(k, out var v) ? v.Total : 0m;
+        // Repair deposits taken and given back on this drawer (13.5): tenders with a deposit receipt instead of a sale.
+        var deposits = await t.QuerySingleOrDefaultAsync<(decimal In, decimal Out)>("""
+            SELECT coalesce(sum(amount) FILTER (WHERE amount > 0), 0), coalesce(-sum(amount) FILTER (WHERE amount < 0), 0)
+              FROM sales.payment WHERE shift_id = @id AND repair_deposit_id IS NOT NULL
+            """, new { id = s.Id });
         var cash = pay.GetValueOrDefault("cash");
         // Trade-ins paid out in cash leave the drawer like a pay-out (12.5).
         return new ShiftFigures((int)sale.Count, sale.Gross, sale.Net, sale.Tax, sale.Discount, (int)sale.CnCount, sale.CnGross, sale.Rounding,
             cash, pay.GetValueOrDefault("card"), pay.GetValueOrDefault("bank_transfer"), E("pay_in"), E("pay_out"), E("drop"),
             ev.TryGetValue("no_sale", out var ns) ? (int)ns.Count : 0, s.OpeningFloat,
             PosMath.ExpectedCash(s.OpeningFloat, cash, E("pay_in"), E("pay_out") + E("tradein_payout"), E("drop")), cards,
-            pay.GetValueOrDefault("trade_in"), pay.GetValueOrDefault("store_credit"), E("tradein_payout"));
+            pay.GetValueOrDefault("trade_in"), pay.GetValueOrDefault("store_credit"), E("tradein_payout"),
+            deposits.In, deposits.Out, pay.GetValueOrDefault("deposit"));
     }
 
     // ------------------------------------------------------------------ approvals
@@ -746,7 +753,7 @@ public static class PosEndpoints
     /// that much still to settle; store credit only for a named customer, within the balance. The ledger and the settlement
     /// triggers check again under their own locks.
     /// </summary>
-    private static async Task CheckCreditTendersAsync(DbTx t, PosTerminal term, Guid? customerId, IReadOnlyList<CheckedTender> tenders, bool refund)
+    public static async Task CheckCreditTendersAsync(DbTx t, PosTerminal term, Guid? customerId, IReadOnlyList<CheckedTender> tenders, bool refund)
     {
         await TradeInCore.LockForPaymentAsync(t, tenders.Where(p => p.TradeInId is not null).Select(p => p.TradeInId!.Value),
             tenders.Any(p => p.Method == "store_credit") ? customerId : null);
@@ -818,6 +825,9 @@ public static class PosEndpoints
               FROM sales.sale WHERE id = @originalId
             """, new { originalId }) ?? throw new KiteException(ErrorCodes.NotFound, "That sale was not found in your branches.", 404);
         if (original.DocType == "credit_note") throw new KiteException(ErrorCodes.Validation, "A credit note cannot be returned.", 400);
+        // A repair invoice closed its job (13.5): it is not voided or returned at the till; a fault is a warranty claim (13.6).
+        if (await t.ExecuteScalarAsync<bool>("SELECT repair_job_id IS NOT NULL FROM sales.sale WHERE id = @originalId", new { originalId }))
+            throw new KiteException(ErrorCodes.RepairState, "A repair invoice is not voided or returned at the till. If the repair failed, open a warranty claim on the job.", 409);
         if (original.BranchId != term.BranchId) throw new KiteException(ErrorCodes.Validation, "Return the items at the branch that sold them.", 400);
         var lines = (await t.QueryAsync<OriginalLine>(OriginalLinesSql, new { id = originalId })).ToArray();
         var biz = await BusinessInfo.LoadAsync(t);

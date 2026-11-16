@@ -30,7 +30,7 @@ public sealed class PosKit(KiteServerFixture fx)
     {
         var body = await r.Content.ReadAsStringAsync();
         Assert.True(r.StatusCode == status, $"{r.RequestMessage?.RequestUri?.PathAndQuery}: expected {(int)status} {code} but got {(int)r.StatusCode}: {body}");
-        Assert.Contains($"\"code\":\"{code}\"", body, StringComparison.Ordinal);
+        Assert.True(body.Contains($"\"code\":\"{code}\"", StringComparison.Ordinal), $"{r.RequestMessage?.RequestUri?.PathAndQuery}: expected {code} but got {body}");
     }
 
     public async Task<HttpClient> OwnerAsync()

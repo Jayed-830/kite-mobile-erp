@@ -164,15 +164,17 @@ public sealed record DraftLine(
     Guid VariantId, string ProductType, string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice, decimal ListPrice,
     decimal Discount, decimal Net, Guid TaxCodeId, decimal TaxRate, decimal Tax, decimal Gross, Guid? ApprovalId, int WarrantyDays,
     Guid? ReturnedLineId = null, bool? Restock = null, decimal? RestockUnitCost = null, Guid? DeviceUnitId = null, string? Condition = null,
-    decimal? MarginPurchasePrice = null)
+    decimal? MarginPurchasePrice = null, bool RepairCharge = false, decimal? KnownCost = null)
 {
     /// <summary>Sold under the profit margin mechanism (12.3): taxed against <see cref="MarginPurchasePrice"/>.</summary>
     public bool Margin => MarginPurchasePrice is not null;
 
-    public bool Stocked => ProductType != "service";
+    /// <summary>A repair invoice line (13.5): its parts were already moved into work-in-progress when fitted, so it moves no stock.</summary>
+    public bool Stocked => ProductType != "service" && !RepairCharge;
 
-    /// <summary>The key the posting rules use: the product type, or "device_used" for a device that is not brand new.</summary>
-    public string PostingClass => PostingRuleTemplates.ClassOf(ProductType, Condition);
+    /// <summary>The key the posting rules use: the product type, or "device_used" for a device that is not brand new; a part
+    /// charged on a repair invoice is "repair_part" (repair parts income).</summary>
+    public string PostingClass => RepairCharge && ProductType != "service" ? "repair_part" : PostingRuleTemplates.ClassOf(ProductType, Condition);
 
     public static DraftLine From(PricedLine l, Guid? approvalId, Guid? deviceUnitId = null, string? condition = null) =>
         new(l.Item.VariantId, l.Item.ProductType, l.Item.DescriptionEn, l.Item.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice,
@@ -183,7 +185,8 @@ public sealed record DraftLine(
 public sealed record SaleDraft(
     Guid Id, Guid ShiftId, Guid CashierId, Guid? CustomerId, string DocType, string? CreditReason, Guid? OriginalSaleId,
     Guid? ExchangeGroupId, DateTimeOffset CompletedAt, IReadOnlyList<DraftLine> Lines, CheckedPayments Payments, bool Refund,
-    bool IsEmergency = false, string? EmergencyNumber = null, string? Note = null, Func<string, AuditEntry>? Audit = null);
+    bool IsEmergency = false, string? EmergencyNumber = null, string? Note = null, Func<string, AuditEntry>? Audit = null,
+    Guid? RepairJobId = null, decimal DepositTax = 0m);
 
 public sealed record WrittenSale(Guid Id, string Number, decimal Gross, decimal CashRounding, int StockExceptions);
 
@@ -215,21 +218,22 @@ public static class SaleWriter
             INSERT INTO sales.sale (id, business_id, branch_id, warehouse_id, terminal_id, shift_id, cashier_id, customer_id, number, doc_type,
                                     credit_reason, original_sale_id, exchange_group_id, sale_date, completed_at, prices_include_tax,
                                     net_total, discount_total, tax_total, gross_total, cash_rounding, is_emergency, emergency_number,
-                                    einvoice_uuid, qr_payload, note, origin_server_id, origin_device_id)
+                                    einvoice_uuid, qr_payload, note, origin_server_id, origin_device_id, repair_job_id)
             VALUES (@Id, @businessId, @branchId, @warehouseId, @terminalId, @ShiftId, @CashierId, @CustomerId, @number, @DocType,
                     @CreditReason, @OriginalSaleId, @ExchangeGroupId, @date::date, @CompletedAt, @pit,
                     @net, @discount, @tax, @gross, @rounding, @IsEmergency, @EmergencyNumber,
-                    @einvoice, @qr, @Note, (SELECT id FROM core.server WHERE is_self), @terminalId)
+                    @einvoice, @qr, @Note, (SELECT id FROM core.server WHERE is_self), @terminalId, @RepairJobId)
             """, new { d.Id, businessId = biz.Id, branchId = term.BranchId, warehouseId = term.WarehouseId, terminalId = term.Id, d.ShiftId,
                        d.CashierId, d.CustomerId, number, d.DocType, d.CreditReason, d.OriginalSaleId, d.ExchangeGroupId,
                        date = date.ToDateTime(TimeOnly.MinValue), d.CompletedAt, pit = biz.PricesIncludeTax, net, discount, tax, gross,
-                       rounding = d.Payments.CashRounding, d.IsEmergency, d.EmergencyNumber, einvoice, qr, d.Note });
+                       rounding = d.Payments.CashRounding, d.IsEmergency, d.EmergencyNumber, einvoice, qr, d.Note, d.RepairJobId });
 
         var facts = new PostingFacts();
         var costFacts = new PostingFacts();
         var exceptions = 0;
         var lineIds = d.Lines.Select(_ => t.NewId()).ToArray();
-        var costs = new decimal[d.Lines.Count];
+        // A repair charge carries what its parts cost in work-in-progress (13.7), so the invoice's margin is real.
+        var costs = d.Lines.Select(l => l.KnownCost ?? 0m).ToArray();
         // Stock first, in variant (then unit) order, so two documents never wait on each other's rows in opposite order.
         // A device unit always moves: out at its own cost when sold, back in at that cost when returned or voided (16.3).
         foreach (var i in Enumerable.Range(0, d.Lines.Count).Where(i => d.Lines[i].Stocked).OrderBy(i => d.Lines[i].VariantId).ThenBy(i => d.Lines[i].DeviceUnitId))
@@ -292,16 +296,27 @@ public static class SaleWriter
         {
             var signed = d.Refund ? -p.Amount : p.Amount;
             // Store credit (14.6): used, the customer's balance goes down; refunded to it, up. Never below zero (the ledger refuses).
+            // A repair deposit (13.5) is applied to its job's invoice: the job's deposit balance goes down.
             Guid? creditEntry = null;
-            if (p.Method == "store_credit")
+            if (p.Method is "store_credit" or "deposit")
             {
                 if (d.CustomerId is null) throw new KiteException(ErrorCodes.CustomerRequired, "Store credit belongs to a customer: choose the customer.", 400, "customerId");
+                if (p.Method == "deposit" && (d.RepairJobId is null || d.Refund))
+                    throw new KiteException(ErrorCodes.Validation, "A repair deposit is applied only to its job's invoice.", 400, "payments");
                 creditEntry = t.NewId();
                 await t.ExecuteAsync("""
-                    INSERT INTO crm.credit_ledger (id, business_id, branch_id, customer_id, balance_type, amount, source_doc_type, source_doc_id, note, created_by, origin_server_id)
-                    VALUES (@creditEntry, @businessId, @branchId, @CustomerId, 'store_credit', @amount, 'sale', @saleId, @note, @by, (SELECT id FROM core.server WHERE is_self))
-                    """, new { creditEntry, businessId = biz.Id, branchId = term.BranchId, d.CustomerId, amount = -signed, saleId = d.Id,
-                               note = $"{(isCredit ? "Credit note" : "Sale")} {number}", by = d.CashierId });
+                    INSERT INTO crm.credit_ledger (id, business_id, branch_id, customer_id, balance_type, amount, source_doc_type, source_doc_id, note, created_by,
+                                                   origin_server_id, repair_job_id)
+                    VALUES (@creditEntry, @businessId, @branchId, @CustomerId, @Method, @amount, 'sale', @saleId, @note, @by, (SELECT id FROM core.server WHERE is_self),
+                            @job)
+                    """, new { creditEntry, businessId = biz.Id, branchId = term.BranchId, d.CustomerId, p.Method, amount = -signed, saleId = d.Id,
+                               note = $"{(isCredit ? "Credit note" : "Sale")} {number}", by = d.CashierId, job = p.Method == "deposit" ? d.RepairJobId : null });
+                if (p.Method == "deposit")
+                    await t.ExecuteAsync("""
+                        INSERT INTO repair.deposit (id, business_id, branch_id, job_id, kind, amount, tax, sale_id, credit_entry_id, created_by, origin_server_id)
+                        VALUES (@id, @businessId, @branchId, @job, 'applied', @amount, @tax, @saleId, @creditEntry, @by, (SELECT id FROM core.server WHERE is_self))
+                        """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, job = d.RepairJobId, amount = p.Amount, tax = d.DepositTax,
+                                   saleId = d.Id, creditEntry, by = d.CashierId });
             }
             await t.ExecuteAsync("""
                 INSERT INTO sales.payment (id, business_id, branch_id, sale_id, shift_id, method, amount, tendered, change_given,
@@ -319,9 +334,11 @@ public static class SaleWriter
             if (p.Method == "trade_in" && !d.Refund)
                 await t.ExecuteAsync("UPDATE tradein.tradein SET sale_id = @saleId, updated_by = @by WHERE id = @TradeInId AND sale_id IS DISTINCT FROM @saleId",
                     new { saleId = d.Id, by = d.CashierId, p.TradeInId });
-            facts.Add("tenders", p.Method, p.Amount);
+            // The VAT already declared on an applied deposit (deposits as a VAT point) comes back out of VAT output, not deposits.
+            facts.Add("tenders", p.Method, p.Method == "deposit" ? p.Amount - d.DepositTax : p.Amount);
         }
         facts.Set("tax", tax).Set("cash_rounding", d.Payments.CashRounding);
+        if (d.DepositTax != 0) facts.Set("deposit_tax", d.DepositTax);
 
         var description = $"{(isCredit ? "Credit note" : "Sale")} {number}";
         await Posting.PostAsync(t, biz.Id, term.BranchId, isCredit ? PostingRuleTemplates.CreditNote : PostingRuleTemplates.Sale,

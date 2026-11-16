@@ -171,19 +171,29 @@ public static class PostingRuleTemplates
     public const string TradeInAccept = "tradein.accept";
     public const string TradeInStoreCredit = "tradein.store_credit";
     public const string TradeInPayout = "tradein.payout";
+    public const string RepairDeposit = "repair.deposit";
+    public const string RepairDepositRefund = "repair.deposit_refund";
+    public const string RepairParts = "repair.parts";
+    public const string RepairCost = "repair.cost";
 
     /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
     public static string ClassOf(string productType, string? condition) =>
         productType == "device" && condition is not null && condition != "brand_new" ? "device_used" : productType;
 
+    // A part charged on a repair invoice is repair parts income (13.7); labour and extra charges are services.
     private static readonly IReadOnlyDictionary<string, string> Revenue = new Dictionary<string, string>
-    { ["device"] = "4100", ["device_used"] = "4110", ["accessory"] = "4120", ["consumable"] = "4120", ["spare_part"] = "4130", ["service"] = "4200" };
+    { ["device"] = "4100", ["device_used"] = "4110", ["accessory"] = "4120", ["consumable"] = "4120", ["spare_part"] = "4130", ["service"] = "4200",
+      ["repair_part"] = "4210" };
+    private static readonly IReadOnlyDictionary<string, string> Phase7Revenue = Revenue.Where(x => x.Key != "repair_part").ToDictionary();
     private static readonly IReadOnlyDictionary<string, string> Cost = new Dictionary<string, string>
     { ["device"] = "5100", ["device_used"] = "5110", ["accessory"] = "5120", ["consumable"] = "5120", ["spare_part"] = "5200" };
     private static readonly IReadOnlyDictionary<string, string> Inventory = new Dictionary<string, string>
     { ["device"] = "1400", ["device_used"] = "1410", ["accessory"] = "1420", ["consumable"] = "1420", ["spare_part"] = "1430" };
     // Trade-in credit takes trade-in clearing back out; store credit reduces what the business owes the customer (12.5, 14.6).
+    // A repair deposit applied to its invoice takes customer deposits back out (13.7).
     private static readonly IReadOnlyDictionary<string, string> Tenders = new Dictionary<string, string>
+    { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200", ["trade_in"] = "2320", ["store_credit"] = "2310", ["deposit"] = "2300" };
+    private static readonly IReadOnlyDictionary<string, string> Phase7Tenders = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200", ["trade_in"] = "2320", ["store_credit"] = "2310" };
     private static readonly IReadOnlyDictionary<string, string> Phase4Tenders = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200" };
@@ -194,36 +204,49 @@ public static class PostingRuleTemplates
     private static AccountSelector Code(string c) => new(c, null, null, null);
     private static AccountSelector By(string by, IReadOnlyDictionary<string, string> map) => new(null, by, map, null);
 
-    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All = Build(Revenue, Cost, Inventory, Tenders);
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All = Build(Revenue, Cost, Inventory, Tenders, phase8: true);
 
     private static readonly string[] SincePhase5 = [RefurbCost, DeviceReclass, DeviceReceiptReversal];
     private static readonly string[] SincePhase7 = [TradeInAccept, TradeInStoreCredit, TradeInPayout];
+    private static readonly string[] SincePhase8 = [RepairDeposit, RepairDepositRefund, RepairParts, RepairCost];
 
     /// <summary>
     /// The Phase 4 defaults (version 1), before used devices had their own accounts. A business whose stored rule is
     /// still exactly one of the earlier defaults gets the current default as a new version; a rule the business changed is left alone.
     /// </summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
-        Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
+        Phase7Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
         Inventory.Where(x => x.Key != "device_used").ToDictionary(), Phase4Tenders)
-        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 5 and 6 defaults (version 2), before trade-in credit and store credit were tenders.</summary>
-    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version2 = Build(Revenue, Cost, Inventory, Phase4Tenders)
-        .Where(r => !SincePhase7.Contains(r.EventType)).ToArray();
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version2 = Build(Phase7Revenue, Cost, Inventory, Phase4Tenders)
+        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType)).ToArray();
+
+    /// <summary>The Phase 7 defaults (version 3), before repair parts income, repair deposits as a tender and deposit VAT.</summary>
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version3 = Build(Phase7Revenue, Cost, Inventory, Phase7Tenders)
+        .Where(r => !SincePhase8.Contains(r.EventType)).ToArray();
 
     /// <summary>Every earlier default, oldest first.</summary>
-    public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2];
+    public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2, Version3];
 
     private static IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Build(IReadOnlyDictionary<string, string> revenue,
-        IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory, IReadOnlyDictionary<string, string> tenders) =>
+        IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory, IReadOnlyDictionary<string, string> tenders, bool phase8 = false) =>
     [
-        (Sale, new("Sale: tenders received; revenue by product type and VAT output; cash rounding to over/short", [
-            new("debit", By("tender", tenders), "tenders"),
-            new("credit", By("product_type", revenue), "net_by_product_type"),
-            new("credit", Code("2200"), "tax"),
-            new("credit", Code("6400"), "cash_rounding"),
-        ])),
+        (Sale, phase8
+            ? new("Sale: tenders received; revenue by product type and VAT output; cash rounding to over/short; VAT already declared on applied deposits", [
+                new("debit", By("tender", tenders), "tenders"),
+                new("credit", By("product_type", revenue), "net_by_product_type"),
+                new("credit", Code("2200"), "tax"),
+                new("credit", Code("6400"), "cash_rounding"),
+                new("debit", Code("2200"), "deposit_tax"),
+            ])
+            : new("Sale: tenders received; revenue by product type and VAT output; cash rounding to over/short", [
+                new("debit", By("tender", tenders), "tenders"),
+                new("credit", By("product_type", revenue), "net_by_product_type"),
+                new("credit", Code("2200"), "tax"),
+                new("credit", Code("6400"), "cash_rounding"),
+            ])),
         (SaleCost, new("Cost of a sale: cost of sales by product type against inventory", [
             new("debit", By("product_type", cost), "cost_by_product_type"),
             new("credit", By("product_type", inventory), "cost_by_product_type"),
@@ -281,6 +304,28 @@ public static class PostingRuleTemplates
         (TradeInPayout, new("Trade-in paid out in cash from the drawer (buy-back)", [
             new("debit", Code("2320"), "amount"),
             new("credit", Code("1100"), "amount"),
+        ])),
+        (RepairDeposit, new("Repair deposit received: held for the customer in customer deposits (with its VAT when deposits are a VAT point)", [
+            new("debit", By("tender", tenders), "tenders"),
+            new("credit", Code("2300"), "deposit"),
+            new("credit", Code("2200"), "tax"),
+        ])),
+        (RepairDepositRefund, new("Repair deposit given back: in cash, to the card, by transfer or as store credit", [
+            new("debit", Code("2300"), "deposit"),
+            new("debit", Code("2200"), "tax"),
+            new("credit", By("tender", tenders), "tenders"),
+        ])),
+        (RepairParts, new("Parts fitted on a repair move at cost into repair work-in-progress (a part returned unused posts the other way)", [
+            new("debit", Code("1460"), "parts_by_product_type"),
+            new("credit", By("product_type", inventory), "parts_by_product_type"),
+        ])),
+        (RepairCost, new("Repair work-in-progress leaves the job: cost of repair parts at delivery, warranty expense on a warranty claim, or written off", [
+            new("debit", Code("5200"), "cost_of_repair"),
+            new("credit", Code("1460"), "cost_of_repair"),
+            new("debit", Code("6600"), "warranty"),
+            new("credit", Code("1460"), "warranty"),
+            new("debit", Code("6700"), "written_off"),
+            new("credit", Code("1460"), "written_off"),
         ])),
     ];
 }

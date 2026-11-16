@@ -358,5 +358,6 @@ public static class Phase7Seed
                     VALUES (@id, @businessId, @Code, @En, @Ar, @Kind, @Value, @Check, @sort)
                     """, new { id = t.NewId(), businessId, d.Code, d.En, d.Ar, d.Kind, d.Value, d.Check, sort = sort++ });
         }
+        await Phase8Seed.EnsureAsync(t, businessId);
     }
 }
