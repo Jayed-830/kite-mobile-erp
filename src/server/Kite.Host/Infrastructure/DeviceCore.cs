@@ -9,7 +9,8 @@ namespace Kite.Host.Infrastructure;
 public sealed record UnitInput(string? Imei1 = null, string? Imei2 = null, string? Serial = null, decimal? UnitCost = null, string? Condition = null,
     string? Status = null, Guid? GradeId = null, decimal? SellingPrice = null, int? WarrantyDays = null, string? Entry = null);
 
-public sealed record DeviceSettings(decimal LabourRatePerHour, int ReservationMinutes, int ParkedReservationMinutes, decimal SuggestedPriceStep, int Version);
+public sealed record DeviceSettings(decimal LabourRatePerHour, int ReservationMinutes, int ParkedReservationMinutes, decimal SuggestedPriceStep, int Version,
+    bool StrictCentralCheck = false);
 
 /// <summary>One device unit with its item, grade and identifiers (a class: Dapper maps it by name).</summary>
 public sealed class DeviceUnitRow
@@ -47,6 +48,7 @@ public sealed class DeviceUnitRow
     public DateTime ReceivedAt { get; set; }
     public Guid? SoldSaleId { get; set; }
     public int Version { get; set; }
+    public string? CentralState { get; set; }
 
     public string PostingClass => PostingRuleTemplates.ClassOf(ProductType, Condition);
     public string Identifier => Imei1 ?? Serial ?? Id.ToString();
@@ -63,10 +65,11 @@ public static class DeviceUnits
                u.status, u.held_from_status AS HeldFromStatus, u.condition, u.grade_id AS GradeId, g.code AS GradeCode, g.name_en AS GradeNameEn,
                g.name_ar AS GradeNameAr, g.price_percent AS GradePercent, u.acquisition_cost AS AcquisitionCost, u.accumulated_cost AS AccumulatedCost,
                u.selling_price AS SellingPrice, u.warranty_days AS WarrantyDays, p.default_warranty_days AS DefaultWarrantyDays,
-               (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.kind = 'imei' AND r.slot = 1) AS Imei1,
-               (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.kind = 'imei' AND r.slot = 2) AS Imei2,
-               (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.kind = 'serial') AS Serial,
-               u.received_at AS ReceivedAt, u.sold_sale_id AS SoldSaleId, u.version
+               (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.kind = 'imei' AND r.slot = 1 AND r.status = 'active') AS Imei1,
+               (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.kind = 'imei' AND r.slot = 2 AND r.status = 'active') AS Imei2,
+               (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.kind = 'serial' AND r.status = 'active') AS Serial,
+               u.received_at AS ReceivedAt, u.sold_sale_id AS SoldSaleId, u.version,
+               (SELECT c.state FROM device.central_check c WHERE c.device_unit_id = u.id) AS CentralState
           FROM device.device_unit u
           JOIN catalog.variant v ON v.id = u.variant_id JOIN catalog.product p ON p.id = v.product_id
           JOIN core.branch b ON b.id = u.branch_id LEFT JOIN device.grade g ON g.id = u.grade_id
@@ -81,7 +84,7 @@ public static class DeviceUnits
     {
         if (code.Kind is not ("imei" or "serial")) return null;
         return await t.QuerySingleOrDefaultAsync<DeviceUnitRow>(Select + """
-             WHERE EXISTS (SELECT 1 FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.value = @v AND r.kind = ANY(@kinds))
+             WHERE EXISTS (SELECT 1 FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.value = @v AND r.kind = ANY(@kinds) AND r.status = 'active')
              ORDER BY (u.status = 'in_stock') DESC, u.received_at DESC LIMIT 1
             """, new { v = code.Value, kinds = code.Kind == "imei" ? new[] { "imei", "eid" } : new[] { "serial" } });
     }
@@ -169,6 +172,40 @@ public static class DeviceUnits
         var entry = u.Entry ?? "scan";
         if (entry is not ("scan" or "manual")) throw new KiteException(ErrorCodes.Validation, "Entry is scan or manual.", 400, field + ".entry");
 
+        // Verification at receiving (11.5): format (above), serial format per brand, blocked list, local and central uniqueness.
+        var brand = await t.QuerySingleOrDefaultAsync<(string? Name, string? Pattern, Guid ProductId)>("""
+            SELECT b.name_en, b.serial_pattern, p.id FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id
+              LEFT JOIN catalog.brand b ON b.id = p.brand_id WHERE v.id = @VariantId
+            """, new { item.VariantId });
+        if (serial is not null && brand.Pattern is { } pattern && !SerialFormats.Matches(pattern, serial))
+            throw new KiteException(ErrorCodes.SerialFormat, $"{serial} does not look like a {brand.Name} serial number. Scan it again, or check the brand's serial format in Device settings.", 400, field + ".serial");
+        var brandName = brand.Name is { } bn ? CentralRegistry.NormBrand(bn) : "product:" + brand.ProductId.ToString();
+        var ids = new List<PushIdentifier>();
+        if (imei1 is not null) ids.Add(new PushIdentifier("imei", 1, imei1));
+        if (imei2 is not null) ids.Add(new PushIdentifier("imei", 2, imei2));
+        if (serial is not null) ids.Add(new PushIdentifier("serial", 1, serial, brandName));
+        await CentralRegistry.LockAsync(t, ids.Select(CentralRegistry.Key.Of));
+        foreach (var i in ids)
+        {
+            var label = i.Kind == "serial" ? "Serial number" : "IMEI";
+            if (await CentralRegistry.BlockedReasonAsync(t, i.Kind, i.Value) is { } why)
+                throw new KiteException(ErrorCodes.ImeiBlocked, $"{label} {i.Value} is on the blocked list: {why}. Do not take this device in.", 409, field);
+            var local = await t.WithAllBranchesAsync(() => t.QuerySingleOrDefaultAsync<(string Status, string Code, string Description)>($"""
+                SELECT u.status, b.code, {ItemPricing.DescriptionEn} FROM device.imei_registry r JOIN device.device_unit u ON u.id = r.device_unit_id
+                  JOIN core.branch b ON b.id = u.branch_id JOIN catalog.variant v ON v.id = u.variant_id JOIN catalog.product p ON p.id = v.product_id
+                 WHERE r.status = 'active' AND r.value = @Value AND (CASE WHEN @Kind = 'serial' THEN r.kind = 'serial' AND r.brand_key = @BrandKey ELSE r.kind IN ('imei','eid') END)
+                 LIMIT 1
+                """, new { i.Value, i.Kind, item.BrandKey }));
+            if (local.Code is not null)
+                throw new KiteException(ErrorCodes.DeviceIdentifierTaken,
+                    $"{label} {i.Value} already belongs to a device {local.Status.Replace('_', ' ')} at {local.Code} ({local.Description}). Scan another device.", 409, field);
+        }
+        if (t.Server.IsHeadOffice)
+            foreach (var c in await CentralRegistry.CheckAsync(t, ids, null))
+                if (c.Holder is { } h)
+                    throw new KiteException(ErrorCodes.DeviceIdentifierTaken,
+                        $"{(c.Kind == "serial" ? "Serial number" : "IMEI")} {c.Value} is already registered: {CentralRegistry.Describe(h)}. Scan another device.", 409, field);
+
         var id = t.NewId();
         await t.ExecuteAsync("""
             INSERT INTO device.device_unit (id, business_id, branch_id, warehouse_id, variant_id, status, condition, grade_id, acquisition_cost, accumulated_cost,
@@ -185,8 +222,15 @@ public static class DeviceUnits
                 VALUES (@rid, @businessId, @id, @kind, @slot, @value, @BrandKey, @entry, @by)
                 """, new { rid = t.NewId(), businessId, id, kind, slot, value, item.BrandKey, entry, by = t.Actor.UserId });
         }
+        if (entry == "manual")   // typing instead of scanning is allowed with DEVICE.IMEI.MANUAL_ENTRY and logged (11.2)
+            await t.AuditAsync(new AuditEntry("device.identifier_typed", "device_unit", id, After: Json.Obj(new { imei1, imei2, serial }), BranchId: branchId));
         var unit = new DeviceUnitRow { Id = id, BusinessId = businessId, BranchId = branchId, WarehouseId = warehouseId, VariantId = item.VariantId };
         var (_, moved) = await MoveAsync(t, unit, movementType, 1, null, docType, docId, lineId, source);
+        // Head office registers its own units centrally at once; a branch server marks them pending until head office confirms (11.4).
+        await t.ExecuteAsync("""
+            INSERT INTO device.central_check (device_unit_id, business_id, branch_id, state) VALUES (@id, @businessId, @branchId, 'pending')
+            """, new { id, businessId, branchId });
+        if (t.Server.IsHeadOffice) await CentralRegistry.SyncOwnUnitAsync(t, id);
         return (id, moved, PostingRuleTemplates.ClassOf(item.ProductType, condition));
     }
 
@@ -212,7 +256,7 @@ public static class DeviceUnits
     public static async Task<DeviceSettings> SettingsAsync(DbTx t, Guid businessId) =>
         await t.QuerySingleOrDefaultAsync<DeviceSettings>("""
             SELECT labour_rate_per_hour AS LabourRatePerHour, reservation_minutes AS ReservationMinutes, parked_reservation_minutes AS ParkedReservationMinutes,
-                   suggested_price_step AS SuggestedPriceStep, version FROM device.settings WHERE business_id = @businessId
+                   suggested_price_step AS SuggestedPriceStep, version, strict_central_check AS StrictCentralCheck FROM device.settings WHERE business_id = @businessId
             """, new { businessId })
         ?? new DeviceSettings(3.000m, 15, 240, 0.100m, 0);
 

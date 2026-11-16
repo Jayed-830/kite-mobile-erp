@@ -125,4 +125,10 @@ public static class ErrorCodes
     public const string InspectionIncomplete = "DEV-011";
     public const string DeviceUnitCount = "DEV-012";
     public const string DeviceLedger = "DEV-013";
+    public const string ImeiBlocked = "DEV-014";
+    public const string CentralCheckPending = "DEV-015";
+    public const string DeviceWrongModel = "DEV-016";
+    public const string SerialFormat = "DEV-017";
+    public const string DeviceOnHold = "DEV-018";
+    public const string DeviceCountState = "DEV-019";
 }

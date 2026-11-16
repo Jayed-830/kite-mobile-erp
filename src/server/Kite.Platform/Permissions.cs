@@ -65,6 +65,11 @@ public static class Permissions
     public const string DeviceWriteOff = "DEVICE.WRITE_OFF";
     public const string DeviceHold = "DEVICE.HOLD";
     public const string DeviceSettings = "DEVICE.SETTINGS";
+    // Phase 6 (V0015)
+    public const string DeviceImeiCorrect = "DEVICE.IMEI.CORRECT";
+    public const string DeviceConflicts = "DEVICE.CONFLICTS";
+    public const string DeviceBlocklist = "DEVICE.BLOCKLIST";
+    public const string DeviceCount = "DEVICE.COUNT";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -97,6 +102,7 @@ public static class RoleTemplates
             Permissions.PosReportsView, Permissions.ApprovalsDecide,
             Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.DevicePrice, Permissions.DeviceSellDamaged,
             Permissions.DeviceWriteOff, Permissions.DeviceHold, Permissions.DeviceSettings,
+            Permissions.DeviceImeiCorrect, Permissions.DeviceConflicts, Permissions.DeviceBlocklist, Permissions.DeviceCount,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
@@ -109,7 +115,7 @@ public static class RoleTemplates
             [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
             [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount,
-             Permissions.DeviceView, Permissions.DeviceInspect]),
+             Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceCount, Permissions.DeviceImeiCorrect]),
         new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry]),
         new("accountant", "Accountant", "المحاسب",
         [

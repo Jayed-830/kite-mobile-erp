@@ -16,7 +16,7 @@ public class PostingEngineTests
     [Fact]
     public void Every_default_rule_is_valid_and_survives_a_round_trip_as_data()
     {
-        Assert.Equal(9, PostingRuleTemplates.All.Count);   // Phase 5 added refurbishment costs and the used-device reclass
+        Assert.Equal(10, PostingRuleTemplates.All.Count);   // Phase 5 added refurbishment costs and the used-device reclass; Phase 6 the receipt reversal
         foreach (var (_, def) in PostingRuleTemplates.All)
         {
             def.Check();

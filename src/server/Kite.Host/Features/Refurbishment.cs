@@ -27,7 +27,7 @@ public static class RefurbishmentEndpoints
                r.result_condition AS "resultCondition", g.code AS "gradeCode", r.selling_price AS "sellingPrice", r.warranty_days AS "warrantyDays", r.version,
                (SELECT coalesce(sum(c.amount), 0) FROM refurb.refurb_cost c WHERE c.refurb_order_id = r.id) AS "costTotal",
                u.status AS "unitStatus", u.condition AS "unitCondition", u.accumulated_cost AS "unitCost", v.sku,
-               (SELECT x.value FROM device.imei_registry x WHERE x.device_unit_id = u.id ORDER BY x.kind, x.slot LIMIT 1) AS identifier,
+               (SELECT x.value FROM device.imei_registry x WHERE x.device_unit_id = u.id ORDER BY (x.status = 'active') DESC, x.kind, x.slot LIMIT 1) AS identifier,
                p.name_en || coalesce(' ' || nullif(v.colour_en, ''), '') || coalesce(' ' || v.storage_gb::text || 'GB', '') AS "descriptionEn",
                p.name_ar || coalesce(' ' || nullif(v.colour_ar, ''), '') || coalesce(' ' || v.storage_gb::text || 'GB', '') AS "descriptionAr"
           FROM refurb.refurb_order r JOIN device.device_unit u ON u.id = r.device_unit_id

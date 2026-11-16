@@ -31,7 +31,7 @@ public static class SetupEndpoints
     [
         ("journal", "JV"), ("sale_invoice", "INV"), ("credit_note", "CN"), ("repair_job", "R"),
         ("trade_in", "TI"), ("purchase_order", "PO"), ("goods_receipt", "GR"), ("customer_receipt", "RC"),
-        ("shift", "SH"), ("stock_adjustment", "ADJ"), ("stock_count", "CNT"), ("device_inspection", "INS"), ("refurb_order", "RF"),
+        ("shift", "SH"), ("stock_adjustment", "ADJ"), ("stock_count", "CNT"), ("device_inspection", "INS"), ("refurb_order", "RF"), ("device_count", "DC"),
     ];
 
     public static void Map(WebApplication app)

@@ -225,6 +225,49 @@ jobs:
           name: phase5-report
           path: phase5-report.json
 
+  phase6-exit-gate:
+    name: Phase 6 exit gate (IMEI uniqueness and verification points under concurrency, 20 tills, 10 branch servers)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet build Kite.slnx -c Release
+      - name: 20 receivers and 20 tills on one server; 10 branch servers and head office on overlapping IMEIs
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+          KITE_P6_TILLS: "20"
+          KITE_P6_BRANCHES: "10"
+          KITE_P6_ROUNDS: "8"
+          KITE_P6_UNITS: "8"
+          KITE_P6_REPORT: ${{ github.workspace }}/phase6-report.json
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~Phase6ExitGateTests" --logger "console;verbosity=detailed"
+      - name: Report
+        if: always()
+        run: |
+          test -f phase6-report.json && cat phase6-report.json
+          test -f phase6-report.json && python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          d = json.load(open('phase6-report.json'))
+          print('### Phase 6 exit gate\n')
+          print('| Measure | Value |\n| --- | ---: |')
+          for k, v in d.items(): print(f"| {k} | {v} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase6-report
+          path: phase6-report.json
+
   pocs-linux:
     name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)
     runs-on: ubuntu-latest

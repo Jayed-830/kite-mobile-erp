@@ -38,6 +38,7 @@ builder.Services.AddSingleton<PkiService>();
 builder.Services.AddSingleton<LicenceService>();
 builder.Services.AddSingleton<BranchLinkService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BranchLinkService>());
+builder.Services.AddSingleton<CentralClient>();
 builder.Services.AddSingleton<NextdabCheckinService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<NextdabCheckinService>());
 builder.Services.AddSingleton<BackupService>();
@@ -104,6 +105,8 @@ PosEndpoints.Map(app);
 ReceiptEndpoints.Map(app);
 EmergencyEndpoints.Map(app);
 DeviceEndpoints.Map(app);
+DeviceIdentity.Map(app);
+DeviceCounts.Map(app);
 RefurbishmentEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.

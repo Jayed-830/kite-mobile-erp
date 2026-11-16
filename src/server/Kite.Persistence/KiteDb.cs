@@ -84,6 +84,7 @@ public sealed class DbTx(NpgsqlConnection conn, NpgsqlTransaction tx, ActorConte
     public NpgsqlConnection Connection => conn;
     public NpgsqlTransaction Transaction => tx;
     public ActorContext Actor => actor;
+    public ServerContext Server => server;
     public CancellationToken Cancellation => ct;
     public IClock Clock => clock;
     public Guid NewId() => ids.NewId();

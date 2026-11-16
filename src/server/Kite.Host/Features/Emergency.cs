@@ -13,7 +13,9 @@ public sealed record EmergencyUploadRequest(List<EmergencyRecordInput> Records);
 
 public sealed record EmShiftOpen(Guid ShiftId, string Number, Guid CashierId, decimal OpeningFloat);
 public sealed record EmLine(Guid VariantId, decimal Qty, decimal UnitPrice, decimal ListPrice, decimal Discount, decimal Net, decimal Tax, decimal Gross,
-    decimal TaxRate, Guid TaxCodeId, string ProductType, string DescriptionEn, string DescriptionAr, int WarrantyDays = 0);
+    decimal TaxRate, Guid TaxCodeId, string ProductType, string DescriptionEn, string DescriptionAr, int WarrantyDays = 0, Guid? DeviceUnitId = null);
+public sealed record EmSubstitution(int Line, Guid DeviceUnitId);
+public sealed record EmSettleRequest(string Action, List<EmSubstitution>? Substitutions = null, string? Note = null);
 public sealed record EmPayment(string Method, decimal Amount, decimal? Tendered = null, string? CardTerminal = null, string? ApprovalCode = null, string? Reference = null);
 public sealed record EmSale(Guid SaleId, Guid ShiftId, Guid CashierId, string Number, List<EmLine> Lines, List<EmPayment> Payments, decimal CashRounding,
     Guid? CustomerId = null, string? Note = null);
@@ -42,12 +44,20 @@ public static class EmergencyEndpoints
                 var biz = await BusinessInfo.LoadAsync(t);
                 var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
                 var today = BusinessDay.Today(biz.TimeZone, t.Clock);
-                var items = await t.QueryAsync<PosItemDto>(CatalogEndpoints.PosItemSql("v.status = 'active' AND p.status = 'active' AND p.tracking = 'none'") + " ORDER BY v.sku",
+                var items = await t.QueryAsync<PosItemDto>(CatalogEndpoints.PosItemSql("v.status = 'active' AND p.status = 'active'") + " ORDER BY v.sku",
                     new { q = (string?)null, branchId = term.BranchId, warehouse = term.WarehouseId, d = today.ToDateTime(TimeOnly.MinValue) });
                 var barcodes = await t.RowsAsync("""
                     SELECT bc.code, bc.variant_id AS "variantId" FROM catalog.barcode bc JOIN catalog.variant v ON v.id = bc.variant_id
-                      JOIN catalog.product p ON p.id = v.product_id WHERE v.status = 'active' AND p.status = 'active' AND p.tracking = 'none'
+                      JOIN catalog.product p ON p.id = v.product_id WHERE v.status = 'active' AND p.status = 'active'
                     """);
+                // The branch's phones in stock (6.2): offline the till sells only these, by IMEI, each at its own price (Phase 6).
+                var settings = await DeviceUnits.SettingsAsync(t, biz.Id);
+                var unitRows = await t.QueryAsync<DeviceUnitRow>(DeviceUnits.Select + """
+                     WHERE u.branch_id = @branch AND u.warehouse_id = @warehouse AND u.status = 'in_stock' ORDER BY u.received_at
+                    """, new { branch = term.BranchId, warehouse = term.WarehouseId });
+                var units = new List<PosUnitDto>();
+                foreach (var u in unitRows.Where(u => !(settings.StrictCentralCheck && u.CentralState == "pending")))
+                    units.Add(await DeviceEndpoints.TillUnitAsync(t, u, term) with { ReservedUntil = null });
                 var users = await t.RowsAsync("""
                     SELECT u.id, u.username, u.display_name_en AS "displayNameEn", u.display_name_ar AS "displayNameAr", u.pin_hash AS "pinHash",
                            array_agg(DISTINCT rp.permission_code) AS permissions,
@@ -61,7 +71,7 @@ public static class EmergencyEndpoints
                 return new
                 {
                     generatedAt = t.Clock.UtcNow, businessDate = today, business = biz, terminal = new { term.Id, term.Code, term.BranchId, term.BranchCode, term.BranchNameEn, term.BranchNameAr },
-                    numberPrefix = $"EM-{term.BranchCode}-{term.Code}-", policy, items, barcodes, users,
+                    numberPrefix = $"EM-{term.BranchCode}-{term.Code}-", policy, items, barcodes, users, units,
                 };
             }, ct))).RequireSignedIn();
 
@@ -113,14 +123,69 @@ public static class EmergencyEndpoints
             return Results.Ok(new { results });
         }).RequireSignedIn();
 
-        g.MapGet("/records", async (string? result, HttpContext http, KiteDb db, CancellationToken ct) =>
+        g.MapGet("/records", async (string? result, bool? devices, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
                 SELECT e.id, t.code AS "terminalCode", b.code AS "branchCode", e.terminal_seq AS seq, e.kind, e.recorded_at AS "recordedAt", e.received_at AS "receivedAt",
-                       e.result, e.result_detail AS detail
+                       e.result, e.result_detail AS detail, e.payload ->> 'number' AS number,
+                       (SELECT coalesce(sum((x ->> 'gross')::numeric), 0) FROM jsonb_array_elements(coalesce(e.payload -> 'lines', '[]')) x) AS gross,
+                       (SELECT jsonb_agg(jsonb_build_object('line', o.n - 1, 'variantId', x ->> 'variantId', 'descriptionEn', x ->> 'descriptionEn', 'descriptionAr', x ->> 'descriptionAr',
+                                                            'deviceUnitId', x ->> 'deviceUnitId',
+                                                            'identifier', (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = (x ->> 'deviceUnitId')::uuid
+                                                                            ORDER BY (r.status = 'active') DESC, r.kind, r.slot LIMIT 1)))
+                          FROM jsonb_array_elements(coalesce(e.payload -> 'lines', '[]')) WITH ORDINALITY o(x, n) WHERE x ->> 'deviceUnitId' IS NOT NULL)::text AS "deviceLines",
+                       s.outcome AS "settledOutcome", s.settled_at AS "settledAt", su.display_name_en AS "settledBy", s.note AS "settledNote", sl.number AS "settledSaleNumber"
                   FROM sales.emergency_record e JOIN core.terminal t ON t.id = e.terminal_id JOIN core.branch b ON b.id = e.branch_id
-                 WHERE (@result::text IS NULL OR e.result = @result) ORDER BY e.received_at DESC, e.terminal_seq DESC LIMIT 500
-                """, new { result }), ct)))
+                  LEFT JOIN sales.emergency_settlement s ON s.record_id = e.id LEFT JOIN iam."user" su ON su.id = s.settled_by LEFT JOIN sales.sale sl ON sl.id = s.sale_id
+                 WHERE (@result::text IS NULL OR e.result = @result)
+                   AND (@devices::boolean IS NOT TRUE OR EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(e.payload -> 'lines', '[]')) x WHERE x ->> 'deviceUnitId' IS NOT NULL))
+                 ORDER BY e.received_at DESC, e.terminal_seq DESC LIMIT 500
+                """, new { result, devices }), ct)))
             .RequirePermission(Permissions.PosReportsView);
+
+        // A manager settles an emergency sale kept as a conflict (6.4): with the phone the customer took, or as not having happened.
+        g.MapPost("/records/{id:guid}/settle", async (Guid id, EmSettleRequest req, HttpContext http, KiteDb db, LicenceService licence, CancellationToken ct) =>
+        {
+            if (req.Action is not ("apply" or "dismiss")) throw new KiteException(ErrorCodes.Validation, "Settle by applying the sale with a phone, or dismissing it.", 400, "action");
+            if (req.Action == "dismiss" && string.IsNullOrWhiteSpace(req.Note)) throw new KiteException(ErrorCodes.Validation, "Say why the sale did not happen (for example: money given back).", 400, "note");
+            await licence.RequireTransactAsync(ct);
+            var result = await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
+            {
+                await t.ExecuteAsync("SELECT pg_advisory_xact_lock(hashtextextended(@k, 7))", new { k = id.ToString() });   // one settlement at a time
+                var rec = await t.QuerySingleOrDefaultAsync<(Guid Id, Guid BranchId, Guid TerminalId, string Kind, string Result, string Payload, DateTime RecordedAt)>("""
+                    SELECT id, branch_id, terminal_id, kind, result, payload::text, recorded_at FROM sales.emergency_record WHERE id = @id
+                    """, new { id });
+                if (rec.Id == Guid.Empty) throw new KiteException(ErrorCodes.NotFound, "That emergency record is not in your branches.", 404);
+                http.User.Demand(Permissions.DeviceConflicts, rec.BranchId);
+                if (rec.Kind != "sale" || rec.Result != "conflict") throw new KiteException(ErrorCodes.Conflict, "Only an emergency sale kept as a conflict is settled here.", 409);
+                if (await t.ExecuteScalarAsync<bool>("SELECT EXISTS (SELECT 1 FROM sales.emergency_settlement WHERE record_id = @id)", new { id }))
+                    throw new KiteException(ErrorCodes.Conflict, "This emergency sale was already settled.", 409);
+                var p = JsonSerializer.Deserialize<EmSale>(rec.Payload, Json.Web) ?? throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "The record has no sale.");
+                Guid? saleId = null;
+                if (req.Action == "apply")
+                {
+                    var subs = (req.Substitutions ?? []).ToDictionary(x => x.Line, x => x.DeviceUnitId);
+                    var biz = await BusinessInfo.LoadAsync(t);
+                    var term = await PosTerminals.ByIdAsync(t, rec.TerminalId);
+                    var at = new DateTimeOffset(DateTime.SpecifyKind(rec.RecordedAt, DateTimeKind.Utc));
+                    await ApplySaleAsync(t, biz, term, p, at, subs, settling: true);
+                    saleId = p.SaleId;
+                    // The emergency shift was closed without this sale: its cash was counted as over. Take that back now that the sale is written.
+                    var closed = await t.ExecuteScalarAsync<bool>("SELECT status = 'closed' FROM sales.shift WHERE id = @ShiftId", new { p.ShiftId });
+                    var cash = (p.Payments ?? []).Where(x => x.Method == "cash").Sum(x => x.Amount);
+                    if (closed && cash != 0)
+                        await Posting.PostAsync(t, biz.Id, rec.BranchId, PostingRuleTemplates.ShiftVariance, new PostingFacts().Set("variance", -cash),
+                            BusinessDay.Today(biz.TimeZone, t.Clock), "emergency_settlement", id, $"Emergency sale {p.Number} settled after its shift closed: the cash over at close was this sale");
+                }
+                await t.ExecuteAsync("""
+                    INSERT INTO sales.emergency_settlement (record_id, business_id, branch_id, outcome, sale_id, note, settled_by)
+                    VALUES (@id, (SELECT business_id FROM core.branch WHERE id = @BranchId), @BranchId, @outcome, @saleId, @note, @uid)
+                    """, new { id, rec.BranchId, outcome = req.Action == "apply" ? "applied" : "dismissed", saleId, note = req.Note?.Trim(), uid = http.User.UserIdOf() });
+                await t.AuditAsync(new AuditEntry("pos.emergency_settled", "emergency_record", id,
+                    After: Json.Obj(new { p.Number, req.Action, req.Substitutions, req.Note }), BranchId: rec.BranchId));
+                return new { recordId = id, outcome = req.Action == "apply" ? "applied" : "dismissed", saleId };
+            }, ct);
+            return Results.Ok(result);
+        }).RequirePermission(Permissions.DeviceConflicts).RequireModule("device");
     }
 
     private static void RequireEmergencyTerminal(PosTerminal term)
@@ -158,37 +223,7 @@ public static class EmergencyEndpoints
                 return null;
             }
             case "sale":
-            {
-                var p = Payload<EmSale>(r);
-                var shift = await EmergencyShiftAsync(t, term, p.ShiftId);
-                if (!p.Number.StartsWith("EM-", StringComparison.Ordinal)) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "Emergency numbers start with EM-.");
-                if (p.Lines is null || p.Lines.Count == 0) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "The sale has no lines.");
-                foreach (var l in p.Lines)
-                    if (l.Qty <= 0 || l.Net < 0 || l.Tax < 0 || l.Gross != l.Net + l.Tax || l.Discount < 0)
-                        throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A line of {p.Number} does not add up.");
-                var gross = p.Lines.Sum(l => l.Gross);
-                var tenders = (p.Payments ?? []).Select(x => new CheckedTender(x.Method, x.Amount, x.Tendered, x.Tendered is { } td ? td - x.Amount : null,
-                    x.CardTerminal ?? (x.Method == "card" ? "UNKNOWN" : null), x.ApprovalCode ?? (x.Method == "card" ? "EMERGENCY" : null), x.Reference)).ToArray();
-                if (tenders.Any(x => !PosMath.Methods.Contains(x.Method) || x.Amount <= 0))
-                    throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A payment of {p.Number} is not valid.");
-                if (tenders.Sum(x => x.Amount) != gross + p.CashRounding)
-                    throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"Payments of {p.Number} do not match its total.");
-                var lines = p.Lines.Select(l => new DraftLine(l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount,
-                    l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, null, l.WarrantyDays)).ToArray();
-                // The product type decides the accounts: take it from the catalog, not from the terminal.
-                var types = (await t.QueryAsync<(Guid Id, string Type, string Tracking)>("SELECT v.id, p.product_type, p.tracking FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = ANY(@ids)",
-                    new { ids = lines.Select(l => l.VariantId).ToArray() })).ToDictionary(x => x.Id);
-                // Phones are not sold offline until the central IMEI register (Phase 6, ADR 33): the snapshot leaves them out,
-                // and a phone line that still arrives is kept as a conflict, never written without its unit.
-                if (lines.FirstOrDefault(l => types.TryGetValue(l.VariantId, out var x) && x.Tracking != "none") is { } phone)
-                    throw new KiteException(ErrorCodes.DeviceUnitRequired, $"{phone.DescriptionEn} is sold by IMEI or serial number, which emergency mode cannot do.");
-                lines = lines.Select(l => types.TryGetValue(l.VariantId, out var ty) ? l with { ProductType = ty.Type }
-                    : throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "An item of the sale is not in the catalog.")).ToArray();
-                var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
-                var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(p.SaleId, shift.Id, shift.CashierId, p.CustomerId, "simplified_invoice",
-                    null, null, null, r.RecordedAt, lines, new CheckedPayments(tenders, p.CashRounding, gross + p.CashRounding), false, true, p.Number, p.Note));
-                return written.StockExceptions > 0 ? $"{written.StockExceptions} item(s) went below zero stock; see stock exceptions." : null;
-            }
+                return await ApplySaleAsync(t, biz, term, Payload<EmSale>(r), r.RecordedAt, null, false);
             case "cash_event":
             {
                 var p = Payload<EmCashEvent>(r);
@@ -235,7 +270,65 @@ public static class EmergencyEndpoints
         }
     }
 
-    private static async Task<ShiftRow> EmergencyShiftAsync(DbTx t, PosTerminal term, Guid shiftId)
+    /// <summary>
+    /// Writes an emergency sale as it happened offline. A phone line sells that very unit when it is still in stock here; when it
+    /// is not (sold elsewhere meanwhile, 6.4), the sale cannot be written without the device the customer has, so the record is
+    /// kept as a conflict for a manager, who settles it with the phone that was handed over (<paramref name="substitute"/>).
+    /// </summary>
+    private static async Task<string?> ApplySaleAsync(DbTx t, BusinessInfo biz, PosTerminal term, EmSale p, DateTimeOffset recordedAt,
+        IReadOnlyDictionary<int, Guid>? substitute, bool settling)
+    {
+        var shift = await EmergencyShiftAsync(t, term, p.ShiftId, allowClosed: settling);
+        if (!p.Number.StartsWith("EM-", StringComparison.Ordinal)) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "Emergency numbers start with EM-.");
+        if (p.Lines is null || p.Lines.Count == 0) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "The sale has no lines.");
+        foreach (var l in p.Lines)
+            if (l.Qty <= 0 || l.Net < 0 || l.Tax < 0 || l.Gross != l.Net + l.Tax || l.Discount < 0)
+                throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A line of {p.Number} does not add up.");
+        var gross = p.Lines.Sum(l => l.Gross);
+        var tenders = (p.Payments ?? []).Select(x => new CheckedTender(x.Method, x.Amount, x.Tendered, x.Tendered is { } td ? td - x.Amount : null,
+            x.CardTerminal ?? (x.Method == "card" ? "UNKNOWN" : null), x.ApprovalCode ?? (x.Method == "card" ? "EMERGENCY" : null), x.Reference)).ToArray();
+        if (tenders.Any(x => !PosMath.Methods.Contains(x.Method) || x.Amount <= 0))
+            throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A payment of {p.Number} is not valid.");
+        if (tenders.Sum(x => x.Amount) != gross + p.CashRounding)
+            throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"Payments of {p.Number} do not match its total.");
+        // The product type decides the accounts: take it from the catalog, not from the terminal.
+        var types = (await t.QueryAsync<(Guid Id, string Type, string Tracking)>("SELECT v.id, p.product_type, p.tracking FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = ANY(@ids)",
+            new { ids = p.Lines.Select(l => l.VariantId).ToArray() })).ToDictionary(x => x.Id);
+        var lines = new List<DraftLine>();
+        for (var i = 0; i < p.Lines.Count; i++)
+        {
+            var l = p.Lines[i];
+            if (!types.TryGetValue(l.VariantId, out var ty)) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "An item of the sale is not in the catalog.");
+            var unitId = substitute is not null && substitute.TryGetValue(i, out var sub) ? sub : l.DeviceUnitId;
+            string? condition = null;
+            if (ty.Tracking != "none")
+            {
+                if (unitId is not { } uid || l.Qty != 1)
+                    throw new KiteException(ErrorCodes.DeviceUnitRequired, $"{l.DescriptionEn} is sold by IMEI or serial number: the line must name the device.");
+                var u = await t.QuerySingleOrDefaultAsync<DeviceUnitRow>(DeviceUnits.Select + " WHERE u.id = @uid", new { uid })
+                    ?? throw new KiteException(ErrorCodes.DeviceNotFound, $"The phone on the line {l.DescriptionEn} is not a device of this branch.");
+                if (u.VariantId != l.VariantId || u.BranchId != term.BranchId)
+                    throw new KiteException(ErrorCodes.DeviceMismatch, $"{u.Identifier} is not a {l.DescriptionEn} of this branch.");
+                if (u.Status != "in_stock" || u.WarehouseId != term.WarehouseId)
+                {
+                    var where = u.SoldSaleId is { } sid ? $"sold on {await t.ExecuteScalarAsync<string>("SELECT number FROM sales.sale WHERE id = @sid", new { sid })}" : u.Status.Replace('_', ' ');
+                    throw new KiteException(ErrorCodes.DeviceNotAvailable, settling
+                        ? $"Phone {u.Identifier} is {where}: choose the phone the customer took, one still in stock here."
+                        : $"Phone {u.Identifier} was {where} before this emergency sale arrived, so the sale is kept for a manager to settle with the phone the customer took (Devices › IMEI conflicts).", 409);
+                }
+                condition = u.Condition;
+            }
+            else if (unitId is not null) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"{l.DescriptionEn} is not serialized.");
+            lines.Add(new DraftLine(l.VariantId, ty.Type, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount,
+                l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, null, l.WarrantyDays, DeviceUnitId: ty.Tracking != "none" ? unitId : null, Condition: condition));
+        }
+        var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
+        var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(p.SaleId, shift.Id, shift.CashierId, p.CustomerId, "simplified_invoice",
+            null, null, null, recordedAt, lines.ToArray(), new CheckedPayments(tenders, p.CashRounding, gross + p.CashRounding), false, true, p.Number, p.Note));
+        return written.StockExceptions > 0 ? $"{written.StockExceptions} item(s) went below zero stock; see stock exceptions." : null;
+    }
+
+    private static async Task<ShiftRow> EmergencyShiftAsync(DbTx t, PosTerminal term, Guid shiftId, bool allowClosed = false)
     {
         var s = await t.QuerySingleOrDefaultAsync<ShiftRow>("""
             SELECT id, branch_id AS BranchId, terminal_id AS TerminalId, cashier_id AS CashierId, number, status, is_emergency AS IsEmergency,
@@ -244,7 +337,7 @@ public static class EmergencyEndpoints
               FROM sales.shift WHERE id = @shiftId FOR UPDATE
             """, new { shiftId }) ?? throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "The emergency shift of this record was not uploaded first.");
         if (!s.IsEmergency || s.TerminalId != term.Id) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, "That shift is not an emergency shift of this terminal.");
-        if (s.Status != "open") throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"Emergency shift {s.Number} is already closed.");
+        if (s.Status != "open" && !allowClosed) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"Emergency shift {s.Number} is already closed.");
         return s;
     }
 }

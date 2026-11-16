@@ -167,6 +167,7 @@ public static class PostingRuleTemplates
     public const string StockAdjustment = "inv.adjustment";
     public const string RefurbCost = "refurb.cost";
     public const string DeviceReclass = "device.reclass";
+    public const string DeviceReceiptReversal = "device.receipt_reversal";
 
     /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
     public static string ClassOf(string productType, string? condition) =>
@@ -195,7 +196,7 @@ public static class PostingRuleTemplates
     /// </summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
         Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
-        Inventory.Where(x => x.Key != "device_used").ToDictionary()).Where(r => r.EventType is not (RefurbCost or DeviceReclass)).ToArray();
+        Inventory.Where(x => x.Key != "device_used").ToDictionary()).Where(r => r.EventType is not (RefurbCost or DeviceReclass or DeviceReceiptReversal)).ToArray();
 
     private static IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Build(IReadOnlyDictionary<string, string> revenue,
         IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory) =>
@@ -245,6 +246,12 @@ public static class PostingRuleTemplates
         (DeviceReclass, new("A device's condition changed from brand new: its cost moves to the used-device inventory", [
             new("debit", By("product_type", inventory), "to_by_product_type"),
             new("credit", By("product_type", inventory), "from_by_product_type"),
+        ])),
+        (DeviceReceiptReversal, new("A device received in error (an IMEI held by another unit): its receipt is reversed at its cost", [
+            new("debit", Code("3900"), "opening_by_product_type"),
+            new("credit", By("product_type", inventory), "opening_by_product_type"),
+            new("debit", Code("6700"), "gain_by_product_type"),
+            new("credit", By("product_type", inventory), "gain_by_product_type"),
         ])),
     ];
 }

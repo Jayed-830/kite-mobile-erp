@@ -10,7 +10,8 @@ namespace Kite.Host.Features;
 public sealed record DevicePriceRequest(decimal? SellingPrice, int? WarrantyDays, int Version);
 public sealed record DeviceReasonRequest(string Reason);
 public sealed record DeviceWriteOffRequest(string Reason, string? ReasonCode = null);
-public sealed record DeviceSettingsRequest(decimal LabourRatePerHour, int ReservationMinutes, int ParkedReservationMinutes, decimal SuggestedPriceStep, int Version);
+public sealed record DeviceSettingsRequest(decimal LabourRatePerHour, int ReservationMinutes, int ParkedReservationMinutes, decimal SuggestedPriceStep, int Version,
+    bool? StrictCentralCheck = null);
 public sealed record GradeRequest(string Code, string NameEn, string NameAr, decimal PricePercent, Guid? CategoryId = null, string? DescriptionEn = null,
     string? DescriptionAr = null, short? Sort = null, string? Status = null, int? Version = null);
 public sealed record ChecklistItemInput(string Code, string LabelEn, string LabelAr, string Kind, bool Required = true, int? MinPercent = null, string OnFail = "refurbish");
@@ -20,7 +21,7 @@ public sealed record ReserveRequest(Guid CartId);
 /// <summary>A unit as the till sees it: the item, its own price, condition and identifiers.</summary>
 public sealed record PosUnitDto(Guid UnitId, Guid VariantId, string Sku, string ProductType, string Tracking, string DescriptionEn, string DescriptionAr,
     decimal TaxRate, decimal? ListPrice, decimal? MinPrice, string Condition, string? GradeCode, string? Imei1, string? Imei2, string? Serial, int WarrantyDays,
-    DateTime? ReservedUntil);
+    DateTime? ReservedUntil, string? CentralState = null);
 
 /// <summary>Device units (blueprint 11, 12): stock, history, prices, holds, write-offs, grades, checklists, settings and the till's lookups.</summary>
 public static class DeviceEndpoints
@@ -38,7 +39,7 @@ public static class DeviceEndpoints
     {
         var g = app.MapGroup("/api/v1/devices");
 
-        g.MapGet("", async (string? status, string? condition, Guid? branchId, Guid? variantId, string? q, int? limit, HttpContext http, KiteDb db, CancellationToken ct) =>
+        g.MapGet("", async (string? status, string? condition, Guid? branchId, Guid? variantId, string? q, string? central, int? limit, HttpContext http, KiteDb db, CancellationToken ct) =>
         {
             http.User.Demand(Permissions.DeviceView, branchId);
             return Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
@@ -46,17 +47,19 @@ public static class DeviceEndpoints
                 var statuses = string.IsNullOrWhiteSpace(status) ? null : status.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 var rows = await t.QueryAsync<DeviceUnitRow>(DeviceUnits.Select + """
                      WHERE (@statuses::text[] IS NULL OR u.status = ANY(@statuses)) AND (@condition::text IS NULL OR u.condition = @condition)
+                       AND (@central::text IS NULL OR EXISTS (SELECT 1 FROM device.central_check c WHERE c.device_unit_id = u.id AND c.state = @central))
                        AND (@branchId::uuid IS NULL OR u.branch_id = @branchId) AND (@variantId::uuid IS NULL OR u.variant_id = @variantId)
                        AND (@q::text IS NULL OR upper(v.sku) LIKE '%' || upper(@q) || '%' OR p.name_en ILIKE '%' || @q || '%' OR p.name_ar ILIKE '%' || @q || '%'
                             OR EXISTS (SELECT 1 FROM device.imei_registry r WHERE r.device_unit_id = u.id AND r.value LIKE '%' || upper(@q) || '%'))
                      ORDER BY u.received_at DESC LIMIT @limit
-                    """, new { statuses, condition, branchId, variantId, q = string.IsNullOrWhiteSpace(q) ? null : q.Trim(), limit = Math.Clamp(limit ?? 200, 1, 2000) });
+                    """, new { statuses, condition, branchId, variantId, q = string.IsNullOrWhiteSpace(q) ? null : q.Trim(), central = central is "pending" or "verified" or "conflict" ? central : null,
+                               limit = Math.Clamp(limit ?? 200, 1, 2000) });
                 var today = DateTime.UtcNow.Date;
                 return rows.Select(u => new
                 {
                     u.Id, u.BranchCode, u.VariantId, u.Sku, u.DescriptionEn, u.DescriptionAr, u.ProductType, u.Status, u.HeldFromStatus, u.Condition,
                     u.GradeCode, u.GradeNameEn, u.GradeNameAr, u.AcquisitionCost, u.AccumulatedCost, u.SellingPrice, u.Imei1, u.Imei2, u.Serial, u.ReceivedAt,
-                    ageDays = (int)(today - u.ReceivedAt.Date).TotalDays, u.Version,
+                    ageDays = (int)(today - u.ReceivedAt.Date).TotalDays, u.Version, u.CentralState,
                 });
             }, ct));
         }).RequirePermission(Permissions.DeviceView).RequireModule("device");
@@ -93,7 +96,8 @@ public static class DeviceEndpoints
             return Results.NoContent();
         }).RequirePermission(Permissions.DevicePrice).RequireModule("device");
 
-        // A manager's hold (11.3): any unit still in the business; release returns it to where it was.
+        // A manager's hold (11.3): any unit still in the business. Release closes the manager's hold; a unit also on hold for an IMEI
+        // conflict or the blocked list stays on hold until that is settled (Phase 6).
         foreach (var (path, evt) in new[] { ("hold", "held"), ("release", "released") })
             g.MapPost($"/{{id:guid}}/{path}", async (Guid id, DeviceReasonRequest req, HttpContext http, KiteDb db, CancellationToken ct) =>
             {
@@ -102,7 +106,25 @@ public static class DeviceEndpoints
                 {
                     var u = await DeviceUnits.LoadAsync(t, id);
                     http.User.Demand(Permissions.DeviceHold, u.BranchId);
-                    await DeviceUnits.ApplyEventAsync(t, id, evt, evt == "held" ? "quarantined" : null, docType: "device_unit", docId: id, details: new { reason = req.Reason.Trim() });
+                    var holds = await UnitHolds.OpenAsync(t, id);
+                    if (evt == "held")
+                    {
+                        if (u.Status != "quarantined" && !DeviceUnits.InStockStatuses.Contains(u.Status))
+                            throw new KiteException(ErrorCodes.DeviceTransition, $"A {u.Status.Replace('_', ' ')} device cannot be put on hold.", 409);
+                        if (holds.Any(h => h.Reason == "manager")) throw new KiteException(ErrorCodes.DeviceOnHold, "A manager already put this device on hold.", 409);
+                        await UnitHolds.HoldAsync(t, id, "manager", null, null, req.Reason.Trim());
+                    }
+                    else
+                    {
+                        var other = holds.FirstOrDefault(h => h.Reason != "manager");
+                        if (other is not null)
+                            throw new KiteException(ErrorCodes.DeviceOnHold, $"This device stays on hold because {UnitHolds.Explain(other)}. It is released when that is settled.", 409);
+                        if (holds.Count == 0 && u.Status == "quarantined")
+                            await DeviceUnits.ApplyEventAsync(t, id, "released", null, docType: "device_unit", docId: id, details: new { reason = req.Reason.Trim() });
+                        else if (holds.Count == 0)
+                            throw new KiteException(ErrorCodes.DeviceTransition, "This device is not on hold.", 409);
+                        else await UnitHolds.ReleaseAsync(t, id, "manager", null, req.Reason.Trim());
+                    }
                     await t.AuditAsync(new AuditEntry($"device.{evt}", "device_unit", id, After: Json.Obj(new { reason = req.Reason.Trim(), from = u.Status }), BranchId: u.BranchId));
                     await t.PublishAsync($"device.{evt}", "device_unit", id, u.Version + 1, Json.Obj(new { reason = req.Reason.Trim() }), u.BranchId);
                 }, ct);
@@ -120,31 +142,39 @@ public static class DeviceEndpoints
             {
                 var u = await DeviceUnits.LoadAsync(t, id);
                 http.User.Demand(Permissions.DeviceWriteOff, u.BranchId);
-                if (u.Status is not ("in_stock" or "for_parts"))
-                    throw new KiteException(ErrorCodes.DeviceTransition, $"A device that is {u.Status.Replace('_', ' ')} cannot be written off.", 409);
-                var biz = await BusinessInfo.LoadAsync(t);
-                var date = BusinessDay.Today(biz.TimeZone, t.Clock);
-                var number = await DocNumbers.NextAsync(t, biz.Id, u.BranchId, "stock_adjustment", await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, date), "ADJ");
-                var docId = t.NewId();
-                var lineId = t.NewId();
-                await t.ExecuteAsync("""
-                    INSERT INTO inv.adjustment (id, business_id, branch_id, warehouse_id, number, kind, adjustment_date, note, posted_by, origin_server_id)
-                    VALUES (@docId, @b, @BranchId, @WarehouseId, @number, 'adjustment', @d::date, @note, @uid, (SELECT id FROM core.server WHERE is_self))
-                    """, new { docId, b = biz.Id, u.BranchId, u.WarehouseId, number, d = date.ToDateTime(TimeOnly.MinValue), note = $"Write-off {u.Identifier}: {req.Reason.Trim()}", uid = http.User.UserIdOf() });
-                var (_, value) = await DeviceUnits.MoveAsync(t, u, "adjustment", -1, null, "adjustment", docId, lineId, code);
-                await t.ExecuteAsync("""
-                    INSERT INTO inv.adjustment_line (id, adjustment_id, line_no, variant_id, qty, unit_cost, reason_code, device_unit_id)
-                    VALUES (@lineId, @docId, 1, @VariantId, -1, NULL, @code, @Id)
-                    """, new { lineId, docId, u.VariantId, code, u.Id });
-                await DeviceUnits.ApplyEventAsync(t, id, "written_off", "written_off", docType: "adjustment", docId: docId, details: new { reason = req.Reason.Trim() });
-                await Posting.PostAsync(t, biz.Id, u.BranchId, PostingRuleTemplates.StockAdjustment,
-                    new PostingFacts().Add("loss_by_product_type", u.PostingClass, -value), date, "stock_adjustment", docId, $"Device write-off {number} ({u.Identifier})");
-                await t.AuditAsync(new AuditEntry("device.written_off", "device_unit", id, After: Json.Obj(new { number, cost = -value, reason = req.Reason.Trim() }), BranchId: u.BranchId));
-                await t.PublishAsync("device.written_off", "device_unit", id, u.Version + 1, Json.Obj(new { number, cost = -value }), u.BranchId);
-                return new { id = docId, number, cost = -value };
+                return await WriteOffAsync(t, u, req.Reason.Trim(), code, http.User.UserIdOf());
             }, ct);
             return Results.Ok(result);
         }).RequirePermission(Permissions.DeviceWriteOff).RequireModule("device");
+    }
+
+    public sealed record WriteOffResult(Guid Id, string Number, decimal Cost);
+
+    /// <summary>Writes one unit off at its cost (a one-line stock adjustment, to stock write-offs): from in stock or set aside for parts.</summary>
+    public static async Task<WriteOffResult> WriteOffAsync(DbTx t, DeviceUnitRow u, string reason, string code, Guid userId)
+    {
+        if (u.Status is not ("in_stock" or "for_parts"))
+            throw new KiteException(ErrorCodes.DeviceTransition, $"A device that is {u.Status.Replace('_', ' ')} cannot be written off.", 409);
+        var biz = await BusinessInfo.LoadAsync(t);
+        var date = BusinessDay.Today(biz.TimeZone, t.Clock);
+        var number = await DocNumbers.NextAsync(t, biz.Id, u.BranchId, "stock_adjustment", await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, date), "ADJ");
+        var docId = t.NewId();
+        var lineId = t.NewId();
+        await t.ExecuteAsync("""
+            INSERT INTO inv.adjustment (id, business_id, branch_id, warehouse_id, number, kind, adjustment_date, note, posted_by, origin_server_id)
+            VALUES (@docId, @b, @BranchId, @WarehouseId, @number, 'adjustment', @d::date, @note, @userId, (SELECT id FROM core.server WHERE is_self))
+            """, new { docId, b = biz.Id, u.BranchId, u.WarehouseId, number, d = date.ToDateTime(TimeOnly.MinValue), note = $"Write-off {u.Identifier}: {reason}", userId });
+        var (_, value) = await DeviceUnits.MoveAsync(t, u, "adjustment", -1, null, "adjustment", docId, lineId, code);
+        await t.ExecuteAsync("""
+            INSERT INTO inv.adjustment_line (id, adjustment_id, line_no, variant_id, qty, unit_cost, reason_code, device_unit_id)
+            VALUES (@lineId, @docId, 1, @VariantId, -1, NULL, @code, @Id)
+            """, new { lineId, docId, u.VariantId, code, u.Id });
+        await DeviceUnits.ApplyEventAsync(t, u.Id, "written_off", "written_off", docType: "adjustment", docId: docId, details: new { reason });
+        await Posting.PostAsync(t, biz.Id, u.BranchId, PostingRuleTemplates.StockAdjustment,
+            new PostingFacts().Add("loss_by_product_type", u.PostingClass, -value), date, "stock_adjustment", docId, $"Device write-off {number} ({u.Identifier})");
+        await t.AuditAsync(new AuditEntry("device.written_off", "device_unit", u.Id, After: Json.Obj(new { number, cost = -value, reason }), BranchId: u.BranchId));
+        await t.PublishAsync("device.written_off", "device_unit", u.Id, u.Version + 1, Json.Obj(new { number, cost = -value }), u.BranchId);
+        return new WriteOffResult(docId, number, -value);
     }
 
     /// <summary>One unit's page (11.6): identity, cost build-up, price, history timeline, inspections, refurbishments and sales with profit.</summary>
@@ -186,6 +216,17 @@ public static class DeviceEndpoints
               FROM refurb.refurb_order r LEFT JOIN iam."user" tu ON tu.id = r.technician_id
              WHERE r.device_unit_id = @id ORDER BY r.opened_at
             """, new { id });
+        var holds = await t.RowsAsync("""
+            SELECT h.id, h.reason, h.conflict_id AS "conflictId", h.blocked_id AS "blockedId", h.note, h.held_at AS "heldAt", h.released_at AS "releasedAt",
+                   h.release_note AS "releaseNote"
+              FROM device.unit_hold h WHERE h.device_unit_id = @id ORDER BY h.held_at DESC
+            """, new { id });
+        var identifiers = await t.RowsAsync("""
+            SELECT r.kind, r.slot, r.value, r.entry, r.status, r.created_at AS "createdAt", r.retired_at AS "retiredAt", r.retired_reason AS "retiredReason"
+              FROM device.imei_registry r WHERE r.device_unit_id = @id ORDER BY r.status, r.kind, r.slot, r.created_at
+            """, new { id });
+        var central = await t.QuerySingleOrDefaultAsync<(string? State, DateTime? CheckedAt, int Attempts, string? LastError)>(
+            "SELECT state, checked_at, attempts, last_error FROM device.central_check WHERE device_unit_id = @id", new { id });
         var sales = await t.RowsAsync("""
             SELECT s.id AS "saleId", s.number, s.doc_type AS "docType", s.credit_reason AS "creditReason", s.completed_at AS "completedAt", l.net_amount AS "net",
                    l.tax_amount AS "tax", l.gross_amount AS "gross", l.cost_value AS "cost", CASE WHEN s.doc_type = 'credit_note' THEN NULL ELSE l.profit END AS "profit",
@@ -208,7 +249,8 @@ public static class DeviceEndpoints
                 suggested = DeviceMath.SuggestedPrice(newPrice, u.GradePercent, settings.SuggestedPriceStep),
                 listPrice = DeviceMath.UnitListPrice(u.SellingPrice, u.Condition, newPrice, u.GradePercent, settings.SuggestedPriceStep),
             },
-            events, inspections, refurbishments = refurbs, sales,
+            events, inspections, refurbishments = refurbs, sales, holds, identifiers,
+            central = new { state = central.State ?? "pending", checkedAt = central.CheckedAt, attempts = central.Attempts, lastError = central.LastError },
         };
     }
 
@@ -234,14 +276,15 @@ public static class DeviceEndpoints
                 var before = await DeviceUnits.SettingsAsync(t, server.BusinessId!.Value);
                 var n = await t.ExecuteAsync("""
                     UPDATE device.settings SET labour_rate_per_hour = @LabourRatePerHour, reservation_minutes = @ReservationMinutes,
-                           parked_reservation_minutes = @ParkedReservationMinutes, suggested_price_step = @SuggestedPriceStep, updated_by = @uid
+                           parked_reservation_minutes = @ParkedReservationMinutes, suggested_price_step = @SuggestedPriceStep,
+                           strict_central_check = coalesce(@StrictCentralCheck, strict_central_check), updated_by = @uid
                      WHERE business_id = @b AND version = @Version
-                    """, new { req.LabourRatePerHour, req.ReservationMinutes, req.ParkedReservationMinutes, req.SuggestedPriceStep, uid = http.User.UserIdOf(), b = server.BusinessId, req.Version });
+                    """, new { req.LabourRatePerHour, req.ReservationMinutes, req.ParkedReservationMinutes, req.SuggestedPriceStep, req.StrictCentralCheck, uid = http.User.UserIdOf(), b = server.BusinessId, req.Version });
                 if (n == 0) throw new KiteException(ErrorCodes.VersionMismatch, "Someone else changed the device settings. Reload and try again.", 412);
                 await t.AuditAsync(new AuditEntry("device.settings_changed", "device_settings", server.BusinessId!.Value, Before: Json.Obj(before), After: Json.Obj(req)));
             }, ct);
             return Results.NoContent();
-        }).RequirePermission(Permissions.DeviceSettings).RequireModule("refurb");
+        }).RequirePermission(Permissions.DeviceSettings).RequireModule("device");
 
         g.MapGet("/grades", async (HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
@@ -412,7 +455,8 @@ public static class DeviceEndpoints
         var g = app.MapGroup("/api/v1/pos/units");
 
         // A scanned IMEI or serial at the till: the unit must be in stock at this branch and not in another cart.
-        g.MapGet("/code/{code}", async (string code, HttpContext http, KiteDb db, CancellationToken ct) =>
+        // With variantId (the cashier chose a model first), a device of another model is refused (11.5).
+        g.MapGet("/code/{code}", async (string code, Guid? variantId, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
             {
                 var term = await PosTerminals.CurrentAsync(t, http);
@@ -420,7 +464,12 @@ public static class DeviceEndpoints
                 var scanned = DeviceUnits.Classify(code);
                 var u = await DeviceUnits.FindAsync(t, scanned)
                     ?? throw new KiteException(ErrorCodes.DeviceNotFound, $"No device with {(scanned.Kind == "imei" ? "IMEI" : "serial number")} {scanned.Value} in this business.", 404);
-                CheckSellable(u, term);
+                if (variantId is { } chosen && chosen != u.VariantId)
+                {
+                    var want = await t.ExecuteScalarAsync<string>($"SELECT {ItemPricing.DescriptionEn} FROM catalog.variant v JOIN catalog.product p ON p.id = v.product_id WHERE v.id = @chosen", new { chosen });
+                    throw new KiteException(ErrorCodes.DeviceWrongModel, $"{u.Identifier} is a {u.DescriptionEn}, not the {want} you chose. Check the device in your hand.", 409);
+                }
+                await CheckSellableAsync(t, u, term);
                 return await TillUnitAsync(t, u, term);
             }, ct))).RequireSignedIn().RequireModule("device");
 
@@ -446,7 +495,7 @@ public static class DeviceEndpoints
                 var term = await PosTerminals.CurrentAsync(t, http);
                 http.User.Demand(Permissions.PosSell, term.BranchId);
                 var u = await DeviceUnits.LoadAsync(t, id);
-                CheckSellable(u, term);
+                await CheckSellableAsync(t, u, term);
                 var settings = await DeviceUnits.SettingsAsync(t, server.BusinessId!.Value);
                 var until = await ReserveAsync(t, server.BusinessId!.Value, u, term, req.CartId, http.User.UserIdOf(), settings.ReservationMinutes);
                 return new { unitId = id, reservedUntil = until };
@@ -481,7 +530,18 @@ public static class DeviceEndpoints
         throw new KiteException(ErrorCodes.DeviceReserved, $"{u.Identifier} is in a cart at till {holder.Code} until {holder.Until:HH:mm} UTC.", 409);
     }
 
-    /// <summary>A unit the till may sell: in stock, in this branch's shop warehouse.</summary>
+    /// <summary>
+    /// A unit the till may sell: in stock, in this branch's shop warehouse, and (with the strict setting) confirmed by head office
+    /// when it was received while head office was unreachable (11.4).
+    /// </summary>
+    public static async Task CheckSellableAsync(DbTx t, DeviceUnitRow u, PosTerminal term)
+    {
+        CheckSellable(u, term);
+        if (u.CentralState == "pending" && (await DeviceUnits.SettingsAsync(t, u.BusinessId)).StrictCentralCheck)
+            throw new KiteException(ErrorCodes.CentralCheckPending,
+                $"{u.Identifier} was received while head office could not be reached and is waiting for head office to confirm its IMEI. It can be sold once confirmed.", 409);
+    }
+
     public static void CheckSellable(DeviceUnitRow u, PosTerminal term)
     {
         if (u.BranchId != term.BranchId)
@@ -499,7 +559,7 @@ public static class DeviceEndpoints
         var item = await PricedItemAsync(t, biz, u, term.BranchId, BusinessDay.Today(biz.TimeZone, t.Clock));
         var reserved = await t.ExecuteScalarAsync<DateTime?>("SELECT expires_at FROM device.reservation WHERE device_unit_id = @id AND expires_at > now()", new { id = u.Id });
         return new PosUnitDto(u.Id, u.VariantId, u.Sku, u.ProductType, u.Tracking, item.DescriptionEn, item.DescriptionAr, item.TaxRate, item.ListPrice, item.MinPrice,
-            u.Condition, u.GradeCode, u.Imei1, u.Imei2, u.Serial, item.WarrantyDays, reserved);
+            u.Condition, u.GradeCode, u.Imei1, u.Imei2, u.Serial, item.WarrantyDays, reserved, u.CentralState);
     }
 
     /// <summary>
@@ -548,7 +608,7 @@ public static class DeviceEndpoints
             http.User.Demand(Permissions.DeviceView, branchId);
             return Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
                 SELECT s.number, s.sale_date AS "saleDate", l.device_unit_id AS "unitId", l.description_en AS "descriptionEn",
-                       (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = l.device_unit_id ORDER BY r.kind, r.slot LIMIT 1) AS identifier,
+                       (SELECT r.value FROM device.imei_registry r WHERE r.device_unit_id = l.device_unit_id ORDER BY (r.status = 'active') DESC, r.kind, r.slot LIMIT 1) AS identifier,
                        l.net_amount AS net, l.cost_value AS cost, l.profit,
                        (SELECT coalesce(sum(x.qty), 0) FROM sales.sale_line x WHERE x.returned_line_id = l.id) AS returned
                   FROM sales.sale_line l JOIN sales.sale s ON s.id = l.sale_id

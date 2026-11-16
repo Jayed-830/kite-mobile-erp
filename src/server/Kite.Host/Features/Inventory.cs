@@ -57,7 +57,7 @@ public static class InventoryEndpoints
                 """, new { variantId, branchId, limit = Math.Clamp(limit ?? 200, 1, 2000) }), ct));
         }).RequirePermission(Permissions.InvView);
 
-        g.MapPost("/adjustments", async (AdjustmentRequest req, HttpContext http, KiteDb db, ServerContext server, LicenceService licence, CancellationToken ct) =>
+        g.MapPost("/adjustments", async (AdjustmentRequest req, HttpContext http, KiteDb db, ServerContext server, LicenceService licence, CentralClient central, CancellationToken ct) =>
         {
             http.User.Demand(Permissions.InvAdjust, req.BranchId);
             await licence.RequireTransactAsync(ct);
@@ -74,6 +74,15 @@ public static class InventoryEndpoints
                     throw new KiteException(ErrorCodes.Validation, "Opening stock lines need a positive quantity, a unit cost and the reason opening.", 400, $"lines[{i}]");
                 if (req.Kind == "adjustment" && l.ReasonCode == "opening") throw new KiteException(ErrorCodes.Validation, "Use an opening-stock document for opening stock.", 400, $"lines[{i}].reasonCode");
                 if (l.Qty < 0 && l.UnitCost is not null) throw new KiteException(ErrorCodes.Validation, "Stock going out leaves at the average cost; leave the cost empty.", 400, $"lines[{i}].unitCost");
+            }
+            // A branch server asks head office first while it can reach it (11.4): an IMEI held anywhere blocks the receipt.
+            var offline = false;
+            if (central.IsBranch && req.Lines.Any(l => l.Units is { Count: > 0 }))
+            {
+                var ids = await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => DeviceIdentity.IdentifiersOfAsync(t, req.Lines), ct);
+                var answer = await central.CheckAsync(ids, null, ct);
+                if (answer is null) offline = true;
+                else DeviceIdentity.RefuseHeld(answer);
             }
             var result = await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>
             {
@@ -94,6 +103,9 @@ public static class InventoryEndpoints
                 var facts = new PostingFacts();
                 short no = 0;
                 var units = 0;
+                var unitIds = new List<Guid>();
+                // Every identifier of the document locked up front, in one order, so concurrent receipts never deadlock.
+                await CentralRegistry.LockAsync(t, (await DeviceIdentity.IdentifiersOfAsync(t, req.Lines)).Select(CentralRegistry.Key.Of));
                 foreach (var (l, li) in req.Lines.Select((l, i) => (l, i)).OrderBy(x => x.l.VariantId))
                 {
                     if (!items.TryGetValue(l.VariantId, out var item)) throw new KiteException(ErrorCodes.Validation, "An item is not in the catalog.", 400, "lines");
@@ -120,6 +132,7 @@ public static class InventoryEndpoints
                                 """, new { unitLineId, id, no = ++no, l.VariantId, u.UnitCost, l.ReasonCode, unitId });
                             facts.Add(req.Kind == "opening" ? "opening_by_product_type" : "gain_by_product_type", cls, unitValue);
                             units++;
+                            unitIds.Add(unitId);
                         }
                         continue;
                     }
@@ -137,9 +150,17 @@ public static class InventoryEndpoints
                     $"{(req.Kind == "opening" ? "Opening stock" : "Stock adjustment")} {number}");
                 await t.AuditAsync(new AuditEntry("inv.adjustment_posted", "stock_adjustment", id, After: Json.Obj(new { number, req.Kind, lines = req.Lines.Count, units, req.Note }), BranchId: req.BranchId));
                 await t.PublishAsync("inv.adjustment_posted", "stock_adjustment", id, 1, Json.Obj(new { number, req.Kind, req.Lines }), req.BranchId);
-                return new { id, number };
+                return new { id, number, unitIds };
             }, ct);
-            return Results.Created($"/api/v1/inventory/adjustments/{result.id}", result);
+            // Units received here go to head office at once; if it cannot be reached they stay "head office check pending".
+            if (central.IsBranch && result.unitIds.Count > 0 && !offline)
+            {
+                try { await central.PushAsync(result.unitIds, ct); }
+                catch (Exception e) when (e is not OperationCanceledException) { http.RequestServices.GetRequiredService<ILogger<CentralClient>>().LogWarning("Device push failed: {Error}", e.Message); }
+            }
+            var pending = result.unitIds.Count == 0 ? 0 : await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.ExecuteScalarAsync<int>(
+                "SELECT count(*)::int FROM device.central_check WHERE device_unit_id = ANY(@ids) AND state <> 'verified'", new { ids = result.unitIds.ToArray() }), ct);
+            return Results.Created($"/api/v1/inventory/adjustments/{result.id}", new { result.id, result.number, units = result.unitIds.Count, centralPending = pending });
         }).RequirePermission(Permissions.InvAdjust);
 
         g.MapGet("/adjustments", async (Guid? branchId, HttpContext http, KiteDb db, CancellationToken ct) =>

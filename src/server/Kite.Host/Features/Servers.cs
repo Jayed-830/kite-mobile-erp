@@ -30,8 +30,10 @@ public static class AppInfo
 public sealed record RegisterBranchRequest(string Token, string CsrPem, string ServerName, string AppVersion, int SchemaVersion);
 public sealed record RegisterBranchResponse(Guid ServerId, Guid BranchId, Guid BusinessId, Guid MainServerId, string CertPem, string CaPem, JsonObject Snapshot);
 public sealed record HeartbeatRequest(string AppVersion, int SchemaVersion, DateTimeOffset Time, long OutboxLastSeq, long OutboxPending,
-    DateTimeOffset? LastBackupOkAt, string? BackupStatus, string? LicenceId, long CrlNumber, long SuspendSeq, long ModulesSeq);
-public sealed record HeartbeatResponse(DateTimeOffset ServerTime, string? LicenceFile, JsonArray Control, long CrlNumber, string? CrlPem);
+    DateTimeOffset? LastBackupOkAt, string? BackupStatus, string? LicenceId, long CrlNumber, long SuspendSeq, long ModulesSeq,
+    long ImeiInstructionSeq = 0, long BlockedSeq = 0);
+public sealed record HeartbeatResponse(DateTimeOffset ServerTime, string? LicenceFile, JsonArray Control, long CrlNumber, string? CrlPem,
+    List<CentralInstructionDto>? ImeiInstructions = null, List<BlockedDto>? Blocked = null);
 public sealed record CaInfo(string CaPem, string FingerprintCode, string Fingerprint, string BusinessName, Guid MainServerId);
 
 public sealed record CreateBranchRequest(string Code, string NameEn, string NameAr, string? AddressEn, string? AddressAr, string? Phone);
@@ -356,7 +358,7 @@ public static class BranchSnapshot
 /// 30 seconds over mutual TLS and receives the licence, Nextdab control commands and the revocation list.
 /// </summary>
 public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore keys, KiteOptions opts, IClock clock,
-    LicenceService licence, ISecretProtector secrets, ILogger<BranchLinkService> log) : BackgroundService
+    LicenceService licence, ISecretProtector secrets, IServiceProvider services, ILogger<BranchLinkService> log) : BackgroundService
 {
     private const string ClientKeyFile = "branch-client.key", ClientPurpose = "branch-client";
     public DateTimeOffset? LastOkAt { get; private set; }
@@ -491,6 +493,32 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
         }
     }
 
+    /// <summary>
+    /// An HTTP client to head office's sync port with this branch's certificate, head office pinned by its CA and server id;
+    /// null when this server is not registered (or not a branch server).
+    /// </summary>
+    public async Task<(HttpClient Http, string SyncUrl)?> MainClientAsync(TimeSpan timeout, CancellationToken ct)
+    {
+        if (server.Role != "branch" || Revoked) return null;
+        var link = await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.QuerySingleOrDefaultAsync<LinkRow>("""
+            SELECT s.sync_url AS SyncUrl, a.cert_pem AS CaPem, m.id AS MainServerId
+              FROM core.server s CROSS JOIN pki.authority a CROSS JOIN core.server m
+             WHERE s.is_self AND a.status = 'active' AND m.role IN ('combined','main')
+            """), ct);
+        if (link?.SyncUrl is null || link.CaPem is null) return null;
+        MainUrl = link.SyncUrl;
+        var key = keys.TryLoad(ClientKeyFile, ClientPurpose);
+        if (key is null) return null;
+        var certPem = await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.ExecuteScalarAsync<string>(
+            "SELECT cert_pem FROM pki.certificate WHERE server_id = @s AND kind = 'branch_server' ORDER BY issued_at DESC LIMIT 1", new { s = server.ServerId }), ct);
+        var http = PinnedClient(BusinessCa.FromPem(link.CaPem), link.MainServerId, BusinessCa.FromPemAndKey(certPem, key));
+        http.Timeout = timeout;
+        return (http, link.SyncUrl);
+    }
+
+    /// <summary>True when head office answered recently, or when nothing has failed yet: worth asking online before a receipt.</summary>
+    public bool HeadOfficeLikelyReachable => LastError is null || (LastOkAt is { } ok && clock.UtcNow - ok < TimeSpan.FromSeconds(Math.Max(15, opts.Sync.HeartbeatSeconds) * 3));
+
     public async Task HeartbeatOnceAsync(CancellationToken ct)
     {
         var link = await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.QuerySingleOrDefaultAsync<LinkRow>("""
@@ -505,6 +533,11 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
             "SELECT cert_pem FROM pki.certificate WHERE server_id = @s AND kind = 'branch_server' ORDER BY issued_at DESC LIMIT 1", new { s = server.ServerId }), ct);
         var cert = BusinessCa.FromPemAndKey(certPem, key);
         var ca = BusinessCa.FromPem(link.CaPem);
+        // Devices first (11.4): units received while head office was away, and status changes, go up before the heartbeat.
+        var central = services.GetRequiredService<CentralClient>();
+        try { await central.PushAsync(null, ct); }
+        catch (Exception e) when (e is not OperationCanceledException) { log.LogWarning("Pushing devices to head office failed: {Error}", e.Message); }
+        var (imeiSeq, blockedSeq) = await central.SeqsAsync(ct);
 
         var state = await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.QuerySingleOrDefaultAsync<(long LastSeq, long Pending, string? LicenceId, long Crl, long SuspendSeq, long ModulesSeq)>("""
             SELECT (SELECT coalesce(max(origin_seq), 0) FROM sync.outbox WHERE origin_server_id = @s),
@@ -521,7 +554,7 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
         using var http = PinnedClient(ca, link.MainServerId, cert);
         var res = await http.PostAsJsonAsync(link.SyncUrl + "/sync/v1/heartbeat", new HeartbeatRequest(AppInfo.Version, schema, clock.UtcNow,
             state.LastSeq, state.Pending, backup.At is null ? null : new DateTimeOffset(DateTime.SpecifyKind(backup.At.Value, DateTimeKind.Utc)), backup.Status,
-            state.LicenceId, state.Crl, state.SuspendSeq, state.ModulesSeq), ct);
+            state.LicenceId, state.Crl, state.SuspendSeq, state.ModulesSeq, imeiSeq, blockedSeq), ct);
         if (res.StatusCode == HttpStatusCode.Forbidden)
         {
             var p = await res.Content.ReadFromJsonAsync<JsonObject>(ct);
@@ -540,6 +573,7 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
         res.EnsureSuccessStatusCode();
         var hb = await res.Content.ReadFromJsonAsync<HeartbeatResponse>(ct) ?? throw new InvalidOperationException("Empty heartbeat answer.");
         if (hb.LicenceFile is not null) await licence.ImportAsync(hb.LicenceFile, "head_office", ActorContext.System, ct);
+        await central.ApplyFromHeadOfficeAsync(hb.ImeiInstructions ?? [], hb.Blocked ?? [], ct);
         foreach (var c in hb.Control.OfType<JsonObject>()) await licence.ApplyControlFromHeadOfficeAsync(c, ct);
         if (hb.CrlPem is not null && hb.CrlNumber > state.Crl)
             await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.ExecuteAsync("""
@@ -596,10 +630,13 @@ public static class ServerEndpoints
                     """);
             }, ct);
             var control = await licence.ControlCommandsForBranchAsync(req.SuspendSeq, req.ModulesSeq, ct);
+            var (instructions, blocked) = await db.InTransactionAsync(AccessScope.System, ActorContext.System, async t =>
+                (await CentralSync.InstructionsForAsync(t, who.ServerId, req.ImeiInstructionSeq), await CentralSync.BlockedSinceAsync(t, req.BlockedSeq)), ct);
             return Results.Ok(new HeartbeatResponse(DateTimeOffset.UtcNow,
                 info.LicenceId is not null && info.LicenceId != req.LicenceId ? info.LicenceFile : null,
-                control, info.Crl, info.Crl > req.CrlNumber ? info.CrlPem : null));
+                control, info.Crl, info.Crl > req.CrlNumber ? info.CrlPem : null, instructions, blocked));
         }).AllowEveryone(); // authenticated by the client certificate, not a session
+        CentralSync.Map(sync);   // devices: online IMEI check, registration of units, look-up (Phase 6)
 
         // ---- branch setup: join an existing business ----
         app.MapPost("/api/v1/setup/join/inspect", async (JoinInspectRequest req, ServerContext server, SetupCodeStore codes, BranchLinkService link, CancellationToken ct) =>

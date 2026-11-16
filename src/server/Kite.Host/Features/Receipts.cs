@@ -199,7 +199,7 @@ public static class ReceiptEndpoints
             SELECT l.description_en AS DescriptionEn, l.description_ar AS DescriptionAr, l.qty, l.unit_price AS UnitPrice, l.discount_amount AS Discount,
                    l.net_amount AS Net, l.tax_amount AS Tax, l.gross_amount AS Gross, l.tax_rate AS TaxRate,
                    (SELECT CASE r.kind WHEN 'serial' THEN 'S/N ' ELSE 'IMEI ' END || r.value FROM device.imei_registry r
-                     WHERE r.device_unit_id = l.device_unit_id ORDER BY r.kind, r.slot LIMIT 1) AS Serial,
+                     WHERE r.device_unit_id = l.device_unit_id ORDER BY (r.status = 'active') DESC, r.kind, r.slot LIMIT 1) AS Serial,
                    CASE WHEN l.device_unit_id IS NOT NULL THEN l.warranty_until END AS WarrantyUntil
               FROM sales.sale_line l WHERE l.sale_id = @id ORDER BY l.line_no
             """, new { id })).ToArray();

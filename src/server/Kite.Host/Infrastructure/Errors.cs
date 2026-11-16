@@ -51,6 +51,12 @@ public static class ErrorHandling
             "23505" when pg.ConstraintName == "barcode_business_id_code_key" => (409, ErrorCodes.Conflict, "That barcode is already on another item.", "barcode"),
             "23505" when pg.ConstraintName == "imei_registry_imei" => (409, ErrorCodes.DeviceIdentifierTaken, "That IMEI already belongs to another device.", "imei"),
             "23505" when pg.ConstraintName == "imei_registry_serial" => (409, ErrorCodes.DeviceIdentifierTaken, "That serial number already belongs to another device of this brand.", "serial"),
+            "23505" when pg.ConstraintName is "central_registry_active_imei" or "central_registry_active_serial" =>
+                (409, ErrorCodes.DeviceIdentifierTaken, "That IMEI or serial number was just registered for another device at head office.", "imei"),
+            "23505" when pg.ConstraintName == "imei_registry_slot" => (409, ErrorCodes.DeviceIdentifierTaken, "That device already has an identifier in that place.", null),
+            "23505" when pg.ConstraintName == "blocked_imei_active" => (409, ErrorCodes.Conflict, "That IMEI is already on the blocked list.", "value"),
+            "23505" when pg.ConstraintName == "unit_count_one_open" => (409, ErrorCodes.DeviceCountState, "A count of these devices is already open in this branch. Finish or cancel it first.", null),
+            "23505" when pg.ConstraintName == "unit_count_scan_count_id_value_key" => (409, ErrorCodes.DeviceCountState, "That device is already scanned in this count.", "code"),
             "23505" when pg.ConstraintName == "refurb_order_one_open" => (409, ErrorCodes.RefurbOrderState, "This device already has an open refurbishment order.", null),
             "23505" => (409, ErrorCodes.Conflict, "That value is already in use.", pg.ConstraintName),
             "40P01" or "40001" => (409, ErrorCodes.Conflict, "The server was busy with the same records. Try again.", null),

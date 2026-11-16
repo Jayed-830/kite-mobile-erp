@@ -650,7 +650,7 @@ public static class PosEndpoints
                 if (units.ContainsKey(unitId)) throw new KiteException(ErrorCodes.Validation, "The same device is in the cart twice.", 400, $"lines[{i}].deviceUnitId");
                 var u = await DeviceUnits.LoadAsync(t, unitId);
                 if (u.VariantId != l.VariantId) throw new KiteException(ErrorCodes.DeviceMismatch, $"{u.Identifier} is a {u.Sku}, not the item on this line.", 400, $"lines[{i}].deviceUnitId");
-                DeviceEndpoints.CheckSellable(u, term);
+                await DeviceEndpoints.CheckSellableAsync(t, u, term);
                 units[unitId] = u;
                 item = await DeviceEndpoints.PricedItemAsync(t, biz, u, term.BranchId, date);
             }
@@ -898,7 +898,7 @@ public static class PosEndpoints
         if (!http.User.HasIn(Permissions.PosSell, s.BranchId)) http.User.Demand(Permissions.PosReportsView, s.BranchId);
         var lines = (await t.QueryAsync<OriginalLine>(OriginalLinesSql, new { id })).ToArray();
         var identifiers = (await t.QueryAsync<(Guid Unit, string Value)>("""
-            SELECT DISTINCT ON (device_unit_id) device_unit_id, value FROM device.imei_registry WHERE device_unit_id = ANY(@ids) ORDER BY device_unit_id, kind, slot
+            SELECT DISTINCT ON (device_unit_id) device_unit_id, value FROM device.imei_registry WHERE device_unit_id = ANY(@ids) ORDER BY device_unit_id, (status = 'active') DESC, kind, slot
             """, new { ids = lines.Where(l => l.DeviceUnitId is not null).Select(l => l.DeviceUnitId!.Value).ToArray() })).ToDictionary(x => x.Unit, x => x.Value);
         var payments = await t.RowsAsync("""
             SELECT method, amount, tendered, change_given AS "changeGiven", card_terminal AS "cardTerminal", approval_code AS "approvalCode", reference
