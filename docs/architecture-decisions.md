@@ -103,10 +103,53 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Decision.** The typed API client (`@kite/api`) is still written by hand for the Phase 3 endpoints; generating it from the server's OpenAPI document moves to Phase 4.
 **Why.** Phase 3 added 18 endpoints; minimal-API OpenAPI generation needs response types on every endpoint to be useful, and Phase 4 starts the business modules (the Phase 2 report lists stock, sales and repairs), which grows the API several times over. Doing it once then, with a CI check that the generated client is current, costs less than doing it twice.
 **Cost.** Until then a server change can drift from the client unnoticed by the compiler; the web tests and the end-to-end runs against real servers catch it.
+**Revised in Phase 4.** Still hand-written. The POS endpoints carry many request shapes whose rules (money as strings of baisa, approvals, idempotency keys) are clearer typed by hand, and the generated client would still need wrappers. Drift is caught instead by `ApiContractTests`: it reads every path the client calls and fails if the server has no route for that method and path. Generation is revisited when a third-party integrator needs the OpenAPI document (Phase 12).
 
 ## ADR 19: Backups with the PostgreSQL tools, encrypted, and proven by restoring them
 
 **Decision.** The backup agent runs inside the server: nightly `pg_dump -Fc` (logical) and `pg_basebackup` checked with `pg_verifybackup` (base, for point-in-time recovery with WAL archiving), each encrypted with AES-256-GCM in 1 MiB chunks (`KITEBAK1` format, the last chunk flagged so truncation is detected) under a backup key whose printed recovery key is shown once after the password. Retention: daily 30 days, weekly 12, monthly 12, yearly 10 years; base backups 7 days. Every week the newest backup is restored into a scratch database and checked: journals balanced, outbox sequence gap-free, audit chain intact. `Kite.Host backup-decrypt` opens a backup on any PC with the recovery key.
 **Why.** A backup that has never been restored is a hope, not a backup (blueprint 19).
 **Cost.** The `kite_backup` role needs BYPASSRLS, REPLICATION and CREATEDB; it has no write grant on KITE's tables.
+
+## ADR 20: Posting rules are data, and every business document posts in the same transaction
+
+**Decision.** How a sale, credit note, shift variance, cash pay-out or stock adjustment becomes a journal is a row in `acct.posting_rule` (event, line, account code, debit or credit, amount key), seeded with seven default rules and changeable per business without a release. `PostingEngine.Build` turns the facts of a document into balanced lines and refuses an unbalanced result; the journal is written in the same database transaction as the document, its stock movements and its audit row. A sale posts two journals (revenue, VAT, tenders and cash rounding; then cost of sales against inventory at moving average). A document dated in a closed period posts to the first open one.
+**Why.** Blueprint 11: accountants change mappings, and a ledger that can disagree with sales for even a moment is wrong.
+**Cost.** A bad rule change could misroute postings; rules can only be edited with `ACCT.POSTING_RULES` and every change is audited.
+
+## ADR 21: One lock order for sales, returns, voids and counts
+
+**Decision.** Every writer takes locks in the same order: the audit chain lock before the outbox lock, stock rows in variant order (`inv.lock_balance`, a security-definer function, so the app role needs no UPDATE grant to lock), and the document number series last. Sales, returns and voids retry on deadlock (40P01) or serialisation failure (40001). Completing a sale is idempotent: the client's sale key takes an advisory lock and a repeated request returns the first result.
+**Why.** Twenty tills selling the same items must not deadlock or oversell. The load test (20 terminals, 662 sales, 126 returns, 76 voids in CI) found the audit/outbox inversion before it reached a shop.
+**Cost.** New writers must follow the order; the load test is the guard.
+
+## ADR 22: QuestPDF for the A4 invoice, under its Community licence
+
+**Decision.** A4 tax invoices are drawn with QuestPDF (Arabic shaping proven in the Phase 1 proof of concept) with the QR code from QRCoder.
+**Why.** It renders Arabic correctly without a browser on the server.
+**Cost.** The QuestPDF Community licence is free only while the developer (Nextdab) has annual gross revenue under USD 1,000,000 and is not publicly traded; end customers never need a licence. Nextdab must confirm it qualifies, or buy the Professional licence. Receipts on 58/80 mm printers do not use QuestPDF.
+
+## ADR 23: Receipts are pictures sent as ESC/POS raster; the server relays only to private addresses
+
+**Decision.** The receipt is drawn on a canvas in the client (both languages, any font) and sent as ESC/POS raster (`GS v 0`) with the drawer kick (`ESC p`). The Windows app prints to network printers over TCP 9100 and to USB printers through the Windows spooler in RAW mode. A browser till prints through the server's relay, which connects only to private (RFC 1918, link-local, loopback) addresses unless `Kite:Printing:AllowPublicAddresses` is set, or falls back to the browser's print dialog with an 80 mm page. Opening the drawer needs `POS.DRAWER.OPEN` and the user's own open shift, and is counted on the Z report.
+**Why.** Text-mode ESC/POS cannot print Arabic reliably across printer brands; a picture always can. The relay must not become a way to reach the internet from the server.
+**Cost.** Raster receipts are slower on very old printers (about one second on 80 mm).
+
+## ADR 24: Emergency mode in the Windows app: an encrypted local store, a server snapshot, ordered upload
+
+**Decision.** When the server cannot be reached, a Windows till that the business has enabled keeps selling from a snapshot (items, prices, stock, users with their Argon2id PIN hashes, permissions and limits) refreshed while online. Sales go to a SQLCipher database whose key is protected by Windows DPAPI through Electron safeStorage, numbered from the terminal's own series (`EM-{branch}-{terminal}-NNNNNN`). On reconnection records upload in order, each applied once (unique terminal and sequence) in its own transaction; a record the server cannot accept is kept as a conflict for a manager, and stock that went negative is recorded as a stock exception instead of being refused.
+**Why.** Blueprint 6: a shop must not stop selling when the server PC is off, and nothing sold offline may be lost or counted twice.
+**Cost.** PIN hashes leave the server (encrypted at rest, and a PIN alone signs in only at that till); emergency sales cannot check stock held by other tills.
+
+## ADR 25: A till is bound to its device with a key fingerprint
+
+**Decision.** When a till is registered the client makes a 32-byte random device key and keeps it; the server stores only its SHA-256 fingerprint on the terminal. Signing in at a terminal must present the key (`POS-017` otherwise). A manager can rebind a replaced PC with `POST /terminals/{id}/device-key`.
+**Why.** A terminal id alone is guessable; without the binding any browser could claim to be a till and use its shift and drawer.
+**Cost.** Clearing the browser's storage unbinds a browser till until a manager rebinds it.
+
+## ADR 26: Discount limits are the smaller of a percentage and an amount
+
+**Decision.** Each role has a discount limit as a percentage of the line and an amount in OMR; a cashier may give up to the smaller of the two without approval (cashier template 5% or 2.000, senior cashier 10% or 10.000). `POS.DISCOUNT.ABOVE_LIMIT` removes the limit. A price change or a price below the minimum always needs `POS.PRICE.OVERRIDE`. Approval is by a manager's PIN at the till or remotely from the Approvals page, and each approval is used once, for the cart it was given for.
+**Why.** A percentage alone gives away too much on a phone; an amount alone blocks a fair discount on a cable.
+**Cost.** Shops must set both numbers per role.
 
