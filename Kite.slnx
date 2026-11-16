@@ -6,6 +6,7 @@
     <Project Path="src/server/Kite.Identity/Kite.Identity.csproj" />
     <Project Path="src/server/Kite.Persistence/Kite.Persistence.csproj" />
     <Project Path="src/server/Kite.Platform/Kite.Platform.csproj" />
+    <Project Path="src/server/Kite.Sales/Kite.Sales.csproj" />
     <Project Path="src/server/Kite.Tax/Kite.Tax.csproj" />
   </Folder>
   <Folder Name="/tests/">

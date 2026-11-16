@@ -46,7 +46,11 @@ public static class ErrorHandling
         System.Text.Json.JsonException => (400, ErrorCodes.Validation, "The request body is not valid JSON.", null),
         PostgresException pg => pg.SqlState switch
         {
+            "23505" when pg.ConstraintName == "shift_one_open_per_terminal" => (409, ErrorCodes.ShiftAlreadyOpen, "This terminal already has an open shift.", null),
+            "23505" when pg.ConstraintName == "variant_sku_unique" => (409, ErrorCodes.Conflict, "That SKU is already in use.", "sku"),
+            "23505" when pg.ConstraintName == "barcode_business_id_code_key" => (409, ErrorCodes.Conflict, "That barcode is already on another item.", "barcode"),
             "23505" => (409, ErrorCodes.Conflict, "That value is already in use.", pg.ConstraintName),
+            "40P01" or "40001" => (409, ErrorCodes.Conflict, "The server was busy with the same records. Try again.", null),
             "23503" => (400, ErrorCodes.Validation, "A referenced record does not exist.", pg.ConstraintName),
             "23514" => (400, ErrorCodes.Validation, "The values break a data rule.", pg.ConstraintName),
             "23P01" => (409, ErrorCodes.Conflict, "The dates overlap an existing record.", pg.ConstraintName),

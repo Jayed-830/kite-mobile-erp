@@ -7,7 +7,11 @@ namespace Kite.Host.Infrastructure;
 /// <summary>Gap-free document numbers per branch and fiscal year (9.4); a missing year's series is created on first use.</summary>
 public static class DocNumbers
 {
-    public static async Task<string> NextAsync(DbTx t, Guid businessId, Guid? branchId, string docType, int fiscalYear, string prefix)
+    public static Task<string> NextAsync(DbTx t, Guid businessId, Guid? branchId, string docType, int fiscalYear, string prefix) =>
+        branchId is null ? t.WithAllBranchesAsync(() => NextCoreAsync(t, businessId, null, docType, fiscalYear, prefix))
+                         : NextCoreAsync(t, businessId, branchId, docType, fiscalYear, prefix);
+
+    private static async Task<string> NextCoreAsync(DbTx t, Guid businessId, Guid? branchId, string docType, int fiscalYear, string prefix)
     {
         var exists = await t.ExecuteScalarAsync<bool>("""
             SELECT EXISTS (SELECT 1 FROM core.number_series WHERE business_id = @businessId AND branch_id IS NOT DISTINCT FROM @branchId
@@ -73,7 +77,10 @@ public static class FiscalPeriods
              WHERE business_id = @businessId AND branch_id IS NULL AND @d BETWEEN starts_on AND ends_on
             """, new { businessId, d = date.ToDateTime(TimeOnly.MinValue) }))?.ToRef();
 
-    private static async Task EnsureYearAsync(DbTx t, Guid businessId, DateOnly date)
+    private static Task EnsureYearAsync(DbTx t, Guid businessId, DateOnly date) =>
+        t.WithAllBranchesAsync(async () => { await EnsureYearCoreAsync(t, businessId, date); return true; });
+
+    private static async Task EnsureYearCoreAsync(DbTx t, Guid businessId, DateOnly date)
     {
         var start = await t.ExecuteScalarAsync<short>("SELECT fiscal_year_start_month FROM core.business WHERE id = @businessId", new { businessId });
         foreach (var p in FiscalCalendar.YearContaining(date, start))
@@ -152,8 +159,23 @@ public static class Posting
     }
 }
 
-public sealed record PosPolicy(Guid Id, Guid? BranchId, string NegativeStock, int ReturnWindowDays, decimal CashRefundCap, decimal VarianceThreshold,
-    bool BlindClose, string RoundingLevel, decimal CashRounding, decimal[] Denominations, string? ReceiptFooterEn, string? ReceiptFooterAr, int Version);
+/// <summary>POS policy (a class: Npgsql reports array columns as System.Array, which positional records cannot take).</summary>
+public sealed class PosPolicy
+{
+    public Guid Id { get; set; }
+    public Guid? BranchId { get; set; }
+    public string NegativeStock { get; set; } = "block";
+    public int ReturnWindowDays { get; set; } = 14;
+    public decimal CashRefundCap { get; set; } = 100m;
+    public decimal VarianceThreshold { get; set; } = 1m;
+    public bool BlindClose { get; set; } = true;
+    public string RoundingLevel { get; set; } = "line";
+    public decimal CashRounding { get; set; }
+    public decimal[] Denominations { get; set; } = [50m, 20m, 10m, 5m, 1m, 0.5m, 0.1m, 0.05m, 0.025m, 0.01m, 0.005m];
+    public string? ReceiptFooterEn { get; set; }
+    public string? ReceiptFooterAr { get; set; }
+    public int Version { get; set; }
+}
 
 public static class PosPolicies
 {
@@ -168,7 +190,7 @@ public static class PosPolicies
     public static async Task<PosPolicy> ForBranchAsync(DbTx t, Guid businessId, Guid branchId) =>
         await t.QuerySingleOrDefaultAsync<PosPolicy>(Select + " WHERE business_id = @businessId AND (branch_id = @branchId OR branch_id IS NULL) ORDER BY branch_id NULLS LAST LIMIT 1",
             new { businessId, branchId })
-        ?? new PosPolicy(Guid.Empty, null, "block", 14, 100m, 1m, true, "line", 0m, [50m, 20m, 10m, 5m, 1m, 0.5m, 0.1m, 0.05m, 0.025m, 0.01m, 0.005m], null, null, 0);
+        ?? new PosPolicy();
 }
 
 /// <summary>Business data Phase 4 needs on every business, created at setup and for businesses set up before Phase 4.</summary>

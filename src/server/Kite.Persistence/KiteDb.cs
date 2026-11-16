@@ -94,11 +94,31 @@ public sealed class DbTx(NpgsqlConnection conn, NpgsqlTransaction tx, ActorConte
     public Task<IEnumerable<T>> QueryAsync<T>(string sql, object? param = null) =>
         conn.QueryAsync<T>(new CommandDefinition(sql, param, tx, cancellationToken: ct));
 
+    /// <summary>Rows as name/value dictionaries, for read-only lists returned as JSON (column aliases are the JSON names).</summary>
+    public async Task<IReadOnlyList<Dictionary<string, object?>>> RowsAsync(string sql, object? param = null) =>
+        (await conn.QueryAsync(new CommandDefinition(sql, param, tx, cancellationToken: ct)))
+            .Select(r => new Dictionary<string, object?>((IDictionary<string, object?>)r, StringComparer.Ordinal)).ToList();
+
     public Task<T?> QuerySingleOrDefaultAsync<T>(string sql, object? param = null) =>
         conn.QuerySingleOrDefaultAsync<T>(new CommandDefinition(sql, param, tx, cancellationToken: ct));
 
     public Task<T> ExecuteScalarAsync<T>(string sql, object? param = null) =>
         conn.ExecuteScalarAsync<T>(new CommandDefinition(sql, param, tx, cancellationToken: ct))!;
+
+    /// <summary>
+    /// Runs business-wide bookkeeping (rows with no branch, such as the customer number series or fiscal periods) with
+    /// all-branches scope inside a branch-scoped transaction, then restores the caller's scope. Server code only.
+    /// </summary>
+    public async Task<T> WithAllBranchesAsync<T>(Func<Task<T>> work)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+        var previous = await ExecuteScalarAsync<string?>("SELECT current_setting('kite.all_branches', true)");
+        if (previous == "on") return await work();
+        await ExecuteAsync("SELECT set_config('kite.all_branches', 'on', true)");
+        var result = await work();
+        await ExecuteAsync("SELECT set_config('kite.all_branches', '', true)");
+        return result;
+    }
 
     /// <summary>Appends to the hash-chained audit log (the database computes seq and hashes).</summary>
     public Task AuditAsync(AuditEntry entry)

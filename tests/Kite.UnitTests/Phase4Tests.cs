@@ -124,3 +124,159 @@ public class PostingEngineTests
         return (j is not null && j.TotalDebit == j.TotalCredit && j.Lines.All(l => l.Debit >= 0 && l.Credit >= 0 && (l.Debit == 0) != (l.Credit == 0))).ToProperty();
     }
 }
+
+public class PosMathTests
+{
+    private static readonly Guid Vat = Guid.NewGuid();
+
+    private static Kite.Sales.PricedItem Item(decimal? price, decimal? min = null, string tracking = "none", string kind = "standard", decimal rate = 5m, string type = "accessory") =>
+        new(Guid.NewGuid(), "SKU-1", type, tracking, "Cable", "كابل", Vat, kind, rate, price, min, 30, true);
+
+    private static readonly Kite.Sales.DiscountLimit Cashier = new(5m, 2.000m, false);
+
+    [Fact]
+    public void Tax_is_extracted_from_inclusive_prices_per_line()
+    {
+        var l = Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 3m), Item(2.333m), true, Cashier);
+        Assert.Equal(6.999m, l.Gross);
+        Assert.Equal(0.333m, l.Tax);      // 6.999 x 5 / 105 = 0.3333
+        Assert.Equal(6.666m, l.Net);
+        Assert.False(l.NeedsPriceOverride || l.NeedsDiscountApproval);
+        var exclusive = Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 3m), Item(2.333m), false, Cashier);
+        Assert.Equal((6.999m, 0.350m, 7.349m), (exclusive.Net, exclusive.Tax, exclusive.Gross));
+    }
+
+    [Fact]
+    public void The_discount_limit_is_the_lower_of_percent_and_amount()
+    {
+        // 5% of 20.000 is 1.000 (below 2.000); 5% of 100.000 is 5.000, capped at 2.000.
+        Assert.False(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 2m, Discount: 1.000m), Item(10m), true, Cashier).NeedsDiscountApproval);
+        Assert.True(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 2m, Discount: 1.001m), Item(10m), true, Cashier).NeedsDiscountApproval);
+        Assert.False(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, Discount: 2.000m), Item(100m), true, Cashier).NeedsDiscountApproval);
+        Assert.True(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, Discount: 2.001m), Item(100m), true, Cashier).NeedsDiscountApproval);
+        Assert.False(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, Discount: 50m), Item(100m), true, Kite.Sales.DiscountLimit.Any).NeedsDiscountApproval);
+    }
+
+    [Fact]
+    public void A_changed_price_or_a_price_under_the_minimum_needs_an_override()
+    {
+        Assert.True(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, UnitPrice: 9m), Item(10m), true, Cashier).NeedsPriceOverride);
+        Assert.True(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, Discount: 0.400m), Item(10m, min: 9.700m), true, Kite.Sales.DiscountLimit.Any).NeedsPriceOverride);
+        Assert.False(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, Discount: 0.300m), Item(10m, min: 9.700m), true, Cashier).NeedsPriceOverride);
+        Assert.True(Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), 1m, UnitPrice: 4m), Item(null), true, Cashier).NeedsPriceOverride);   // no list price
+    }
+
+    [Fact]
+    public void Lines_that_cannot_be_sold_yet_are_refused_with_their_codes()
+    {
+        KiteException Err(Kite.Sales.PricedItem i, Kite.Sales.CartLine? l = null) =>
+            Assert.Throws<KiteException>(() => Kite.Sales.PosMath.PriceLine(1, l ?? new(i.VariantId, 1m), i, true, Cashier));
+        Assert.Equal(ErrorCodes.SerializedNotYet, Err(Item(100m, tracking: "imei", type: "device")).Code);
+        Assert.Equal(ErrorCodes.NoPrice, Err(Item(null)).Code);
+        Assert.Equal(ErrorCodes.Validation, Err(Item(100m, kind: "margin")).Code);
+        Assert.Equal(ErrorCodes.Validation, Err(Item(1m), new(Guid.NewGuid(), 1m, Discount: 2m)).Code);
+        Assert.Equal(ErrorCodes.Validation, Err(Item(1m), new(Guid.NewGuid(), 0.0001m)).Code);
+    }
+
+    [Fact]
+    public void Invoice_level_rounding_taxes_each_rate_once_and_spreads_it_over_the_lines()
+    {
+        var lines = new[] { 0.105m, 0.105m, 0.105m }.Select((p, i) => Kite.Sales.PosMath.PriceLine(i + 1, new(Guid.NewGuid(), 1m), Item(p), true, Cashier)).ToArray();
+        Assert.Equal(0.015m, lines.Sum(l => l.Tax));                     // 0.005 per line
+        var invoice = Kite.Sales.PosMath.ApplyInvoiceRounding(lines, true);
+        Assert.Equal(0.015m, invoice.Sum(l => l.Tax));                   // 0.315 x 5 / 105 = 0.015
+        Assert.All(invoice, l => Assert.Equal(l.Gross, l.Net + l.Tax));
+        Assert.Equal(lines.Sum(l => l.Gross), invoice.Sum(l => l.Gross));
+    }
+
+    [Theory]
+    [InlineData("6.999", "0.005", "7.000")]
+    [InlineData("2.333", "0.005", "2.335")]
+    [InlineData("2.332", "0.005", "2.330")]
+    [InlineData("2.3325", "0.005", "2.335")]
+    [InlineData("4.149", "0.100", "4.100")]
+    [InlineData("4.150", "0.100", "4.200")]
+    [InlineData("1.234", "0", "1.234")]
+    public void Cash_rounds_half_away_from_zero_to_the_policy_step(string amount, string step, string expected) =>
+        Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture),
+            Kite.Sales.PosMath.RoundCash(decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture), decimal.Parse(step, System.Globalization.CultureInfo.InvariantCulture)));
+
+    [Fact]
+    public void Tenders_must_match_the_total_with_cash_rounding()
+    {
+        var mixed = Kite.Sales.PosMath.CheckTenders([new("card", 3.500m, CardTerminal: "BANK-1", ApprovalCode: "123456"), new("cash", 3.500m, Tendered: 5m)], 6.999m, 0.005m);
+        Assert.Equal(0.001m, mixed.CashRounding);
+        Assert.Equal(7.000m, mixed.Paid);
+        Assert.Equal(1.500m, mixed.Tenders[1].Change);
+        Assert.Equal(0m, Kite.Sales.PosMath.CheckTenders([new("card", 6.999m, CardTerminal: "B", ApprovalCode: "1")], 6.999m, 0.005m).CashRounding);
+
+        KiteException Err(Kite.Sales.TenderInput[] t, decimal gross = 6.999m, bool refund = false) =>
+            Assert.Throws<KiteException>(() => Kite.Sales.PosMath.CheckTenders(t, gross, 0.005m, refund));
+        Assert.Equal(ErrorCodes.PaymentMismatch, Err([new("cash", 6.999m)]).Code);                                // must be rounded
+        Assert.Equal(ErrorCodes.PaymentMismatch, Err([new("cash", 3m), new("cash", 4m)]).Code);
+        Assert.Equal(ErrorCodes.PaymentMismatch, Err([new("card", 8m, CardTerminal: "B", ApprovalCode: "1")]).Code);
+        Assert.Equal(ErrorCodes.Validation, Err([new("card", 6.999m, CardTerminal: "B")]).Code);                 // no approval code
+        Assert.Equal(ErrorCodes.Validation, Err([new("bank_transfer", 6.999m)]).Code);                          // no reference
+        Assert.Equal(ErrorCodes.Validation, Err([new("cash", 7.000m, Tendered: 6m)]).Code);
+        Assert.Equal(ErrorCodes.Validation, Err([new("cheque", 6.999m)]).Code);
+        // A refund to card needs no new approval code; cash refunds round too.
+        var refund = Kite.Sales.PosMath.CheckTenders([new("card", 1m, CardTerminal: "B"), new("cash", 1.335m)], 2.333m, 0.005m, refund: true);
+        Assert.Equal(0.002m, refund.CashRounding);
+    }
+
+    [Fact]
+    public void Returns_take_a_proportional_share_and_the_last_one_takes_the_rest()
+    {
+        var o = new Kite.Sales.ReturnableLine(3m, 6.666m, 0.333m, 6.999m, 0.100m, 0, 0, 0, 0, 0);
+        var first = Kite.Sales.PosMath.ApportionReturn(o, 1m);
+        Assert.Equal((2.222m, 0.111m, 2.333m), (first.Net, first.Tax, first.Gross));
+        var after1 = o with { ReturnedQty = 1, ReturnedNet = first.Net, ReturnedTax = first.Tax, ReturnedGross = first.Gross, ReturnedDiscount = first.Discount };
+        var second = Kite.Sales.PosMath.ApportionReturn(after1, 1m);
+        var after2 = after1 with { ReturnedQty = 2, ReturnedNet = after1.ReturnedNet + second.Net, ReturnedTax = after1.ReturnedTax + second.Tax,
+                                   ReturnedGross = after1.ReturnedGross + second.Gross, ReturnedDiscount = after1.ReturnedDiscount + second.Discount };
+        var last = Kite.Sales.PosMath.ApportionReturn(after2, 1m);
+        Assert.Equal(o.Gross, first.Gross + second.Gross + last.Gross);
+        Assert.Equal(o.Tax, first.Tax + second.Tax + last.Tax);
+        Assert.Equal(o.Net, first.Net + second.Net + last.Net);
+        Assert.Equal(ErrorCodes.ReturnTooMany, Assert.Throws<KiteException>(() => Kite.Sales.PosMath.ApportionReturn(after2, 2m)).Code);
+    }
+
+    [Fact]
+    public void Drawer_counts_use_the_policy_denominations()
+    {
+        decimal[] den = [50m, 20m, 10m, 5m, 1m, 0.5m, 0.1m, 0.05m, 0.025m, 0.01m, 0.005m];
+        Assert.Equal(24.665m, Kite.Sales.PosMath.CountTotal(new Dictionary<string, int> { ["20"] = 1, ["1"] = 4, ["0.5"] = 1, ["0.1"] = 1, ["0.05"] = 1, ["0.01"] = 1, ["0.005"] = 1 }, den));
+        Assert.Throws<KiteException>(() => Kite.Sales.PosMath.CountTotal(new Dictionary<string, int> { ["2"] = 1 }, den));
+        Assert.Throws<KiteException>(() => Kite.Sales.PosMath.CountTotal(new Dictionary<string, int> { ["1"] = -1 }, den));
+        Assert.Equal(24.665m, Kite.Sales.PosMath.ExpectedCash(20m, 11.665m, 5m, 2m, 10m));
+    }
+
+    [Fact]
+    public void The_qr_payload_is_tlv_in_base64_and_reads_back()
+    {
+        var id = Guid.NewGuid();
+        var at = new DateTimeOffset(2026, 11, 16, 9, 30, 0, TimeSpan.FromHours(4));
+        var qr = Kite.Sales.PosMath.QrPayload("شركة النور", "OM1100223344", at, 6.999m, 0.333m, id);
+        var back = Kite.Sales.PosMath.ReadQr(qr);
+        Assert.Equal("شركة النور", back[1]);
+        Assert.Equal("OM1100223344", back[2]);
+        Assert.Equal("2026-11-16T05:30:00Z", back[3]);
+        Assert.Equal("6.999", back[4]);
+        Assert.Equal("0.333", back[5]);
+        Assert.Equal(id.ToString(), back[6]);
+        Assert.Equal(1, Convert.FromBase64String(qr)[0]);
+    }
+
+    /// <summary>Property: any cart prices to lines whose gross is net plus tax, and cash rounding never exceeds half a step.</summary>
+    [Property(MaxTest = 300)]
+    public Property Any_cart_adds_up_and_cash_rounding_stays_within_half_a_step(PositiveInt baisa, PositiveInt qty, NonNegativeInt discountBaisa, bool inclusive)
+    {
+        var price = Math.Min(baisa.Get, 10_000_000) / 1000m;
+        var q = Math.Min(qty.Get, 50);
+        var discount = Math.Min(discountBaisa.Get / 1000m, Currency.OMR.Round(price * q));
+        var l = Kite.Sales.PosMath.PriceLine(1, new(Guid.NewGuid(), q, Discount: discount), Item(price), inclusive, Kite.Sales.DiscountLimit.Any);
+        var cash = Kite.Sales.PosMath.RoundCash(l.Gross, 0.005m);
+        var paid = Kite.Sales.PosMath.CheckTenders(cash == 0 ? [] : [new("cash", cash)], l.Gross, 0.005m);
+        return (l.Gross == l.Net + l.Tax && l.Net >= 0 && Math.Abs(paid.CashRounding) <= 0.0025m && paid.Paid == l.Gross + paid.CashRounding).ToProperty();
+    }
+}

@@ -5,8 +5,8 @@ using Kite.Platform;
 
 namespace Kite.Host.Features;
 
-public sealed record LoginRequest(string Username, string Password, Guid? TerminalId = null);
-public sealed record PinLoginRequest(string Username, string Pin, Guid TerminalId);
+public sealed record LoginRequest(string Username, string Password, Guid? TerminalId = null, string? DeviceKey = null);
+public sealed record PinLoginRequest(string Username, string Pin, Guid TerminalId, string? DeviceKey = null);
 public sealed record RefreshRequest(string? RefreshToken);
 public sealed record MfaRequest(string Code);
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
@@ -52,7 +52,7 @@ public static class AuthEndpoints
             }
             if (user.Status != "active")
                 throw new KiteException(ErrorCodes.AccountDisabled, "This account is disabled. Ask your manager.", 403);
-            if (req.TerminalId is { } terminalId) await EnsureTerminalActive(db, terminalId, ct);
+            if (req.TerminalId is { } terminalId) await EnsureTerminalActive(db, terminalId, req.DeviceKey, ct);
 
             var rehash = hasher.NeedsRehash(user.PasswordHash) ? hasher.Hash(req.Password!) : null;
             var tokens = await CreateSession(db, http, user, req.TerminalId, "password", !user.TotpEnabled, policy, clock, rehash, ct);
@@ -64,7 +64,7 @@ public static class AuthEndpoints
             LockoutPolicy lockout, SessionPolicy policy, IClock clock, CancellationToken ct) =>
         {
             RequireConfigured(server);
-            await EnsureTerminalActive(db, req.TerminalId, ct);
+            await EnsureTerminalActive(db, req.TerminalId, req.DeviceKey, ct);
             var user = await FindUser(db, server, req.Username, ct) ?? throw BadCredentials();
             await EnsureNotLocked(user, clock);
             if (user.PinHash is null) throw new KiteException(ErrorCodes.PinNotSet, "This user has no PIN. Sign in with the password.", 400);
@@ -311,12 +311,15 @@ public static class AuthEndpoints
         return Task.CompletedTask;
     }
 
-    private static async Task EnsureTerminalActive(KiteDb db, Guid terminalId, CancellationToken ct)
+    private static async Task EnsureTerminalActive(KiteDb db, Guid terminalId, string? deviceKey, CancellationToken ct)
     {
-        var status = await db.InTransactionAsync(AccessScope.System, ActorContext.System,
-            t => t.QuerySingleOrDefaultAsync<string>("SELECT status FROM core.terminal WHERE id = @terminalId", new { terminalId }), ct);
-        if (status != "active")
+        var term = await db.InTransactionAsync(AccessScope.System, ActorContext.System,
+            t => t.QuerySingleOrDefaultAsync<(string Status, string? Fingerprint)>("SELECT status, device_key_fingerprint FROM core.terminal WHERE id = @terminalId", new { terminalId }), ct);
+        if (term.Status != "active")
             throw new KiteException(ErrorCodes.TerminalNotActive, "This terminal is not approved. Ask a manager to approve it.", 403, "terminalId");
+        // Phase 4: a terminal registered with a device key must present it (18.1).
+        if (!DeviceKeys.Matches(term.Fingerprint, deviceKey))
+            throw new KiteException(ErrorCodes.TerminalKeyInvalid, "This device is not the registered terminal. Ask a manager to bind this device.", 403, "deviceKey");
     }
 
     /// <summary>Commits the failure (and any lock) in its own transaction before the error is returned.</summary>

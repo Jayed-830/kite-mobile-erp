@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Phase 4: POS arithmetic with no I/O (pricing, discounts, tax, cash rounding, payments, returns, QR). -->
+  <PropertyGroup>
+    <RootNamespace>Kite.Sales</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Kite.Platform\Kite.Platform.csproj" />
+    <ProjectReference Include="..\Kite.Tax\Kite.Tax.csproj" />
+  </ItemGroup>
+</Project>

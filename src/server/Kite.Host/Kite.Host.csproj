@@ -5,6 +5,7 @@
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Kite.Sales\Kite.Sales.csproj" />
     <ProjectReference Include="..\Kite.Platform\Kite.Platform.csproj" />
     <ProjectReference Include="..\Kite.Tax\Kite.Tax.csproj" />
     <ProjectReference Include="..\Kite.Accounting\Kite.Accounting.csproj" />

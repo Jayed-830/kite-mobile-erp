@@ -108,4 +108,6 @@ public static class ErrorCodes
     public const string CustomerRequired = "POS-016";
     public const string TerminalKeyInvalid = "POS-017";
     public const string EmergencyRecordInvalid = "POS-018";
+    public const string EmergencyNotEnabled = "POS-019";
+    public const string PrinterUnreachable = "PRN-001";
 }

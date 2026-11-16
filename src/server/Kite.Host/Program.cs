@@ -98,6 +98,11 @@ AuditEndpoints.Map(app);
 ServerEndpoints.Map(app);
 LicenceEndpoints.Map(app);
 BackupEndpoints.Map(app);
+CatalogEndpoints.Map(app);
+InventoryEndpoints.Map(app);
+PosEndpoints.Map(app);
+ReceiptEndpoints.Map(app);
+EmergencyEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>

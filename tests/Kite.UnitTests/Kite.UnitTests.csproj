@@ -13,6 +13,7 @@
     <PackageReference Include="FsCheck.Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\server\Kite.Sales\Kite.Sales.csproj" />
     <ProjectReference Include="..\..\src\server\Kite.Platform\Kite.Platform.csproj" />
     <ProjectReference Include="..\..\src\server\Kite.Tax\Kite.Tax.csproj" />
     <ProjectReference Include="..\..\src\server\Kite.Accounting\Kite.Accounting.csproj" />

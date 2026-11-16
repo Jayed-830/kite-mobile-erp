@@ -10,6 +10,13 @@ public sealed class KiteOptions
     public SyncSettings Sync { get; set; } = new();
     public LicensingSettings Licensing { get; set; } = new();
     public BackupSettings Backup { get; set; } = new();
+    public PrintingSettings Printing { get; set; } = new();
+}
+
+/// <summary>The print relay only reaches printers on the shop network unless this is switched on.</summary>
+public sealed class PrintingSettings
+{
+    public bool AllowPublicAddresses { get; set; }
 }
 
 public sealed class Argon2Settings
