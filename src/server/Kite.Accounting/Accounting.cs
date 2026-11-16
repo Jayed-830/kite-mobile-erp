@@ -42,6 +42,7 @@ public static class ChartTemplate
         new("3200", "Owner drawings", "مسحوبات المالك", AccountType.Equity, "3000", true, false),
         new("3300", "Retained earnings", "الأرباح المحتجزة", AccountType.Equity, "3000", true, false),
         new("3400", "Current year result", "نتيجة السنة الحالية", AccountType.Equity, "3000", true, false),
+        new("3900", "Opening balance equity", "حقوق ملكية الأرصدة الافتتاحية", AccountType.Equity, "3000", true, false),
         new("4000", "Revenue", "الإيرادات", AccountType.Revenue, null, false, false),
         new("4100", "Sales: new devices", "المبيعات: أجهزة جديدة", AccountType.Revenue, "4000", true, false),
         new("4110", "Sales: used devices", "المبيعات: أجهزة مستعملة", AccountType.Revenue, "4000", true, false),

@@ -31,6 +31,7 @@ public static class SetupEndpoints
     [
         ("journal", "JV"), ("sale_invoice", "INV"), ("credit_note", "CN"), ("repair_job", "R"),
         ("trade_in", "TI"), ("purchase_order", "PO"), ("goods_receipt", "GR"), ("customer_receipt", "RC"),
+        ("shift", "SH"), ("stock_adjustment", "ADJ"), ("stock_count", "CNT"),
     ];
 
     public static void Map(WebApplication app)
@@ -144,9 +145,9 @@ public static class SetupEndpoints
                         var roleId = Ids.New();
                         if (role.Code == RoleTemplates.OwnerCode) ownerRoleId = roleId;
                         await t.ExecuteAsync("""
-                            INSERT INTO iam.role (id, business_id, code, name_en, name_ar, is_system, created_by)
-                            VALUES (@roleId, @businessId, @Code, @NameEn, @NameAr, true, @ownerId)
-                            """, new { roleId, businessId, ownerId, role.Code, role.NameEn, role.NameAr });
+                            INSERT INTO iam.role (id, business_id, code, name_en, name_ar, is_system, discount_limit_percent, discount_limit_amount, created_by)
+                            VALUES (@roleId, @businessId, @Code, @NameEn, @NameAr, true, @DiscountLimitPercent, @DiscountLimitAmount, @ownerId)
+                            """, new { roleId, businessId, ownerId, role.Code, role.NameEn, role.NameAr, role.DiscountLimitPercent, role.DiscountLimitAmount });
                         foreach (var perm in role.Permissions)
                             await t.ExecuteAsync("INSERT INTO iam.role_permission (role_id, permission_code) VALUES (@roleId, @perm)", new { roleId, perm });
                     }
@@ -168,6 +169,8 @@ public static class SetupEndpoints
                             INSERT INTO core.module_setting (id, business_id, branch_id, module_code, enabled, created_by)
                             VALUES (@id, @businessId, NULL, @code, @enabled, @ownerId)
                             """, new { id = Ids.New(), businessId, code, enabled, ownerId });
+
+                    await Phase4Seed.EnsureAsync(t, businessId);
 
                     await t.AuditAsync(new AuditEntry("setup.completed", "business", businessId,
                         After: Json.Obj(new { b.LegalNameEn, b.LegalNameAr, b.VatNumber, headOffice = h.Code, req.ServerRole, owner = o.Username })));

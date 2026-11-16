@@ -1,7 +1,7 @@
 namespace Kite.Platform;
 
 /// <summary>
-/// Permission codes. Must match the iam.permission rows seeded by the migrations (V0009, V0011); a unit test
+/// Permission codes. Must match the iam.permission rows seeded by the migrations (V0009, V0011, V0012); a unit test
 /// compares the two so they cannot drift.
 /// </summary>
 public static class Permissions
@@ -42,6 +42,20 @@ public static class Permissions
     public const string LicenceManage = "LICENCE.MANAGE";
     public const string BackupView = "BACKUP.VIEW";
     public const string BackupManage = "BACKUP.MANAGE";
+    // Phase 4 (V0012)
+    public const string CatalogView = "CATALOG.VIEW";
+    public const string CatalogManage = "CATALOG.MANAGE";
+    public const string CatalogPriceManage = "CATALOG.PRICE.MANAGE";
+    public const string InvView = "INV.VIEW";
+    public const string InvAdjust = "INV.ADJUST";
+    public const string InvCount = "INV.COUNT";
+    public const string CustomersView = "CUSTOMERS.VIEW";
+    public const string CustomersManage = "CUSTOMERS.MANAGE";
+    public const string PosShiftOpen = "POS.SHIFT.OPEN";
+    public const string PosCashPayOut = "POS.CASH.PAY_OUT";
+    public const string PosReportsView = "POS.REPORTS.VIEW";
+    public const string PosPolicyManage = "POS.POLICY.MANAGE";
+    public const string ApprovalsDecide = "APPROVALS.DECIDE";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -52,7 +66,8 @@ public static class Permissions
 }
 
 /// <summary>System role templates created by the setup wizard (blueprint 0.1, 10.5).</summary>
-public sealed record RoleTemplate(string Code, string NameEn, string NameAr, IReadOnlyList<string> Permissions);
+public sealed record RoleTemplate(string Code, string NameEn, string NameAr, IReadOnlyList<string> Permissions,
+    decimal DiscountLimitPercent = 0m, decimal DiscountLimitAmount = 0m);
 
 public static class RoleTemplates
 {
@@ -68,17 +83,26 @@ public static class RoleTemplates
             Permissions.PosRefund, Permissions.PosReturnNoReceipt, Permissions.PosCreditSale, Permissions.PosDrawerNoSale,
             Permissions.PosReceiptReprint, Permissions.PosShiftAcceptVariance, Permissions.PosEmergencyActivate,
             Permissions.DeviceImeiManualEntry, Permissions.CreditOverride, Permissions.BackupView,
+            Permissions.CatalogView, Permissions.CatalogManage, Permissions.CatalogPriceManage, Permissions.InvView, Permissions.InvAdjust,
+            Permissions.InvCount, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen, Permissions.PosCashPayOut,
+            Permissions.PosReportsView, Permissions.ApprovalsDecide,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
-            [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint]),
-        new("cashier", "Cashier", "أمين صندوق", [Permissions.PosSell, Permissions.PosReceiptReprint]),
+            [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
+             Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen,
+             Permissions.PosCashPayOut], 10m, 10.000m),
+        new("cashier", "Cashier", "أمين صندوق",
+            [Permissions.PosSell, Permissions.PosReceiptReprint, Permissions.CatalogView, Permissions.CustomersView, Permissions.CustomersManage,
+             Permissions.PosShiftOpen], 5m, 2.000m),
         new("technician", "Technician", "فني", [Permissions.RepairCredentialView]),
-        new("inventory_controller", "Inventory controller", "مراقب المخزون", [Permissions.DeviceImeiManualEntry]),
+        new("inventory_controller", "Inventory controller", "مراقب المخزون",
+            [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount]),
         new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry]),
         new("accountant", "Accountant", "المحاسب",
         [
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
             Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
+            Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView,
         ]),
     ];
 }

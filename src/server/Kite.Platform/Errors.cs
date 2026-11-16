@@ -82,4 +82,30 @@ public static class ErrorCodes
     public const string BackupNotConfigured = "BAK-001";
     public const string BackupBusy = "BAK-002";
     public const string BackupFailed = "BAK-003";
+
+    // Phase 4: catalog, inventory and POS (blueprint 10, 16.3)
+    public const string NoPrice = "CAT-001";
+    public const string BarcodeUnknown = "CAT-002";
+    public const string SerializedNotYet = "CAT-003";
+    public const string ItemInactive = "CAT-004";
+    public const string InsufficientStock = "INV-001";
+    public const string CountClosed = "INV-002";
+    public const string NoOpenShift = "POS-001";
+    public const string ShiftAlreadyOpen = "POS-002";
+    public const string ShiftNotYours = "POS-003";
+    public const string NotATerminal = "POS-004";
+    public const string PaymentMismatch = "POS-005";
+    public const string BelowMinimumPrice = "POS-006";
+    public const string DiscountAboveLimit = "POS-007";
+    public const string ApprovalInvalid = "POS-008";
+    public const string ReturnWindow = "POS-009";
+    public const string ReturnTooMany = "POS-010";
+    public const string RefundMethod = "POS-011";
+    public const string CashRefundCap = "POS-012";
+    public const string VoidNotAllowed = "POS-013";
+    public const string VarianceNeedsAcceptance = "POS-014";
+    public const string SaleChanged = "POS-015";
+    public const string CustomerRequired = "POS-016";
+    public const string TerminalKeyInvalid = "POS-017";
+    public const string EmergencyRecordInvalid = "POS-018";
 }

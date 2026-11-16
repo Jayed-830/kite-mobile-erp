@@ -55,6 +55,8 @@ public static class ErrorHandling
             "KT002" => (400, "DB-KT002", "The journal does not balance.", null),
             "KT003" => (409, "DB-KT003", "The accounting period is not open.", null),
             "KT004" => (409, "DB-KT004", "Sync events cannot be changed.", null),
+            "KT010" => (400, ErrorCodes.SerializedNotYet, "Serialized products (IMEI or serial) cannot move in stock until device units arrive (Phase 5); services are not stocked.", null),
+            "KT011" => (409, ErrorCodes.ReturnTooMany, "More would be returned than was sold.", null),
             _ => (500, ErrorCodes.Internal, "A database error occurred.", null),
         },
         _ => (500, ErrorCodes.Internal, "Unexpected error. Quote the trace ID to support.", null),

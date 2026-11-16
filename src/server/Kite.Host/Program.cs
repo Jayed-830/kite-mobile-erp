@@ -129,6 +129,7 @@ if (kite.MigrateOnStartup)
 var server = app.Services.GetRequiredService<ServerContext>();
 await server.LoadAsync(app.Services.GetRequiredService<NpgsqlDataSource>());
 await Phase3Startup.RunAsync(app);
+await Phase4Startup.RunAsync(app);
 if (!server.IsConfigured)
 {
     var code = app.Services.GetRequiredService<SetupCodeStore>().GetOrCreate();

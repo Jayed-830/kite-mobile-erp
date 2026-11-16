@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Kite.Host.Features;
 using Kite.Host.Infrastructure;
 using Kite.Identity;
 using Microsoft.AspNetCore.Routing;
@@ -82,7 +83,13 @@ public sealed class ServerTests(KiteServerFixture fx)
         Assert.Equal(12L, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.fiscal_period"));
         Assert.Equal(8L, await fx.QueryDbAsync<long>("SELECT count(*) FROM iam.role WHERE is_system"));
         // Only the series setup made: other tests sharing this database add branches, and each branch gets its own series.
-        Assert.Equal(8L, await fx.QueryDbAsync<long>("SELECT count(*) FROM core.number_series WHERE branch_id IS NULL OR branch_id = (SELECT id FROM core.branch WHERE is_head_office)"));
+        // Branch series plus the business-wide customer series (Phase 4).
+        Assert.Equal((long)SetupEndpoints.NumberSeries.Count + 1, await fx.QueryDbAsync<long>("SELECT count(*) FROM core.number_series WHERE branch_id IS NULL OR branch_id = (SELECT id FROM core.branch WHERE is_head_office)"));
+        // Phase 4 defaults: posting rules, POS policy, the default price list and the role discount limits.
+        Assert.Equal((long)Kite.Accounting.PostingRuleTemplates.All.Count, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.posting_rule"));
+        Assert.Equal(1L, await fx.QueryDbAsync<long>("SELECT count(*) FROM sales.pos_policy WHERE branch_id IS NULL"));
+        Assert.Equal("RETAIL", await fx.QueryDbAsync<string>("SELECT code FROM catalog.price_list WHERE is_default"));
+        Assert.Equal(5.00m, await fx.QueryDbAsync<decimal>("SELECT discount_limit_percent FROM iam.role WHERE code = 'cashier'"));
         Assert.True(await fx.QueryDbAsync<bool>("SELECT bool_and(origin_seq = rn) FROM (SELECT origin_seq, row_number() OVER (ORDER BY origin_seq) rn FROM sync.outbox) x"),
             "outbox sequence is gap-free");
         Assert.Equal(0L, await fx.QueryDbAsync<long>("SELECT count(*) FROM sync.outbox WHERE payload::text ILIKE '%argon2%'"));
