@@ -324,5 +324,39 @@ public static class Phase5Seed
                     VALUES (@id, @cid, @sort, @Code, @En, @Ar, @Kind, @Required, @min, @OnFail)
                     """, new { id = t.NewId(), cid, sort = sort++, i.Code, i.En, i.Ar, i.Kind, i.Required, min = (short?)i.Min, i.OnFail });
         }
+        await Phase7Seed.EnsureAsync(t, businessId);
+    }
+}
+
+/// <summary>Trade-in defaults for a new business (12.4): limits, the seller's declaration, the margin scheme record (not approved) and common deductions.</summary>
+public static class Phase7Seed
+{
+    public const string DeclarationEn = "I confirm that I own this device and may sell it; that it is not stolen, lost, under finance or locked; that I have removed my accounts and data from it; and that I sell it to the business for the agreed value.";
+    public const string DeclarationAr = "أقر بأنني مالك هذا الجهاز ويحق لي بيعه، وأنه غير مسروق أو مفقود أو مرهون أو مقفل، وأنني أزلت حساباتي وبياناتي منه، وأنني أبيعه للمنشأة بالقيمة المتفق عليها.";
+
+    private static readonly (string Code, string En, string Ar, string Kind, decimal Value, string? Check)[] Deductions =
+    [
+        ("SCREEN", "Cracked or faulty screen", "شاشة مكسورة أو معطلة", "percent", 30m, "screen"),
+        ("BATTERY", "Battery below 80%", "بطارية أقل من 80%", "amount", 10m, "battery"),
+        ("BODY", "Dents or cracks on the body", "انبعاجات أو تشققات في الهيكل", "percent", 10m, "body"),
+        ("CAMERA", "Camera fault", "عطل في الكاميرا", "percent", 15m, "cameras"),
+        ("NO_BOX", "No box or charger", "بدون علبة أو شاحن", "amount", 3m, null),
+    ];
+
+    public static async Task EnsureAsync(DbTx t, Guid businessId)
+    {
+        await t.ExecuteAsync("INSERT INTO tax.margin_scheme (business_id) VALUES (@businessId) ON CONFLICT DO NOTHING", new { businessId });
+        await t.ExecuteAsync("""
+            INSERT INTO tradein.settings (business_id, declaration_en, declaration_ar) VALUES (@businessId, @en, @ar) ON CONFLICT DO NOTHING
+            """, new { businessId, en = DeclarationEn, ar = DeclarationAr });
+        if (!await t.ExecuteScalarAsync<bool>("SELECT EXISTS (SELECT 1 FROM tradein.deduction WHERE business_id = @businessId)", new { businessId }))
+        {
+            short sort = 0;
+            foreach (var d in Deductions)
+                await t.ExecuteAsync("""
+                    INSERT INTO tradein.deduction (id, business_id, code, name_en, name_ar, kind, value, checklist_code, sort)
+                    VALUES (@id, @businessId, @Code, @En, @Ar, @Kind, @Value, @Check, @sort)
+                    """, new { id = t.NewId(), businessId, d.Code, d.En, d.Ar, d.Kind, d.Value, d.Check, sort = sort++ });
+        }
     }
 }

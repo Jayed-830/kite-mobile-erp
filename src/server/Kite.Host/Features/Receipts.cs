@@ -14,8 +14,9 @@ namespace Kite.Host.Features;
 
 public sealed record ReceiptParty(string NameEn, string NameAr, string? VatNumber, string? CrNumber, string? AddressEn, string? AddressAr, string? Phone);
 /// <summary>A receipt line; a device line also names its IMEI or serial number (11.5) and the warranty end.</summary>
+/// <summary>A margin-scheme line (12.3) shows no VAT: its <see cref="Tax"/> is 0 and <see cref="Net"/> is the price paid.</summary>
 public sealed record ReceiptLine(string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice, decimal Discount, decimal Net, decimal Tax,
-    decimal Gross, decimal TaxRate, string? Serial, DateTime? WarrantyUntil);
+    decimal Gross, decimal TaxRate, string? Serial, DateTime? WarrantyUntil, bool Margin = false);
 public sealed record ReceiptTax(decimal Rate, decimal Net, decimal Tax);
 public sealed record ReceiptPayment(string Method, decimal Amount, decimal? Tendered, decimal? Change, string? CardTerminal);
 public sealed record ReceiptModel(
@@ -23,7 +24,7 @@ public sealed record ReceiptModel(
     string TerminalCode, string CashierName, string? CustomerName, string? CustomerVat, ReceiptParty Business, ReceiptParty Branch,
     IReadOnlyList<ReceiptLine> Lines, decimal Net, decimal Discount, decimal Tax, decimal Gross, decimal CashRounding, decimal Total,
     IReadOnlyList<ReceiptTax> TaxBreakdown, IReadOnlyList<ReceiptPayment> Payments, string QrPayload, string? FooterEn, string? FooterAr,
-    bool IsCopy, bool IsEmergency, int PaperWidthMm);
+    bool IsCopy, bool IsEmergency, int PaperWidthMm, decimal MarginGross = 0m, string? MarginNoteEn = null, string? MarginNoteAr = null);
 
 public sealed record PrinterRequest(Guid BranchId, string Name, string Host, int? Port = null, int? PaperWidthMm = null, bool? HasDrawer = null,
     string? Status = null, int? Version = null);
@@ -200,9 +201,12 @@ public static class ReceiptEndpoints
                    l.net_amount AS Net, l.tax_amount AS Tax, l.gross_amount AS Gross, l.tax_rate AS TaxRate,
                    (SELECT CASE r.kind WHEN 'serial' THEN 'S/N ' ELSE 'IMEI ' END || r.value FROM device.imei_registry r
                      WHERE r.device_unit_id = l.device_unit_id ORDER BY (r.status = 'active') DESC, r.kind, r.slot LIMIT 1) AS Serial,
-                   CASE WHEN l.device_unit_id IS NOT NULL THEN l.warranty_until END AS WarrantyUntil
+                   CASE WHEN l.device_unit_id IS NOT NULL THEN l.warranty_until END AS WarrantyUntil, l.tax_scheme = 'margin' AS Margin
               FROM sales.sale_line l WHERE l.sale_id = @id ORDER BY l.line_no
             """, new { id })).ToArray();
+        // Margin-scheme lines (12.3) carry their VAT inside the price and the receipt never shows it.
+        var marginGross = lines.Where(l => l.Margin).Sum(l => l.Gross);
+        lines = lines.Select(l => l.Margin ? l with { Net = l.Gross, Tax = 0m } : l).ToArray();
         var payments = (await t.QueryAsync<ReceiptPayment>("""
             SELECT method, abs(amount) AS Amount, tendered, change_given AS Change, card_terminal AS CardTerminal FROM sales.payment WHERE sale_id = @id ORDER BY created_at, id
             """, new { id })).ToArray();
@@ -214,15 +218,22 @@ public static class ReceiptEndpoints
             "credit_note" => ("Credit note", "إشعار دائن"),
             _ => ("Simplified tax invoice", "فاتورة ضريبية مبسطة"),
         };
-        var breakdown = lines.GroupBy(l => l.TaxRate).OrderBy(g => g.Key).Select(g => new ReceiptTax(g.Key, g.Sum(l => l.Net), g.Sum(l => l.Tax))).ToArray();
+        var breakdown = lines.Where(l => !l.Margin).GroupBy(l => l.TaxRate).OrderBy(g => g.Key).Select(g => new ReceiptTax(g.Key, g.Sum(l => l.Net), g.Sum(l => l.Tax))).ToArray();
+        var standardNet = breakdown.Sum(b => b.Net);
+        var standardTax = breakdown.Sum(b => b.Tax);
         return new ReceiptModel(s.Id, s.Number, s.DocType, en, ar, s.OriginalNumber, s.CreditReason,
             BusinessDay.Local(new DateTimeOffset(DateTime.SpecifyKind(s.CompletedAt, DateTimeKind.Utc)), biz.TimeZone),
             s.TerminalCode, s.CashierName, s.CustomerName, s.CustomerVat,
             new ReceiptParty(biz.SellerNameEn, biz.SellerNameAr, biz.VatNumber, biz.CrNumber, biz.AddressEn, biz.AddressAr, biz.Phone),
             new ReceiptParty(branch.NameEn, branch.NameAr, null, null, branch.AddressEn, branch.AddressAr, branch.Phone),
-            lines, s.NetTotal, s.DiscountTotal, s.TaxTotal, s.GrossTotal, s.CashRounding, s.GrossTotal + s.CashRounding, breakdown, payments, s.QrPayload,
-            policy.ReceiptFooterEn, policy.ReceiptFooterAr, false, s.IsEmergency, width);
+            lines, standardNet, s.DiscountTotal, standardTax, s.GrossTotal, s.CashRounding, s.GrossTotal + s.CashRounding, breakdown, payments, s.QrPayload,
+            policy.ReceiptFooterEn, policy.ReceiptFooterAr, false, s.IsEmergency, width, marginGross,
+            marginGross == 0 ? null : MarginNoteEn, marginGross == 0 ? null : MarginNoteAr);
     }
+
+    /// <summary>The wording a margin-scheme receipt carries in place of the VAT amount (to be confirmed by the business's accountant).</summary>
+    public const string MarginNoteEn = "Second-hand goods sold under the profit margin scheme: VAT is included in the price and not shown separately.";
+    public const string MarginNoteAr = "سلع مستعملة مباعة وفق نظام هامش الربح: الضريبة مشمولة في السعر ولا تظهر بشكل منفصل.";
 
     private static string M(decimal v) => v.ToString("#,##0.000", CultureInfo.InvariantCulture);
     private static string Q(decimal v) => v.ToString("0.###", CultureInfo.InvariantCulture);
@@ -303,7 +314,7 @@ public static class ReceiptEndpoints
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(Q(l.Qty));
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(M(l.UnitPrice));
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(l.Discount == 0 ? "" : M(l.Discount));
-                        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text($"{M(l.Tax)} ({Q(l.TaxRate)}%)");
+                        table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(l.Margin ? "Margin / هامش" : $"{M(l.Tax)} ({Q(l.TaxRate)}%)");
                         table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(4).AlignRight().Text(M(l.Gross));
                     }
                 });
@@ -318,10 +329,13 @@ public static class ReceiptEndpoints
                     }
                     Row("Total before VAT / الإجمالي قبل الضريبة", r.Net);
                     foreach (var b in r.TaxBreakdown) Row($"VAT {Q(b.Rate)}% / ضريبة القيمة المضافة", b.Tax);
+                    if (r.MarginGross != 0) Row("Margin scheme items / سلع بنظام الهامش", r.MarginGross);
                     if (r.CashRounding != 0) Row("Cash rounding / تقريب النقد", r.CashRounding);
                     Row(r.DocType == "credit_note" ? "Refund / المبلغ المسترد" : "Total / الإجمالي", r.Total, true);
                 });
                 col.Item().PaddingTop(10).Text(string.Join("   ", r.Payments.Select(p => $"{MethodName(p.Method)}: OMR {M(p.Amount)}")));
+                if (r.MarginNoteEn is { } mn) col.Item().PaddingTop(8).Text(mn).Italic().FontSize(9);
+                if (r.MarginNoteAr is { } ma) col.Item().ContentFromRightToLeft().Text(ma).Italic().FontSize(9);
                 if (r.FooterEn is { } fe) col.Item().PaddingTop(16).AlignCenter().Text(fe);
                 if (r.FooterAr is { } fa) col.Item().AlignCenter().ContentFromRightToLeft().Text(fa);
             });
@@ -335,7 +349,11 @@ public static class ReceiptEndpoints
         })).GeneratePdf();
     }
 
-    private static string MethodName(string m) => m switch { "cash" => "Cash / نقداً", "card" => "Card / بطاقة", _ => "Bank transfer / تحويل بنكي" };
+    private static string MethodName(string m) => m switch
+    {
+        "cash" => "Cash / نقداً", "card" => "Card / بطاقة", "trade_in" => "Trade-in / جهاز مستبدل", "store_credit" => "Store credit / رصيد المتجر",
+        _ => "Bank transfer / تحويل بنكي",
+    };
 }
 
 /// <summary>Minimal ESC/POS commands the server itself sends (the receipt bytes are rendered by the terminal).</summary>

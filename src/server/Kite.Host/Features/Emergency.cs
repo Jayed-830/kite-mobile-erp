@@ -13,7 +13,8 @@ public sealed record EmergencyUploadRequest(List<EmergencyRecordInput> Records);
 
 public sealed record EmShiftOpen(Guid ShiftId, string Number, Guid CashierId, decimal OpeningFloat);
 public sealed record EmLine(Guid VariantId, decimal Qty, decimal UnitPrice, decimal ListPrice, decimal Discount, decimal Net, decimal Tax, decimal Gross,
-    decimal TaxRate, Guid TaxCodeId, string ProductType, string DescriptionEn, string DescriptionAr, int WarrantyDays = 0, Guid? DeviceUnitId = null);
+    decimal TaxRate, Guid TaxCodeId, string ProductType, string DescriptionEn, string DescriptionAr, int WarrantyDays = 0, Guid? DeviceUnitId = null,
+    string? TaxScheme = null);
 public sealed record EmSubstitution(int Line, Guid DeviceUnitId);
 public sealed record EmSettleRequest(string Action, List<EmSubstitution>? Substitutions = null, string? Note = null);
 public sealed record EmPayment(string Method, decimal Amount, decimal? Tendered = null, string? CardTerminal = null, string? ApprovalCode = null, string? Reference = null);
@@ -289,6 +290,9 @@ public static class EmergencyEndpoints
             x.CardTerminal ?? (x.Method == "card" ? "UNKNOWN" : null), x.ApprovalCode ?? (x.Method == "card" ? "EMERGENCY" : null), x.Reference)).ToArray();
         if (tenders.Any(x => !PosMath.Methods.Contains(x.Method) || x.Amount <= 0))
             throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A payment of {p.Number} is not valid.");
+        // Trade-ins and store credit need the server (their balances are checked under its locks): not in emergency mode.
+        if (tenders.Any(x => x.Method is "trade_in" or "store_credit"))
+            throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"{p.Number} was paid with trade-in or store credit, which emergency mode does not take.");
         if (tenders.Sum(x => x.Amount) != gross + p.CashRounding)
             throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"Payments of {p.Number} do not match its total.");
         // The product type decides the accounts: take it from the catalog, not from the terminal.
@@ -319,8 +323,26 @@ public static class EmergencyEndpoints
                 condition = u.Condition;
             }
             else if (unitId is not null) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"{l.DescriptionEn} is not serialized.");
+            // A margin-scheme line (12.3) is taxed against the purchase price of the phone actually sold; the price the customer
+            // paid stays as it was, only its split into net and VAT follows the phone (a substitute may have cost differently).
+            decimal? marginPrice = null;
+            decimal net = l.Net, tax = l.Tax;
+            if (l.TaxScheme == "margin")
+            {
+                marginPrice = unitId is { } mu ? await t.ExecuteScalarAsync<decimal?>("SELECT device.margin_purchase_price(@mu)", new { mu }) : null;
+                if (marginPrice is null)
+                    throw new KiteException(ErrorCodes.DeviceMismatch, settling
+                        ? $"{l.DescriptionEn} was sold under the profit margin scheme: choose a phone that was bought under it (a trade-in)."
+                        : $"{l.DescriptionEn} was sold under the profit margin scheme but the phone was not bought under it.", 409);
+                if (!await t.ExecuteScalarAsync<bool>("SELECT EXISTS (SELECT 1 FROM tax.tax_code WHERE id = @TaxCodeId AND kind = 'margin')", new { l.TaxCodeId }))
+                    throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A margin line of {p.Number} names a tax code that is not the margin code.");
+                var m = TradeInMath.MarginLine(l.Gross, marginPrice.Value, l.TaxRate);
+                (net, tax) = (m.Net, m.Tax);
+            }
+            else if (l.TaxScheme is not (null or "standard")) throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A line of {p.Number} has an unknown tax scheme.");
             lines.Add(new DraftLine(l.VariantId, ty.Type, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount,
-                l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, null, l.WarrantyDays, DeviceUnitId: ty.Tracking != "none" ? unitId : null, Condition: condition));
+                net, l.TaxCodeId, l.TaxRate, tax, l.Gross, null, l.WarrantyDays, DeviceUnitId: ty.Tracking != "none" ? unitId : null, Condition: condition,
+                MarginPurchasePrice: marginPrice));
         }
         var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term.BranchId);
         var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(p.SaleId, shift.Id, shift.CashierId, p.CustomerId, "simplified_invoice",

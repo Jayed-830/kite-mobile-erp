@@ -70,6 +70,13 @@ public static class Permissions
     public const string DeviceConflicts = "DEVICE.CONFLICTS";
     public const string DeviceBlocklist = "DEVICE.BLOCKLIST";
     public const string DeviceCount = "DEVICE.COUNT";
+    // Phase 7 (V0016)
+    public const string TradeInCreate = "TRADEIN.CREATE";
+    public const string TradeInApprove = "TRADEIN.APPROVE";
+    public const string TradeInStoreCredit = "TRADEIN.STORE_CREDIT";
+    public const string TradeInPayout = "TRADEIN.PAYOUT";
+    public const string TradeInView = "TRADEIN.VIEW";
+    public const string TradeInSettings = "TRADEIN.SETTINGS";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -103,14 +110,16 @@ public static class RoleTemplates
             Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.DevicePrice, Permissions.DeviceSellDamaged,
             Permissions.DeviceWriteOff, Permissions.DeviceHold, Permissions.DeviceSettings,
             Permissions.DeviceImeiCorrect, Permissions.DeviceConflicts, Permissions.DeviceBlocklist, Permissions.DeviceCount,
+            Permissions.TradeInCreate, Permissions.TradeInApprove, Permissions.TradeInStoreCredit, Permissions.TradeInPayout, Permissions.TradeInView,
+            Permissions.TradeInSettings,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
              Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen,
-             Permissions.PosCashPayOut, Permissions.DeviceView], 10m, 10.000m),
+             Permissions.PosCashPayOut, Permissions.DeviceView, Permissions.TradeInCreate, Permissions.TradeInView], 10m, 10.000m),
         new("cashier", "Cashier", "أمين صندوق",
             [Permissions.PosSell, Permissions.PosReceiptReprint, Permissions.CatalogView, Permissions.CustomersView, Permissions.CustomersManage,
-             Permissions.PosShiftOpen], 5m, 2.000m),
+             Permissions.PosShiftOpen, Permissions.TradeInCreate, Permissions.TradeInView], 5m, 2.000m),
         new("technician", "Technician", "فني",
             [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
@@ -122,6 +131,7 @@ public static class RoleTemplates
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
             Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
             Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView, Permissions.DeviceView,
+            Permissions.TradeInView,
         ]),
     ];
 }

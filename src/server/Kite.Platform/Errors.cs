@@ -131,4 +131,13 @@ public static class ErrorCodes
     public const string SerialFormat = "DEV-017";
     public const string DeviceOnHold = "DEV-018";
     public const string DeviceCountState = "DEV-019";
+    // Phase 7: trade-ins and store credit
+    public const string TradeInState = "TRD-001";
+    public const string TradeInApprovalNeeded = "TRD-002";
+    public const string TradeInConsent = "TRD-003";
+    public const string TradeInDevice = "TRD-004";
+    public const string TradeInSettlement = "TRD-005";
+    public const string StoreCreditShort = "TRD-006";
+    public const string TradeInCivilId = "TRD-007";
+    public const string TradeInNoValue = "TRD-008";
 }

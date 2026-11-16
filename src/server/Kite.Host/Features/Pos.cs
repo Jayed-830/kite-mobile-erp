@@ -37,7 +37,8 @@ public sealed record ShiftRow(Guid Id, Guid BranchId, Guid TerminalId, Guid Cash
 public sealed record ShiftFigures(
     int SalesCount, decimal SalesGross, decimal SalesNet, decimal SalesTax, decimal SalesDiscount, int CreditNotesCount, decimal CreditNotesGross,
     decimal CashRounding, decimal CashPayments, decimal CardPayments, decimal TransferPayments, decimal PayIns, decimal PayOuts, decimal Drops,
-    int NoSales, decimal OpeningFloat, decimal ExpectedCash, IReadOnlyList<CardTerminalTotal> CardByTerminal);
+    int NoSales, decimal OpeningFloat, decimal ExpectedCash, IReadOnlyList<CardTerminalTotal> CardByTerminal,
+    decimal TradeInCredit = 0m, decimal StoreCreditPayments = 0m, decimal TradeInPayouts = 0m);
 
 public sealed record CardTerminalTotal(string CardTerminal, decimal Total);
 
@@ -50,6 +51,7 @@ public static class PosEndpoints
     [
         Permissions.PosDiscountAboveLimit, Permissions.PosPriceOverride, Permissions.PosSaleVoid, Permissions.PosRefund,
         Permissions.PosCashPayOut, Permissions.PosDrawerNoSale, Permissions.PosShiftAcceptVariance, Permissions.DeviceSellDamaged,
+        Permissions.TradeInApprove, Permissions.TradeInStoreCredit, Permissions.TradeInPayout,
     ];
 
     private const string ShiftSelect = """
@@ -328,7 +330,7 @@ public static class PosEndpoints
         return new { id = s.Id, s.Number, report = "Z", figures = f, counted, variance, varianceAcceptedBy = acceptedBy };
     }
 
-    private static async Task<ShiftRow> OpenShiftForUpdateAsync(DbTx t, PosTerminal term, HttpContext http, bool allowManager = false)
+    public static async Task<ShiftRow> OpenShiftForUpdateAsync(DbTx t, PosTerminal term, HttpContext http, bool allowManager = false)
     {
         var s = await t.QuerySingleOrDefaultAsync<ShiftRow>(ShiftSelect + " WHERE terminal_id = @id AND status = 'open' AND NOT is_emergency FOR UPDATE", new { id = term.Id })
             ?? throw new KiteException(ErrorCodes.NoOpenShift, "Open a shift on this terminal first.", 409);
@@ -360,10 +362,12 @@ public static class PosEndpoints
             new { id = s.Id })).ToArray();
         decimal E(string k) => ev.TryGetValue(k, out var v) ? v.Total : 0m;
         var cash = pay.GetValueOrDefault("cash");
+        // Trade-ins paid out in cash leave the drawer like a pay-out (12.5).
         return new ShiftFigures((int)sale.Count, sale.Gross, sale.Net, sale.Tax, sale.Discount, (int)sale.CnCount, sale.CnGross, sale.Rounding,
             cash, pay.GetValueOrDefault("card"), pay.GetValueOrDefault("bank_transfer"), E("pay_in"), E("pay_out"), E("drop"),
             ev.TryGetValue("no_sale", out var ns) ? (int)ns.Count : 0, s.OpeningFloat,
-            PosMath.ExpectedCash(s.OpeningFloat, cash, E("pay_in"), E("pay_out"), E("drop")), cards);
+            PosMath.ExpectedCash(s.OpeningFloat, cash, E("pay_in"), E("pay_out") + E("tradein_payout"), E("drop")), cards,
+            pay.GetValueOrDefault("trade_in"), pay.GetValueOrDefault("store_credit"), E("tradein_payout"));
     }
 
     // ------------------------------------------------------------------ approvals
@@ -618,7 +622,7 @@ public static class PosEndpoints
         }).RequireSignedIn();
     }
 
-    private static async Task<T> WithRetryAsync<T>(Func<Task<T>> work)
+    public static async Task<T> WithRetryAsync<T>(Func<Task<T>> work)
     {
         for (var attempt = 1; ; attempt++)
         {
@@ -728,12 +732,47 @@ public static class PosEndpoints
         if (req.ExpectedTotal is { } shown && shown != totals.Gross)
             throw new KiteException(ErrorCodes.SaleChanged, $"Prices changed: the total is now {totals.Gross:0.000}, not {shown:0.000}. Check the cart and try again.", 409, "expectedTotal");
         var payments = PosMath.CheckTenders(req.Payments ?? [], totals.Gross, policy.CashRounding);
+        await CheckCreditTendersAsync(t, term, req.CustomerId, payments.Tenders, refund: false);
 
         var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(id, shift.Id, uid, req.CustomerId, docType, null, null, null, now,
             draft, payments, false, Note: string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim(),
             Audit: uses.Count == 0 ? null : number => new AuditEntry("pos.sale_with_approval", "sale", id, After: Json.Obj(new { number, approvals = uses.Keys }), BranchId: term.BranchId)));
         return new SaleSummary(id, written.Number, docType, written.Gross, written.CashRounding, payments.Paid,
             payments.Tenders.Sum(x => x.Change ?? 0m), written.StockExceptions);
+    }
+
+    /// <summary>
+    /// Trade-in credit and store credit as payments (12.5, 14.6): a trade-in accepted at this branch from the same customer, with
+    /// that much still to settle; store credit only for a named customer, within the balance. The ledger and the settlement
+    /// triggers check again under their own locks.
+    /// </summary>
+    private static async Task CheckCreditTendersAsync(DbTx t, PosTerminal term, Guid? customerId, IReadOnlyList<CheckedTender> tenders, bool refund)
+    {
+        await TradeInCore.LockForPaymentAsync(t, tenders.Where(p => p.TradeInId is not null).Select(p => p.TradeInId!.Value),
+            tenders.Any(p => p.Method == "store_credit") ? customerId : null);
+        var credit = 0m;
+        foreach (var (p, i) in tenders.Select((p, i) => (p, i)))
+        {
+            var field = refund ? $"refunds[{i}]" : $"payments[{i}]";
+            if (p.Method == "store_credit")
+            {
+                if (customerId is null) throw new KiteException(ErrorCodes.CustomerRequired, "Store credit belongs to a customer: choose the customer first.", 400, "customerId");
+                credit += p.Amount;
+            }
+            if (p.Method != "trade_in") continue;
+            var ti = await TradeInCore.LoadAsync(t, p.TradeInId!.Value, forUpdate: true);
+            if (ti.Status != "accepted") throw new KiteException(ErrorCodes.TradeInState, $"Trade-in {ti.Number} is {ti.Status}: it has no credit left.", 409, $"{field}.tradeInId");
+            if (ti.BranchId != term.BranchId) throw new KiteException(ErrorCodes.TradeInSettlement, $"Trade-in {ti.Number} was accepted at {ti.BranchCode}; use it there.", 409, $"{field}.tradeInId");
+            if (customerId != ti.CustomerId)
+                throw new KiteException(ErrorCodes.TradeInSettlement, $"Trade-in {ti.Number} is {ti.CustomerName}'s: choose that customer for the sale.", 409, "customerId");
+            var left = await TradeInCore.OutstandingAsync(t, ti.Id);
+            if (p.Amount > left) throw new KiteException(ErrorCodes.TradeInSettlement, $"Only {left:0.000} is left on trade-in {ti.Number}.", 409, $"{field}.amount");
+        }
+        if (!refund && credit > 0)
+        {
+            var balance = await t.ExecuteScalarAsync<decimal>("SELECT crm.store_credit_balance(@customerId)", new { customerId });
+            if (credit > balance) throw new KiteException(ErrorCodes.StoreCreditShort, $"The customer has {balance:0.000} of store credit.", 409, "payments");
+        }
     }
 
     private static async Task<(Guid TerminalId, SaleSummary Summary)?> ExistingAsync(DbTx t, Guid id)
@@ -749,14 +788,15 @@ public static class PosEndpoints
     private sealed record OriginalSale(Guid Id, Guid BranchId, Guid ShiftId, string Number, string DocType, Guid? CustomerId, DateTime SaleDate, decimal CashRounding);
     private sealed record OriginalLine(Guid Id, Guid VariantId, string ProductType, string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice,
         decimal ListPrice, decimal Discount, decimal Net, Guid TaxCodeId, decimal TaxRate, decimal Tax, decimal Gross, decimal CostValue,
-        decimal ReturnedQty, decimal ReturnedNet, decimal ReturnedTax, decimal ReturnedGross, decimal ReturnedDiscount, Guid? DeviceUnitId);
+        decimal ReturnedQty, decimal ReturnedNet, decimal ReturnedTax, decimal ReturnedGross, decimal ReturnedDiscount, Guid? DeviceUnitId,
+        decimal? MarginPurchasePrice);
 
     private const string OriginalLinesSql = """
         SELECT l.id, l.variant_id AS VariantId, l.product_type AS ProductType, l.description_en AS DescriptionEn, l.description_ar AS DescriptionAr,
                l.qty, l.unit_price AS UnitPrice, l.list_price AS ListPrice, l.discount_amount AS Discount, l.net_amount AS Net, l.tax_code_id AS TaxCodeId,
                l.tax_rate AS TaxRate, l.tax_amount AS Tax, l.gross_amount AS Gross, l.cost_value AS CostValue,
                coalesce(r.qty, 0) AS ReturnedQty, coalesce(r.net, 0) AS ReturnedNet, coalesce(r.tax, 0) AS ReturnedTax, coalesce(r.gross, 0) AS ReturnedGross,
-               coalesce(r.discount, 0) AS ReturnedDiscount, l.device_unit_id AS DeviceUnitId
+               coalesce(r.discount, 0) AS ReturnedDiscount, l.device_unit_id AS DeviceUnitId, l.margin_purchase_price AS MarginPurchasePrice
           FROM sales.sale_line l
           LEFT JOIN LATERAL (SELECT sum(x.qty) AS qty, sum(x.net_amount) AS net, sum(x.tax_amount) AS tax, sum(x.gross_amount) AS gross,
                                     sum(x.discount_amount) AS discount
@@ -812,7 +852,7 @@ public static class PosEndpoints
                 if (code != unit.Imei1 && code != unit.Imei2 && code != unit.Serial)
                     throw new KiteException(ErrorCodes.DeviceMismatch, $"{code} is not the device sold on this line.", 400, $"lines[{i}].code");
                 draft.Add(new DraftLine(o.VariantId, o.ProductType, o.DescriptionEn, o.DescriptionAr, r.Qty, o.UnitPrice, o.ListPrice, a.Discount, a.Net, o.TaxCodeId,
-                    o.TaxRate, a.Tax, a.Gross, null, 0, o.Id, false, null, unitId, unit.Condition));
+                    o.TaxRate, a.Tax, a.Gross, null, 0, o.Id, false, null, unitId, unit.Condition, o.MarginPurchasePrice));
                 continue;
             }
             var stocked = o.ProductType != "service";
@@ -821,6 +861,7 @@ public static class PosEndpoints
         }
         var gross = draft.Sum(d => d.Gross);
         var refunds = PosMath.CheckTenders(req.Refunds ?? [], gross, policy.CashRounding, refund: true);
+        await CheckCreditTendersAsync(t, term, original.CustomerId, refunds.Tenders, refund: true);
         foreach (var (p, i) in refunds.Tenders.Select((p, i) => (p, i)))
             if (p.Method == "card" && p.CardTerminal is null)
                 throw new KiteException(ErrorCodes.Validation, "Name the bank terminal the card refund is made on.", 400, $"refunds[{i}].cardTerminal");
@@ -879,11 +920,12 @@ public static class PosEndpoints
         var draft = lines.Select(o => new DraftLine(o.VariantId, o.ProductType, o.DescriptionEn, o.DescriptionAr, o.Qty, o.UnitPrice, o.ListPrice, o.Discount,
             o.Net, o.TaxCodeId, o.TaxRate, o.Tax, o.Gross, null, 0, o.Id, o.ProductType != "service" ? true : null,
             o.ProductType != "service" ? decimal.Round(o.CostValue / o.Qty, 6) : null, o.DeviceUnitId,
-            o.DeviceUnitId is { } du ? conditions[du] : null)).ToArray();
+            o.DeviceUnitId is { } du ? conditions[du] : null, o.MarginPurchasePrice)).ToArray();
         // The money goes back exactly as it came in, cash rounding included.
-        var paid = await t.QueryAsync<(string Method, decimal Amount, string? CardTerminal, string? ApprovalCode, string? Reference)>(
-            "SELECT method, amount, card_terminal, approval_code, reference FROM sales.payment WHERE sale_id = @originalId ORDER BY created_at, id", new { originalId });
-        var tenders = paid.Select(p => new CheckedTender(p.Method, p.Amount, null, null, p.CardTerminal, p.ApprovalCode, p.Reference)).ToArray();
+        // Trade-in credit goes back to its trade-in (to be settled again) and store credit back to the customer's balance.
+        var paid = await t.QueryAsync<(string Method, decimal Amount, string? CardTerminal, string? ApprovalCode, string? Reference, Guid? TradeInId)>(
+            "SELECT method, amount, card_terminal, approval_code, reference, tradein_id FROM sales.payment WHERE sale_id = @originalId ORDER BY created_at, id", new { originalId });
+        var tenders = paid.Select(p => new CheckedTender(p.Method, p.Amount, null, null, p.CardTerminal, p.ApprovalCode, p.Reference, p.TradeInId)).ToArray();
         var refunds = new CheckedPayments(tenders, original.CashRounding, draft.Sum(d => d.Gross) + original.CashRounding);
         var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(req.Id, shift.Id, uid, original.CustomerId, "credit_note", "void",
             original.Id, null, t.Clock.UtcNow, draft, refunds, true, Note: req.Reason.Trim(),

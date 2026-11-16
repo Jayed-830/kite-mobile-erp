@@ -6,9 +6,11 @@ using Kite.Tax;
 namespace Kite.Sales;
 
 /// <summary>What the catalog says about one sellable variant on the sale date, in one branch.</summary>
+/// <summary>What the catalog says about one sellable variant on the sale date, in one branch. A device sold under the profit
+/// margin mechanism has the VAT-MARGIN code and the price it was bought for (<see cref="MarginCost"/>).</summary>
 public sealed record PricedItem(
     Guid VariantId, string Sku, string ProductType, string Tracking, string DescriptionEn, string DescriptionAr,
-    Guid TaxCodeId, string TaxKind, decimal TaxRate, decimal? ListPrice, decimal? MinPrice, int WarrantyDays, bool Active);
+    Guid TaxCodeId, string TaxKind, decimal TaxRate, decimal? ListPrice, decimal? MinPrice, int WarrantyDays, bool Active, decimal? MarginCost = null);
 
 /// <summary>A cart line as the terminal sends it. <see cref="UnitPrice"/> is null when the list price is used. A serialized
 /// item names its device unit (11.5) and is sold one at a time.</summary>
@@ -30,11 +32,12 @@ public sealed record PricedLine(
 
 public sealed record SaleTotals(decimal Net, decimal Discount, decimal Tax, decimal Gross);
 
+/// <summary>A payment as the terminal sends it. Trade-in credit names its trade-in (12.5); store credit is the sale's customer's (14.6).</summary>
 public sealed record TenderInput(string Method, decimal Amount, decimal? Tendered = null, string? CardTerminal = null,
-    string? ApprovalCode = null, string? Reference = null);
+    string? ApprovalCode = null, string? Reference = null, Guid? TradeInId = null);
 
 public sealed record CheckedTender(string Method, decimal Amount, decimal? Tendered, decimal? Change, string? CardTerminal,
-    string? ApprovalCode, string? Reference);
+    string? ApprovalCode, string? Reference, Guid? TradeInId = null);
 
 public sealed record CheckedPayments(IReadOnlyList<CheckedTender> Tenders, decimal CashRounding, decimal Paid);
 
@@ -46,7 +49,7 @@ public sealed record ReturnAmounts(decimal Net, decimal Tax, decimal Gross, deci
 
 public static class PosMath
 {
-    public static readonly string[] Methods = ["cash", "card", "bank_transfer"];
+    public static readonly string[] Methods = ["cash", "card", "bank_transfer", "trade_in", "store_credit"];
     private static readonly Currency Omr = Currency.OMR;
 
     /// <summary>Prices one cart line (10.2): list price unless overridden, discount checked against the cashier's limit,
@@ -60,8 +63,8 @@ public static class PosMath
             throw new KiteException(ErrorCodes.Validation, $"{item.Sku} is not serialized; it has no device units.", 400, $"lines[{lineNo - 1}].deviceUnitId");
         if (line.DeviceUnitId is not null && line.Qty != 1)
             throw new KiteException(ErrorCodes.Validation, "A device is sold one at a time.", 400, $"lines[{lineNo - 1}].qty");
-        if (item.TaxKind == "margin")
-            throw new KiteException(ErrorCodes.Validation, $"{item.Sku} uses the margin VAT scheme, which comes with trade-ins (Phase 7).", 400, $"lines[{lineNo - 1}]");
+        if (item.TaxKind == "margin" && item.MarginCost is null)
+            throw new KiteException(ErrorCodes.Validation, $"{item.Sku}: the margin scheme taxes one device against the price it was bought for; choose the device.", 400, $"lines[{lineNo - 1}]");
         if (item.ListPrice is null && line.UnitPrice is null)
             throw new KiteException(ErrorCodes.NoPrice, $"{item.Sku} has no price on this date.", 400, $"lines[{lineNo - 1}]");
         if (line.Qty <= 0 || line.Qty != decimal.Round(line.Qty, 3))
@@ -76,7 +79,10 @@ public static class PosMath
         var lineAmount = Omr.Round(unit * line.Qty);
         if (line.Discount > lineAmount)
             throw new KiteException(ErrorCodes.Validation, "The discount is larger than the line amount.", 400, $"lines[{lineNo - 1}].discount");
-        var tax = TaxEngine.ComputeLine(unit, line.Qty, line.Discount, item.TaxRate, pricesIncludeTax, Omr);
+        // Under the margin scheme the price is what the customer pays whether or not prices include tax: the VAT is inside the margin (12.3).
+        var tax = item.TaxKind == "margin"
+            ? MarginTax(TradeInMath.MarginLine(lineAmount - line.Discount, item.MarginCost!.Value, item.TaxRate))
+            : TaxEngine.ComputeLine(unit, line.Qty, line.Discount, item.TaxRate, pricesIncludeTax, Omr);
 
         var priceChanged = item.ListPrice is null || unit != list;
         var effectiveUnit = (lineAmount - line.Discount) / line.Qty;
@@ -91,7 +97,8 @@ public static class PosMath
     public static IReadOnlyList<PricedLine> ApplyInvoiceRounding(IReadOnlyList<PricedLine> lines, bool pricesIncludeTax)
     {
         var result = lines.ToArray();
-        foreach (var group in lines.Select((l, i) => (l, i)).GroupBy(x => x.l.Item.TaxRate))
+        // Margin-scheme lines keep their own tax: each is worked out against its own purchase price.
+        foreach (var group in lines.Select((l, i) => (l, i)).Where(x => x.l.Item.TaxKind != "margin").GroupBy(x => x.l.Item.TaxRate))
         {
             var rate = group.Key;
             var items = group.ToArray();
@@ -133,7 +140,11 @@ public static class PosMath
         {
             var t = tenders[i];
             var f = $"payments[{i}]";
-            if (!Methods.Contains(t.Method)) throw new KiteException(ErrorCodes.Validation, "Payment method must be cash, card or bank_transfer.", 400, f + ".method");
+            if (!Methods.Contains(t.Method)) throw new KiteException(ErrorCodes.Validation, "Payment method must be cash, card, bank_transfer, trade_in or store_credit.", 400, f + ".method");
+            if (t.Method == "trade_in" && refund) throw new KiteException(ErrorCodes.RefundMethod, "A refund cannot go back as trade-in credit; refund in cash, to the card, by transfer or as store credit.", 400, f + ".method");
+            if (t.Method == "trade_in" && t.TradeInId is null) throw new KiteException(ErrorCodes.Validation, "Trade-in credit names its trade-in.", 400, f + ".tradeInId");
+            if (t.Method != "trade_in" && t.TradeInId is not null) throw new KiteException(ErrorCodes.Validation, "Only trade-in credit names a trade-in.", 400, f + ".tradeInId");
+            if (t.TradeInId is { } ti && list.Any(x => x.TradeInId == ti)) throw new KiteException(ErrorCodes.Validation, "The same trade-in is applied twice.", 400, f + ".tradeInId");
             if (t.Amount <= 0 || t.Amount != Omr.Round(t.Amount)) throw new KiteException(ErrorCodes.Validation, "Each payment must be above zero with at most 3 decimals.", 400, f + ".amount");
             if (t.Method == "card" && !refund && (string.IsNullOrWhiteSpace(t.CardTerminal) || string.IsNullOrWhiteSpace(t.ApprovalCode)))
                 throw new KiteException(ErrorCodes.Validation, "A card payment needs the bank terminal and the approval code from its slip.", 400, f);
@@ -143,12 +154,12 @@ public static class PosMath
             if (t.Tendered is { } td && (refund || td < t.Amount || td != Omr.Round(td)))
                 throw new KiteException(ErrorCodes.Validation, "Cash tendered must cover the cash amount.", 400, f + ".tendered");
             list.Add(new CheckedTender(t.Method, t.Amount, t.Tendered, t.Tendered is { } tt ? tt - t.Amount : null,
-                Clean(t.CardTerminal), Clean(t.ApprovalCode), Clean(t.Reference)));
+                Clean(t.CardTerminal), Clean(t.ApprovalCode), Clean(t.Reference), t.TradeInId));
         }
 
         var nonCash = list.Where(t => t.Method != "cash").Sum(t => t.Amount);
         var cash = list.FirstOrDefault(t => t.Method == "cash");
-        if (nonCash > gross) throw new KiteException(ErrorCodes.PaymentMismatch, "Card and transfer payments are more than the total.", 400, "payments");
+        if (nonCash > gross) throw new KiteException(ErrorCodes.PaymentMismatch, "Payments other than cash are more than the total.", 400, "payments");
         decimal rounding = 0m;
         if (cash is null)
         {
@@ -238,4 +249,6 @@ public static class PosMath
     }
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    private static LineTax MarginTax(MarginLineTax m) => new(new Money(m.Net, Omr), new Money(m.Tax, Omr), new Money(m.Gross, Omr), 0m);
 }

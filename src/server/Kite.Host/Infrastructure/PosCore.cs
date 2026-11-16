@@ -122,7 +122,9 @@ public static class ItemPricing
     public static async Task<Dictionary<Guid, PricedItem>> LoadAsync(DbTx t, Guid branchId, IEnumerable<Guid> variantIds, DateOnly date)
     {
         var ids = variantIds.Distinct().ToArray();
-        var rows = await t.QueryAsync<PricedItem>(Select("v.id = ANY(@ids)"), new { ids, branchId, d = date.ToDateTime(TimeOnly.MinValue) });
+        // A catalog item has no margin cost of its own: that belongs to a device unit bought under the margin scheme (12.3).
+        var sql = Select("v.id = ANY(@ids)").Replace(" AS Active", " AS Active, NULL::numeric AS MarginCost", StringComparison.Ordinal);
+        var rows = await t.QueryAsync<PricedItem>(sql, new { ids, branchId, d = date.ToDateTime(TimeOnly.MinValue) });
         return rows.ToDictionary(r => r.VariantId);
     }
 }
@@ -161,8 +163,12 @@ public static class Approvals
 public sealed record DraftLine(
     Guid VariantId, string ProductType, string DescriptionEn, string DescriptionAr, decimal Qty, decimal UnitPrice, decimal ListPrice,
     decimal Discount, decimal Net, Guid TaxCodeId, decimal TaxRate, decimal Tax, decimal Gross, Guid? ApprovalId, int WarrantyDays,
-    Guid? ReturnedLineId = null, bool? Restock = null, decimal? RestockUnitCost = null, Guid? DeviceUnitId = null, string? Condition = null)
+    Guid? ReturnedLineId = null, bool? Restock = null, decimal? RestockUnitCost = null, Guid? DeviceUnitId = null, string? Condition = null,
+    decimal? MarginPurchasePrice = null)
 {
+    /// <summary>Sold under the profit margin mechanism (12.3): taxed against <see cref="MarginPurchasePrice"/>.</summary>
+    public bool Margin => MarginPurchasePrice is not null;
+
     public bool Stocked => ProductType != "service";
 
     /// <summary>The key the posting rules use: the product type, or "device_used" for a device that is not brand new.</summary>
@@ -170,7 +176,8 @@ public sealed record DraftLine(
 
     public static DraftLine From(PricedLine l, Guid? approvalId, Guid? deviceUnitId = null, string? condition = null) =>
         new(l.Item.VariantId, l.Item.ProductType, l.Item.DescriptionEn, l.Item.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice,
-            l.Discount, l.Net, l.Item.TaxCodeId, l.Item.TaxRate, l.Tax, l.Gross, approvalId, l.Item.WarrantyDays, DeviceUnitId: deviceUnitId, Condition: condition);
+            l.Discount, l.Net, l.Item.TaxCodeId, l.Item.TaxRate, l.Tax, l.Gross, approvalId, l.Item.WarrantyDays, DeviceUnitId: deviceUnitId, Condition: condition,
+            MarginPurchasePrice: l.Item.TaxKind == "margin" ? l.Item.MarginCost : null);
 }
 
 public sealed record SaleDraft(
@@ -190,6 +197,8 @@ public static class SaleWriter
     {
         var date = BusinessDay.DateOf(d.CompletedAt, biz.TimeZone);
         var isCredit = d.DocType == "credit_note";
+        await TradeInCore.LockForPaymentAsync(t, d.Payments.Tenders.Where(p => p.TradeInId is not null).Select(p => p.TradeInId!.Value),
+            d.Payments.Tenders.Any(p => p.Method == "store_credit") ? d.CustomerId : null);
         var number = d.IsEmergency
             ? d.EmergencyNumber!
             : await DocNumbers.NextAsync(t, biz.Id, term.BranchId, isCredit ? "credit_note" : "sale_invoice",
@@ -199,7 +208,8 @@ public static class SaleWriter
         var gross = d.Lines.Sum(l => l.Gross);
         var discount = d.Lines.Sum(l => l.Discount);
         var einvoice = t.NewId();
-        var qr = PosMath.QrPayload(biz.SellerNameEn, biz.VatNumber, d.CompletedAt, gross, tax, einvoice);
+        // The QR shows the VAT the invoice shows: margin-scheme lines carry theirs inside the price, unshown (12.3).
+        var qr = PosMath.QrPayload(biz.SellerNameEn, biz.VatNumber, d.CompletedAt, gross, d.Lines.Where(l => !l.Margin).Sum(l => l.Tax), einvoice);
 
         await t.ExecuteAsync("""
             INSERT INTO sales.sale (id, business_id, branch_id, warehouse_id, terminal_id, shift_id, cashier_id, customer_id, number, doc_type,
@@ -256,13 +266,15 @@ public static class SaleWriter
             await t.ExecuteAsync("""
                 INSERT INTO sales.sale_line (id, sale_id, line_no, variant_id, product_type, description_en, description_ar, qty, unit_price,
                                              list_price, discount_amount, net_amount, tax_code_id, tax_rate, tax_amount, gross_amount, cost_value,
-                                             approval_id, returned_line_id, restock, warranty_until, device_unit_id)
+                                             approval_id, returned_line_id, restock, warranty_until, device_unit_id, tax_scheme, margin_purchase_price)
                 VALUES (@id, @saleId, @no, @VariantId, @ProductType, @DescriptionEn, @DescriptionAr, @Qty, @UnitPrice, @ListPrice, @Discount,
-                        @Net, @TaxCodeId, @TaxRate, @Tax, @Gross, @cost, @ApprovalId, @ReturnedLineId, @Restock, @warranty::date, @DeviceUnitId)
+                        @Net, @TaxCodeId, @TaxRate, @Tax, @Gross, @cost, @ApprovalId, @ReturnedLineId, @Restock, @warranty::date, @DeviceUnitId,
+                        @scheme, @MarginPurchasePrice)
                 """, new { id = lineIds[i], saleId = d.Id, no = (short)(i + 1), l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty,
                            l.UnitPrice, l.ListPrice, l.Discount, l.Net, l.TaxCodeId, l.TaxRate, l.Tax, l.Gross, cost = costs[i], l.ApprovalId,
                            l.ReturnedLineId, l.Restock,
-                           warranty = !isCredit && l.WarrantyDays > 0 ? date.AddDays(l.WarrantyDays).ToDateTime(TimeOnly.MinValue) : (DateTime?)null, l.DeviceUnitId });
+                           warranty = !isCredit && l.WarrantyDays > 0 ? date.AddDays(l.WarrantyDays).ToDateTime(TimeOnly.MinValue) : (DateTime?)null, l.DeviceUnitId,
+                           scheme = l.Margin ? "margin" : "standard", l.MarginPurchasePrice });
             facts.Add("net_by_product_type", l.PostingClass, l.Net);
         }
 
@@ -278,12 +290,35 @@ public static class SaleWriter
 
         foreach (var p in d.Payments.Tenders)
         {
+            var signed = d.Refund ? -p.Amount : p.Amount;
+            // Store credit (14.6): used, the customer's balance goes down; refunded to it, up. Never below zero (the ledger refuses).
+            Guid? creditEntry = null;
+            if (p.Method == "store_credit")
+            {
+                if (d.CustomerId is null) throw new KiteException(ErrorCodes.CustomerRequired, "Store credit belongs to a customer: choose the customer.", 400, "customerId");
+                creditEntry = t.NewId();
+                await t.ExecuteAsync("""
+                    INSERT INTO crm.credit_ledger (id, business_id, branch_id, customer_id, balance_type, amount, source_doc_type, source_doc_id, note, created_by, origin_server_id)
+                    VALUES (@creditEntry, @businessId, @branchId, @CustomerId, 'store_credit', @amount, 'sale', @saleId, @note, @by, (SELECT id FROM core.server WHERE is_self))
+                    """, new { creditEntry, businessId = biz.Id, branchId = term.BranchId, d.CustomerId, amount = -signed, saleId = d.Id,
+                               note = $"{(isCredit ? "Credit note" : "Sale")} {number}", by = d.CashierId });
+            }
             await t.ExecuteAsync("""
                 INSERT INTO sales.payment (id, business_id, branch_id, sale_id, shift_id, method, amount, tendered, change_given,
-                                           card_terminal, approval_code, reference, created_at)
-                VALUES (@id, @businessId, @branchId, @saleId, @ShiftId, @Method, @amount, @Tendered, @Change, @CardTerminal, @ApprovalCode, @Reference, @at)
+                                           card_terminal, approval_code, reference, created_at, tradein_id, credit_entry_id)
+                VALUES (@id, @businessId, @branchId, @saleId, @ShiftId, @Method, @amount, @Tendered, @Change, @CardTerminal, @ApprovalCode, @Reference, @at,
+                        @TradeInId, @creditEntry)
                 """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, saleId = d.Id, d.ShiftId, p.Method,
-                           amount = d.Refund ? -p.Amount : p.Amount, p.Tendered, p.Change, p.CardTerminal, p.ApprovalCode, p.Reference, at = d.CompletedAt });
+                           amount = signed, p.Tendered, p.Change, p.CardTerminal, p.ApprovalCode, p.Reference, at = d.CompletedAt, p.TradeInId, creditEntry });
+            // Trade-in credit (12.5): the sale settles that much of the trade-in; a void gives it back to be settled again.
+            if (p.Method == "trade_in")
+                await t.ExecuteAsync("""
+                    INSERT INTO tradein.settlement (id, business_id, branch_id, tradein_id, kind, amount, sale_id, created_by)
+                    VALUES (@id, @businessId, @branchId, @TradeInId, 'sale', @amount, @saleId, @by)
+                    """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, p.TradeInId, amount = signed, saleId = d.Id, by = d.CashierId });
+            if (p.Method == "trade_in" && !d.Refund)
+                await t.ExecuteAsync("UPDATE tradein.tradein SET sale_id = @saleId, updated_by = @by WHERE id = @TradeInId AND sale_id IS DISTINCT FROM @saleId",
+                    new { saleId = d.Id, by = d.CashierId, p.TradeInId });
             facts.Add("tenders", p.Method, p.Amount);
         }
         facts.Set("tax", tax).Set("cash_rounding", d.Payments.CashRounding);

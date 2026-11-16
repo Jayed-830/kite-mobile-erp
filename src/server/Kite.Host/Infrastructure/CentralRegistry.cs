@@ -140,18 +140,40 @@ public static class CentralRegistry
                     """, new { id = mine.Id, u.Status, u.Condition, u.DescriptionEn, u.DescriptionAr, branchId });
                 continue;
             }
-            var taken = await t.ExecuteScalarAsync<bool>("""
-                SELECT EXISTS (SELECT 1 FROM device.central_registry WHERE business_id = @businessId AND status = 'active' AND value = @Value
-                                  AND (CASE WHEN kind = 'serial' THEN @Kind = 'serial' AND brand_name = @BrandName ELSE @Kind <> 'serial' END))
-                """, new { businessId, k.Value, k.Kind, k.BrandName });
+            var holders = (await t.QueryAsync<(Guid Id, string UnitStatus, string Status)>("""
+                SELECT id, unit_status, status FROM device.central_registry WHERE business_id = @businessId AND status <> 'retired' AND value = @Value
+                   AND (CASE WHEN kind = 'serial' THEN @Kind = 'serial' AND brand_name = @BrandName ELSE @Kind <> 'serial' END)
+                """, new { businessId, k.Value, k.Kind, k.BrandName })).ToList();
+            var taken = holders.Count > 0;
+            var rowStatus = "active";
+            if (taken && u.Status == "sold")
+            {
+                // A device the business sold has come back in elsewhere (a trade-in, 11.1): the sold record never displaces it.
+                var recorded = await t.ExecuteScalarAsync<bool>("""
+                    SELECT EXISTS (SELECT 1 FROM device.central_registry WHERE server_id = @serverId AND device_unit_id = @unit AND value = @Value AND status = 'retired'
+                                      AND retired_reason = 'superseded')
+                    """, new { serverId, unit = u.UnitId, d.Value });
+                if (recorded) continue;
+                rowStatus = "retired";
+                taken = false;
+            }
+            else if (taken && holders.All(h => h.UnitStatus == "sold"))
+            {
+                // Every holder is a device that was sold: this unit is that device coming back in (a trade-in), not a duplicate.
+                await t.ExecuteAsync("""
+                    UPDATE device.central_registry SET status = 'retired', retired_at = now(), retired_reason = 'superseded', conflict_id = NULL, updated_at = now()
+                     WHERE id = ANY(@ids)
+                    """, new { ids = holders.Select(h => h.Id).ToArray() });
+                taken = false;
+            }
             var conflictId = taken ? await OpenConflictAsync(t, businessId, k) : (Guid?)null;
             await t.ExecuteAsync("""
                 INSERT INTO device.central_registry (id, business_id, kind, slot, value, brand_name, server_id, branch_id, device_unit_id, description_en,
-                                                     description_ar, unit_status, condition, received_at, status, conflict_id)
+                                                     description_ar, unit_status, condition, received_at, status, conflict_id, retired_at, retired_reason)
                 VALUES (@id, @businessId, @Kind, @Slot, @Value, @BrandName, @serverId, @branchId, @unit, @DescriptionEn, @DescriptionAr, @unitStatus, @Condition,
-                        @ReceivedAt, @rowStatus, @conflictId)
+                        @ReceivedAt, @rowStatus, @conflictId, CASE WHEN @rowStatus = 'retired' THEN now() END, CASE WHEN @rowStatus = 'retired' THEN 'superseded' END)
                 """, new { id = t.NewId(), businessId, d.Kind, d.Slot, d.Value, k.BrandName, serverId, branchId, unit = u.UnitId, u.DescriptionEn, u.DescriptionAr,
-                           unitStatus = u.Status, u.Condition, ReceivedAt = u.ReceivedAt?.UtcDateTime, rowStatus = taken ? "conflict" : "active", conflictId });
+                           unitStatus = u.Status, u.Condition, ReceivedAt = u.ReceivedAt?.UtcDateTime, rowStatus = taken ? "conflict" : rowStatus, conflictId });
             touched.Add(k);
         }
         foreach (var k in touched.Distinct()) await ReevaluateAsync(t, businessId, k);

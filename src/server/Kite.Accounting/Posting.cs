@@ -168,6 +168,9 @@ public static class PostingRuleTemplates
     public const string RefurbCost = "refurb.cost";
     public const string DeviceReclass = "device.reclass";
     public const string DeviceReceiptReversal = "device.receipt_reversal";
+    public const string TradeInAccept = "tradein.accept";
+    public const string TradeInStoreCredit = "tradein.store_credit";
+    public const string TradeInPayout = "tradein.payout";
 
     /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
     public static string ClassOf(string productType, string? condition) =>
@@ -179,7 +182,10 @@ public static class PostingRuleTemplates
     { ["device"] = "5100", ["device_used"] = "5110", ["accessory"] = "5120", ["consumable"] = "5120", ["spare_part"] = "5200" };
     private static readonly IReadOnlyDictionary<string, string> Inventory = new Dictionary<string, string>
     { ["device"] = "1400", ["device_used"] = "1410", ["accessory"] = "1420", ["consumable"] = "1420", ["spare_part"] = "1430" };
+    // Trade-in credit takes trade-in clearing back out; store credit reduces what the business owes the customer (12.5, 14.6).
     private static readonly IReadOnlyDictionary<string, string> Tenders = new Dictionary<string, string>
+    { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200", ["trade_in"] = "2320", ["store_credit"] = "2310" };
+    private static readonly IReadOnlyDictionary<string, string> Phase4Tenders = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200" };
 
     /// <summary>The inventory account of a posting class (for the valuation check).</summary>
@@ -188,21 +194,32 @@ public static class PostingRuleTemplates
     private static AccountSelector Code(string c) => new(c, null, null, null);
     private static AccountSelector By(string by, IReadOnlyDictionary<string, string> map) => new(null, by, map, null);
 
-    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All = Build(Revenue, Cost, Inventory);
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All = Build(Revenue, Cost, Inventory, Tenders);
+
+    private static readonly string[] SincePhase5 = [RefurbCost, DeviceReclass, DeviceReceiptReversal];
+    private static readonly string[] SincePhase7 = [TradeInAccept, TradeInStoreCredit, TradeInPayout];
 
     /// <summary>
     /// The Phase 4 defaults (version 1), before used devices had their own accounts. A business whose stored rule is
-    /// still exactly one of these gets the current default as a new version; a rule the business changed is left alone.
+    /// still exactly one of the earlier defaults gets the current default as a new version; a rule the business changed is left alone.
     /// </summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
         Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
-        Inventory.Where(x => x.Key != "device_used").ToDictionary()).Where(r => r.EventType is not (RefurbCost or DeviceReclass or DeviceReceiptReversal)).ToArray();
+        Inventory.Where(x => x.Key != "device_used").ToDictionary(), Phase4Tenders)
+        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType)).ToArray();
+
+    /// <summary>The Phase 5 and 6 defaults (version 2), before trade-in credit and store credit were tenders.</summary>
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version2 = Build(Revenue, Cost, Inventory, Phase4Tenders)
+        .Where(r => !SincePhase7.Contains(r.EventType)).ToArray();
+
+    /// <summary>Every earlier default, oldest first.</summary>
+    public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2];
 
     private static IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Build(IReadOnlyDictionary<string, string> revenue,
-        IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory) =>
+        IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory, IReadOnlyDictionary<string, string> tenders) =>
     [
         (Sale, new("Sale: tenders received; revenue by product type and VAT output; cash rounding to over/short", [
-            new("debit", By("tender", Tenders), "tenders"),
+            new("debit", By("tender", tenders), "tenders"),
             new("credit", By("product_type", revenue), "net_by_product_type"),
             new("credit", Code("2200"), "tax"),
             new("credit", Code("6400"), "cash_rounding"),
@@ -214,7 +231,7 @@ public static class PostingRuleTemplates
         (CreditNote, new("Credit note: sales returns and VAT output reversed against the refund", [
             new("debit", Code("4900"), "net_by_product_type"),
             new("debit", Code("2200"), "tax"),
-            new("credit", By("tender", Tenders), "tenders"),
+            new("credit", By("tender", tenders), "tenders"),
             new("debit", Code("6400"), "cash_rounding"),
         ])),
         (CreditNoteCost, new("Return to stock: inventory against cost of sales", [
@@ -252,6 +269,18 @@ public static class PostingRuleTemplates
             new("credit", By("product_type", inventory), "opening_by_product_type"),
             new("debit", Code("6700"), "gain_by_product_type"),
             new("credit", By("product_type", inventory), "gain_by_product_type"),
+        ])),
+        (TradeInAccept, new("Trade-in accepted: the device goes into used-device stock at the agreed value, owed to the customer through trade-in clearing", [
+            new("debit", By("product_type", inventory), "value_by_product_type"),
+            new("credit", Code("2320"), "value_by_product_type"),
+        ])),
+        (TradeInStoreCredit, new("Trade-in left as store credit: trade-in clearing becomes what the business owes the customer", [
+            new("debit", Code("2320"), "amount"),
+            new("credit", Code("2310"), "amount"),
+        ])),
+        (TradeInPayout, new("Trade-in paid out in cash from the drawer (buy-back)", [
+            new("debit", Code("2320"), "amount"),
+            new("credit", Code("1100"), "amount"),
         ])),
     ];
 }

@@ -78,7 +78,9 @@ public sealed class ServerTests(KiteServerFixture fx)
 
         Assert.Equal(5L, await fx.QueryDbAsync<long>("SELECT count(*) FROM tax.tax_code WHERE needs_accountant_review"));
         Assert.Equal(5.0m, await fx.QueryDbAsync<decimal>("SELECT r.rate_percent FROM tax.tax_rate r JOIN tax.tax_code c ON c.id = r.tax_code_id WHERE c.code = 'VAT-STD'"));
-        Assert.Equal("inactive", await fx.QueryDbAsync<string>("SELECT status FROM tax.tax_code WHERE code = 'VAT-MARGIN'"));
+        // VAT-MARGIN starts switched off and follows the recorded margin scheme approval (Phase 7 tests may have recorded one).
+        var marginApproved = await fx.QueryDbAsync<bool>("SELECT coalesce(bool_or(approved), false) FROM tax.margin_scheme");
+        Assert.Equal(marginApproved ? "active" : "inactive", await fx.QueryDbAsync<string>("SELECT status FROM tax.tax_code WHERE code = 'VAT-MARGIN'"));
         Assert.Equal((long)Kite.Accounting.ChartTemplate.Accounts.Count, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.account"));
         Assert.Equal(12L, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.fiscal_period"));
         Assert.Equal(8L, await fx.QueryDbAsync<long>("SELECT count(*) FROM iam.role WHERE is_system"));

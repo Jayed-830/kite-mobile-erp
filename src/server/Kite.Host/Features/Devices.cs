@@ -21,7 +21,7 @@ public sealed record ReserveRequest(Guid CartId);
 /// <summary>A unit as the till sees it: the item, its own price, condition and identifiers.</summary>
 public sealed record PosUnitDto(Guid UnitId, Guid VariantId, string Sku, string ProductType, string Tracking, string DescriptionEn, string DescriptionAr,
     decimal TaxRate, decimal? ListPrice, decimal? MinPrice, string Condition, string? GradeCode, string? Imei1, string? Imei2, string? Serial, int WarrantyDays,
-    DateTime? ReservedUntil, string? CentralState = null);
+    DateTime? ReservedUntil, string? CentralState = null, decimal? MarginCost = null, Guid? TaxCodeId = null);
 
 /// <summary>Device units (blueprint 11, 12): stock, history, prices, holds, write-offs, grades, checklists, settings and the till's lookups.</summary>
 public static class DeviceEndpoints
@@ -559,7 +559,8 @@ public static class DeviceEndpoints
         var item = await PricedItemAsync(t, biz, u, term.BranchId, BusinessDay.Today(biz.TimeZone, t.Clock));
         var reserved = await t.ExecuteScalarAsync<DateTime?>("SELECT expires_at FROM device.reservation WHERE device_unit_id = @id AND expires_at > now()", new { id = u.Id });
         return new PosUnitDto(u.Id, u.VariantId, u.Sku, u.ProductType, u.Tracking, item.DescriptionEn, item.DescriptionAr, item.TaxRate, item.ListPrice, item.MinPrice,
-            u.Condition, u.GradeCode, u.Imei1, u.Imei2, u.Serial, item.WarrantyDays, reserved, u.CentralState);
+            u.Condition, u.GradeCode, u.Imei1, u.Imei2, u.Serial, item.WarrantyDays, reserved, u.CentralState, item.MarginCost,
+            item.TaxKind == "margin" ? item.TaxCodeId : null);
     }
 
     /// <summary>
@@ -574,11 +575,19 @@ public static class DeviceEndpoints
         var list = DeviceMath.UnitListPrice(u.SellingPrice, u.Condition, item.ListPrice, u.GradePercent, settings.SuggestedPriceStep);
         var suffixEn = u.Condition == "brand_new" ? "" : $" · {DeviceUnits.ConditionEn(u.Condition)}{(u.GradeCode is null ? "" : " " + u.GradeCode)}";
         var suffixAr = u.Condition == "brand_new" ? "" : $" · {DeviceUnits.ConditionAr(u.Condition)}{(u.GradeCode is null ? "" : " " + u.GradeCode)}";
-        return item with
+        item = item with
         {
             ListPrice = list, MinPrice = u.Condition == "brand_new" ? item.MinPrice : null, WarrantyDays = u.WarrantyDays ?? item.WarrantyDays,
             DescriptionEn = item.DescriptionEn + suffixEn, DescriptionAr = item.DescriptionAr + suffixAr,
         };
+        // A device bought under the profit margin mechanism sells under it while the approval is in force (12.3).
+        if (await t.ExecuteScalarAsync<decimal?>("SELECT device.margin_purchase_price(@id)", new { id = u.Id }) is { } cost
+            && TradeInCore.MarginOn(await TradeInCore.MarginAsync(t), date))
+        {
+            var (codeId, rate) = await TradeInCore.MarginCodeAsync(t, date);
+            item = item with { TaxCodeId = codeId, TaxKind = "margin", TaxRate = rate, MarginCost = cost };
+        }
+        return item;
     }
 
     // ------------------------------------------------------------------ reports (12.6)

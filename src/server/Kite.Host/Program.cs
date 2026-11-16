@@ -107,6 +107,7 @@ EmergencyEndpoints.Map(app);
 DeviceEndpoints.Map(app);
 DeviceIdentity.Map(app);
 DeviceCounts.Map(app);
+TradeInEndpoints.Map(app);
 RefurbishmentEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.

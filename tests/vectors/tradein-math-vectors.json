@@ -1,0 +1,2179 @@
+{
+ "comment": "Shared trade-in vectors written by an independent Python Decimal implementation; Kite.Sales.TradeInMath (C#) and @kite/pos tradein.ts (TypeScript) must both reproduce them.",
+ "valuation": [
+  {
+   "guide": "120.000",
+   "deductions": [
+    {
+     "code": "SCREEN",
+     "kind": "amount",
+     "value": "25.000"
+    },
+    {
+     "code": "BATTERY",
+     "kind": "percent",
+     "value": "10"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "25.000",
+     "12.000"
+    ],
+    "total": "37.000",
+    "offered": "83.000"
+   }
+  },
+  {
+   "guide": "99.999",
+   "deductions": [
+    {
+     "code": "BODY",
+     "kind": "percent",
+     "value": "12.5"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "12.500"
+    ],
+    "total": "12.500",
+    "offered": "87.499"
+   }
+  },
+  {
+   "guide": "10.000",
+   "deductions": [
+    {
+     "code": "SCREEN",
+     "kind": "amount",
+     "value": "25.000"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "25.000"
+    ],
+    "total": "25.000",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "SCREEN",
+     "kind": "amount",
+     "value": "5.000"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "5.000"
+    ],
+    "total": "5.000",
+    "offered": null
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "BATTERY",
+     "kind": "percent",
+     "value": "10"
+    }
+   ],
+   "expect": null
+  },
+  {
+   "guide": "0.000",
+   "deductions": [],
+   "expect": {
+    "amounts": [],
+    "total": "0",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "333.333",
+   "deductions": [
+    {
+     "code": "A",
+     "kind": "percent",
+     "value": "33.333"
+    },
+    {
+     "code": "B",
+     "kind": "percent",
+     "value": "0.001"
+    },
+    {
+     "code": "C",
+     "kind": "amount",
+     "value": "0.001"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "111.110",
+     "0.003",
+     "0.001"
+    ],
+    "total": "111.114",
+    "offered": "222.219"
+   }
+  },
+  {
+   "guide": "252.036",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "13.99"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "96.81"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "35.260",
+     "243.996"
+    ],
+    "total": "279.256",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "550.617",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "42.373"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "42.373"
+    ],
+    "total": "42.373",
+    "offered": "508.244"
+   }
+  },
+  {
+   "guide": "584.884",
+   "deductions": [],
+   "expect": {
+    "amounts": [],
+    "total": "0",
+    "offered": "584.884"
+   }
+  },
+  {
+   "guide": "25.564",
+   "deductions": [],
+   "expect": {
+    "amounts": [],
+    "total": "0",
+    "offered": "25.564"
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "2.58"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "48.48"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "2.58",
+     "48.48"
+    ],
+    "total": "51.06",
+    "offered": null
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "50.719"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "4.248"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "50.719",
+     "4.248"
+    ],
+    "total": "54.967",
+    "offered": null
+   }
+  },
+  {
+   "guide": "394.357",
+   "deductions": [],
+   "expect": {
+    "amounts": [],
+    "total": "0",
+    "offered": "394.357"
+   }
+  },
+  {
+   "guide": "278.178",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "17.57"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "48.876"
+    ],
+    "total": "48.876",
+    "offered": "229.302"
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "23.313"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "34.519"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "23.313",
+     "34.519"
+    ],
+    "total": "57.832",
+    "offered": null
+   }
+  },
+  {
+   "guide": "51.693",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "66.69"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "65.942"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "72.036"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "34.474",
+     "65.942",
+     "72.036"
+    ],
+    "total": "172.452",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "66.125"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "33.647"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "66.125",
+     "33.647"
+    ],
+    "total": "99.772",
+    "offered": null
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "78.722"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "78.722"
+    ],
+    "total": "78.722",
+    "offered": null
+   }
+  },
+  {
+   "guide": "232.11",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "7.017"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "28.916"
+    },
+    {
+     "code": "P2",
+     "kind": "percent",
+     "value": "19.92"
+    },
+    {
+     "code": "A3",
+     "kind": "amount",
+     "value": "28.735"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "7.017",
+     "28.916",
+     "46.236",
+     "28.735"
+    ],
+    "total": "110.904",
+    "offered": "121.206"
+   }
+  },
+  {
+   "guide": "475.843",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "28.446"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "28.446"
+    ],
+    "total": "28.446",
+    "offered": "447.397"
+   }
+  },
+  {
+   "guide": "55.991",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "7.811"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "39.27"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "7.811",
+     "21.988"
+    ],
+    "total": "29.799",
+    "offered": "26.192"
+   }
+  },
+  {
+   "guide": "548.963",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "51.743"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "40.51"
+    },
+    {
+     "code": "P2",
+     "kind": "percent",
+     "value": "73.61"
+    },
+    {
+     "code": "P3",
+     "kind": "percent",
+     "value": "11.81"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "51.743",
+     "222.385",
+     "404.092",
+     "64.833"
+    ],
+    "total": "743.053",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "303.823",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "67.94"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "206.417"
+    ],
+    "total": "206.417",
+    "offered": "97.406"
+   }
+  },
+  {
+   "guide": "185.335",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "29.19"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "23.905"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "54.099",
+     "23.905"
+    ],
+    "total": "78.004",
+    "offered": "107.331"
+   }
+  },
+  {
+   "guide": "270.425",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "15.12"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "70.621"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "40.888",
+     "70.621"
+    ],
+    "total": "111.509",
+    "offered": "158.916"
+   }
+  },
+  {
+   "guide": "441.884",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "21.72"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "64.34"
+    },
+    {
+     "code": "P2",
+     "kind": "percent",
+     "value": "97.76"
+    },
+    {
+     "code": "P3",
+     "kind": "percent",
+     "value": "53.27"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "95.977",
+     "284.308",
+     "431.986",
+     "235.392"
+    ],
+    "total": "1047.663",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "69.753"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "18.217"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "57.753"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "69.753",
+     "18.217",
+     "57.753"
+    ],
+    "total": "145.723",
+    "offered": null
+   }
+  },
+  {
+   "guide": "85.912",
+   "deductions": [],
+   "expect": {
+    "amounts": [],
+    "total": "0",
+    "offered": "85.912"
+   }
+  },
+  {
+   "guide": "337.369",
+   "deductions": [],
+   "expect": {
+    "amounts": [],
+    "total": "0",
+    "offered": "337.369"
+   }
+  },
+  {
+   "guide": "503.853",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "21.606"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "12.02"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "21.606",
+     "60.563"
+    ],
+    "total": "82.169",
+    "offered": "421.684"
+   }
+  },
+  {
+   "guide": "106.473",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "76.61"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "24.32"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "48.705"
+    },
+    {
+     "code": "P3",
+     "kind": "percent",
+     "value": "46.58"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "81.569",
+     "25.894",
+     "48.705",
+     "49.595"
+    ],
+    "total": "205.763",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "4.726",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "93.97"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "14.13"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "4.441",
+     "0.668"
+    ],
+    "total": "5.109",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "502.262",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "61.04"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "61.04"
+    ],
+    "total": "61.04",
+    "offered": "441.222"
+   }
+  },
+  {
+   "guide": "459.194",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "8"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "36.736"
+    ],
+    "total": "36.736",
+    "offered": "422.458"
+   }
+  },
+  {
+   "guide": "237.767",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "37.25"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "10.578"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "79.116"
+    },
+    {
+     "code": "P3",
+     "kind": "percent",
+     "value": "48.83"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "88.568",
+     "10.578",
+     "79.116",
+     "116.102"
+    ],
+    "total": "294.364",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "587.218",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "44.77"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "17.8"
+    },
+    {
+     "code": "P2",
+     "kind": "percent",
+     "value": "50.45"
+    },
+    {
+     "code": "P3",
+     "kind": "percent",
+     "value": "9.65"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "262.897",
+     "104.525",
+     "296.251",
+     "56.667"
+    ],
+    "total": "720.340",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "50.083",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "1.231"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "91.35"
+    },
+    {
+     "code": "P2",
+     "kind": "percent",
+     "value": "84.35"
+    },
+    {
+     "code": "A3",
+     "kind": "amount",
+     "value": "78.428"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "1.231",
+     "45.751",
+     "42.245",
+     "78.428"
+    ],
+    "total": "167.655",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "322.566",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "41.296"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "10.804"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "3.996"
+    },
+    {
+     "code": "A3",
+     "kind": "amount",
+     "value": "26.836"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "41.296",
+     "10.804",
+     "3.996",
+     "26.836"
+    ],
+    "total": "82.932",
+    "offered": "239.634"
+   }
+  },
+  {
+   "guide": "543.352",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "63.745"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "63.745"
+    ],
+    "total": "63.745",
+    "offered": "479.607"
+   }
+  },
+  {
+   "guide": "455.053",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "91.93"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "16.43"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "37.753"
+    },
+    {
+     "code": "A3",
+     "kind": "amount",
+     "value": "71.555"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "418.330",
+     "74.765",
+     "37.753",
+     "71.555"
+    ],
+    "total": "602.403",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": null,
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "3.305"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "37.012"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "53.151"
+    },
+    {
+     "code": "A3",
+     "kind": "amount",
+     "value": "3.365"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "3.305",
+     "37.012",
+     "53.151",
+     "3.365"
+    ],
+    "total": "96.833",
+    "offered": null
+   }
+  },
+  {
+   "guide": "171.362",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "63.811"
+    },
+    {
+     "code": "P1",
+     "kind": "percent",
+     "value": "50.83"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "22.392"
+    },
+    {
+     "code": "P3",
+     "kind": "percent",
+     "value": "80.53"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "63.811",
+     "87.103",
+     "22.392",
+     "137.998"
+    ],
+    "total": "311.304",
+    "offered": "0"
+   }
+  },
+  {
+   "guide": "412.114",
+   "deductions": [
+    {
+     "code": "A0",
+     "kind": "amount",
+     "value": "25.207"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "25.207"
+    ],
+    "total": "25.207",
+    "offered": "386.907"
+   }
+  },
+  {
+   "guide": "464.097",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "11.36"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "34.291"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "52.721",
+     "34.291"
+    ],
+    "total": "87.012",
+    "offered": "377.085"
+   }
+  },
+  {
+   "guide": "203.98",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "33.93"
+    },
+    {
+     "code": "A1",
+     "kind": "amount",
+     "value": "0.958"
+    },
+    {
+     "code": "A2",
+     "kind": "amount",
+     "value": "72.855"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "69.210",
+     "0.958",
+     "72.855"
+    ],
+    "total": "143.023",
+    "offered": "60.957"
+   }
+  },
+  {
+   "guide": "148.669",
+   "deductions": [
+    {
+     "code": "P0",
+     "kind": "percent",
+     "value": "89.44"
+    }
+   ],
+   "expect": {
+    "amounts": [
+     "132.970"
+    ],
+    "total": "132.970",
+    "offered": "15.699"
+   }
+  }
+ ],
+ "approval": [
+  {
+   "agreed": "100.000",
+   "offered": "100.000",
+   "staffLimit": "50.000",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "40.000",
+   "offered": "40.000",
+   "staffLimit": "50.000",
+   "overGuidePercent": "10",
+   "expect": false
+  },
+  {
+   "agreed": "44.000",
+   "offered": "40.000",
+   "staffLimit": "50.000",
+   "overGuidePercent": "10",
+   "expect": false
+  },
+  {
+   "agreed": "44.001",
+   "offered": "40.000",
+   "staffLimit": "50.000",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "10.000",
+   "offered": null,
+   "staffLimit": "50.000",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "50.000",
+   "offered": "49.999",
+   "staffLimit": "50.000",
+   "overGuidePercent": "0",
+   "expect": true
+  },
+  {
+   "agreed": "0.000",
+   "offered": "0.000",
+   "staffLimit": "0.000",
+   "overGuidePercent": "0",
+   "expect": false
+  },
+  {
+   "agreed": "33.334",
+   "offered": "30.303",
+   "staffLimit": "100.000",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "251.751",
+   "offered": "239.763",
+   "staffLimit": "50",
+   "overGuidePercent": "5",
+   "expect": true
+  },
+  {
+   "agreed": "114.076",
+   "offered": "132.647",
+   "staffLimit": "100",
+   "overGuidePercent": "0",
+   "expect": true
+  },
+  {
+   "agreed": "283.975",
+   "offered": "286.843",
+   "staffLimit": "0",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "95.944",
+   "offered": "99.942",
+   "staffLimit": "0",
+   "overGuidePercent": "5",
+   "expect": true
+  },
+  {
+   "agreed": "213.579",
+   "offered": "234.702",
+   "staffLimit": "250",
+   "overGuidePercent": "15",
+   "expect": false
+  },
+  {
+   "agreed": "294.385",
+   "offered": "291.47",
+   "staffLimit": "100",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "148.265",
+   "offered": "156.068",
+   "staffLimit": "100",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "251.091",
+   "offered": "243.778",
+   "staffLimit": "25",
+   "overGuidePercent": "5",
+   "expect": true
+  },
+  {
+   "agreed": "305.233",
+   "offered": "252.259",
+   "staffLimit": "0",
+   "overGuidePercent": "0",
+   "expect": true
+  },
+  {
+   "agreed": "81.149",
+   "offered": "91.179",
+   "staffLimit": "0",
+   "overGuidePercent": "15",
+   "expect": true
+  },
+  {
+   "agreed": "213.142",
+   "offered": null,
+   "staffLimit": "25",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "42.827",
+   "offered": null,
+   "staffLimit": "100",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "154.865",
+   "offered": "137.049",
+   "staffLimit": "250",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "107.146",
+   "offered": "132.279",
+   "staffLimit": "250",
+   "overGuidePercent": "5",
+   "expect": false
+  },
+  {
+   "agreed": "128.040",
+   "offered": "142.267",
+   "staffLimit": "25",
+   "overGuidePercent": "5",
+   "expect": true
+  },
+  {
+   "agreed": "246.750",
+   "offered": "254.381",
+   "staffLimit": "50",
+   "overGuidePercent": "20",
+   "expect": true
+  },
+  {
+   "agreed": "198.020",
+   "offered": "170.707",
+   "staffLimit": "100",
+   "overGuidePercent": "15",
+   "expect": true
+  },
+  {
+   "agreed": "160.331",
+   "offered": "152.696",
+   "staffLimit": "100",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "130.881",
+   "offered": "152.187",
+   "staffLimit": "50",
+   "overGuidePercent": "15",
+   "expect": true
+  },
+  {
+   "agreed": "248.539",
+   "offered": "243.666",
+   "staffLimit": "100",
+   "overGuidePercent": "20",
+   "expect": true
+  },
+  {
+   "agreed": "93.482",
+   "offered": "114.002",
+   "staffLimit": "25",
+   "overGuidePercent": "20",
+   "expect": true
+  },
+  {
+   "agreed": "157.520",
+   "offered": "173.099",
+   "staffLimit": "250",
+   "overGuidePercent": "0",
+   "expect": false
+  },
+  {
+   "agreed": "224.662",
+   "offered": null,
+   "staffLimit": "250",
+   "overGuidePercent": "20",
+   "expect": true
+  },
+  {
+   "agreed": "216.981",
+   "offered": null,
+   "staffLimit": "50",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "181.09",
+   "offered": null,
+   "staffLimit": "25",
+   "overGuidePercent": "0",
+   "expect": true
+  },
+  {
+   "agreed": "27.245",
+   "offered": "32.434",
+   "staffLimit": "50",
+   "overGuidePercent": "0",
+   "expect": false
+  },
+  {
+   "agreed": "88.401",
+   "offered": "76.208",
+   "staffLimit": "25",
+   "overGuidePercent": "5",
+   "expect": true
+  },
+  {
+   "agreed": "203.545",
+   "offered": "166.84",
+   "staffLimit": "0",
+   "overGuidePercent": "0",
+   "expect": true
+  },
+  {
+   "agreed": "5.979",
+   "offered": "4.941",
+   "staffLimit": "0",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "95.581",
+   "offered": "102.775",
+   "staffLimit": "0",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "103.648",
+   "offered": "100.629",
+   "staffLimit": "250",
+   "overGuidePercent": "10",
+   "expect": false
+  },
+  {
+   "agreed": "87.129",
+   "offered": "89.824",
+   "staffLimit": "100",
+   "overGuidePercent": "5",
+   "expect": false
+  },
+  {
+   "agreed": "217.304",
+   "offered": "231.174",
+   "staffLimit": "50",
+   "overGuidePercent": "20",
+   "expect": true
+  },
+  {
+   "agreed": "239.882",
+   "offered": "289.014",
+   "staffLimit": "25",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "161.939",
+   "offered": "179.932",
+   "staffLimit": "250",
+   "overGuidePercent": "20",
+   "expect": false
+  },
+  {
+   "agreed": "183.853",
+   "offered": "157.139",
+   "staffLimit": "50",
+   "overGuidePercent": "10",
+   "expect": true
+  },
+  {
+   "agreed": "95.435",
+   "offered": "80.877",
+   "staffLimit": "25",
+   "overGuidePercent": "0",
+   "expect": true
+  },
+  {
+   "agreed": "115.702",
+   "offered": "139.4",
+   "staffLimit": "250",
+   "overGuidePercent": "0",
+   "expect": false
+  },
+  {
+   "agreed": "266.515",
+   "offered": "220.26",
+   "staffLimit": "100",
+   "overGuidePercent": "15",
+   "expect": true
+  },
+  {
+   "agreed": "206.163",
+   "offered": "189.14",
+   "staffLimit": "25",
+   "overGuidePercent": "10",
+   "expect": true
+  }
+ ],
+ "margin": [
+  {
+   "gross": "150.000",
+   "purchase": "100.000",
+   "rate": "5",
+   "expect": {
+    "net": "147.619",
+    "tax": "2.381",
+    "gross": "150.000",
+    "margin": "50.000"
+   }
+  },
+  {
+   "gross": "100.000",
+   "purchase": "100.000",
+   "rate": "5",
+   "expect": {
+    "net": "100.000",
+    "tax": "0",
+    "gross": "100.000",
+    "margin": "0.000"
+   }
+  },
+  {
+   "gross": "90.000",
+   "purchase": "100.000",
+   "rate": "5",
+   "expect": {
+    "net": "90.000",
+    "tax": "0",
+    "gross": "90.000",
+    "margin": "-10.000"
+   }
+  },
+  {
+   "gross": "187.000",
+   "purchase": "95.000",
+   "rate": "5",
+   "expect": {
+    "net": "182.619",
+    "tax": "4.381",
+    "gross": "187.000",
+    "margin": "92.000"
+   }
+  },
+  {
+   "gross": "100.010",
+   "purchase": "100.000",
+   "rate": "5",
+   "expect": {
+    "net": "100.010",
+    "tax": "0.000",
+    "gross": "100.010",
+    "margin": "0.010"
+   }
+  },
+  {
+   "gross": "0.000",
+   "purchase": "0.000",
+   "rate": "5",
+   "expect": {
+    "net": "0.000",
+    "tax": "0",
+    "gross": "0.000",
+    "margin": "0.000"
+   }
+  },
+  {
+   "gross": "250.000",
+   "purchase": "120.000",
+   "rate": "0",
+   "expect": {
+    "net": "250.000",
+    "tax": "0.000",
+    "gross": "250.000",
+    "margin": "130.000"
+   }
+  },
+  {
+   "gross": "408.968",
+   "purchase": "264.876",
+   "rate": "5",
+   "expect": {
+    "net": "402.106",
+    "tax": "6.862",
+    "gross": "408.968",
+    "margin": "144.092"
+   }
+  },
+  {
+   "gross": "370.166",
+   "purchase": "325.795",
+   "rate": "5",
+   "expect": {
+    "net": "368.053",
+    "tax": "2.113",
+    "gross": "370.166",
+    "margin": "44.371"
+   }
+  },
+  {
+   "gross": "144.955",
+   "purchase": "15.12",
+   "rate": "5",
+   "expect": {
+    "net": "138.772",
+    "tax": "6.183",
+    "gross": "144.955",
+    "margin": "129.835"
+   }
+  },
+  {
+   "gross": "97.404",
+   "purchase": "20.564",
+   "rate": "5",
+   "expect": {
+    "net": "93.745",
+    "tax": "3.659",
+    "gross": "97.404",
+    "margin": "76.840"
+   }
+  },
+  {
+   "gross": "313.163",
+   "purchase": "165.189",
+   "rate": "5",
+   "expect": {
+    "net": "306.117",
+    "tax": "7.046",
+    "gross": "313.163",
+    "margin": "147.974"
+   }
+  },
+  {
+   "gross": "0",
+   "purchase": "2.137",
+   "rate": "5",
+   "expect": {
+    "net": "0",
+    "tax": "0",
+    "gross": "0",
+    "margin": "-2.137"
+   }
+  },
+  {
+   "gross": "0",
+   "purchase": "3.04",
+   "rate": "5",
+   "expect": {
+    "net": "0",
+    "tax": "0",
+    "gross": "0",
+    "margin": "-3.04"
+   }
+  },
+  {
+   "gross": "222.586",
+   "purchase": "254.144",
+   "rate": "5",
+   "expect": {
+    "net": "222.586",
+    "tax": "0",
+    "gross": "222.586",
+    "margin": "-31.558"
+   }
+  },
+  {
+   "gross": "370.083",
+   "purchase": "335.885",
+   "rate": "5",
+   "expect": {
+    "net": "368.455",
+    "tax": "1.628",
+    "gross": "370.083",
+    "margin": "34.198"
+   }
+  },
+  {
+   "gross": "249.223",
+   "purchase": "225.448",
+   "rate": "5",
+   "expect": {
+    "net": "248.091",
+    "tax": "1.132",
+    "gross": "249.223",
+    "margin": "23.775"
+   }
+  },
+  {
+   "gross": "38.001",
+   "purchase": "79.46",
+   "rate": "5",
+   "expect": {
+    "net": "38.001",
+    "tax": "0",
+    "gross": "38.001",
+    "margin": "-41.459"
+   }
+  },
+  {
+   "gross": "55.633",
+   "purchase": "24.846",
+   "rate": "5",
+   "expect": {
+    "net": "54.167",
+    "tax": "1.466",
+    "gross": "55.633",
+    "margin": "30.787"
+   }
+  },
+  {
+   "gross": "95.441",
+   "purchase": "144.111",
+   "rate": "5",
+   "expect": {
+    "net": "95.441",
+    "tax": "0",
+    "gross": "95.441",
+    "margin": "-48.670"
+   }
+  },
+  {
+   "gross": "150.215",
+   "purchase": "107.871",
+   "rate": "5",
+   "expect": {
+    "net": "148.199",
+    "tax": "2.016",
+    "gross": "150.215",
+    "margin": "42.344"
+   }
+  },
+  {
+   "gross": "108.371",
+   "purchase": "50.661",
+   "rate": "5",
+   "expect": {
+    "net": "105.623",
+    "tax": "2.748",
+    "gross": "108.371",
+    "margin": "57.710"
+   }
+  },
+  {
+   "gross": "301.22",
+   "purchase": "269.04",
+   "rate": "5",
+   "expect": {
+    "net": "299.688",
+    "tax": "1.532",
+    "gross": "301.22",
+    "margin": "32.18"
+   }
+  },
+  {
+   "gross": "217.004",
+   "purchase": "247.766",
+   "rate": "5",
+   "expect": {
+    "net": "217.004",
+    "tax": "0",
+    "gross": "217.004",
+    "margin": "-30.762"
+   }
+  },
+  {
+   "gross": "381.272",
+   "purchase": "367.593",
+   "rate": "5",
+   "expect": {
+    "net": "380.621",
+    "tax": "0.651",
+    "gross": "381.272",
+    "margin": "13.679"
+   }
+  },
+  {
+   "gross": "366.929",
+   "purchase": "277.842",
+   "rate": "5",
+   "expect": {
+    "net": "362.687",
+    "tax": "4.242",
+    "gross": "366.929",
+    "margin": "89.087"
+   }
+  },
+  {
+   "gross": "340.363",
+   "purchase": "248.213",
+   "rate": "5",
+   "expect": {
+    "net": "335.975",
+    "tax": "4.388",
+    "gross": "340.363",
+    "margin": "92.150"
+   }
+  },
+  {
+   "gross": "157.009",
+   "purchase": "68.629",
+   "rate": "5",
+   "expect": {
+    "net": "152.800",
+    "tax": "4.209",
+    "gross": "157.009",
+    "margin": "88.380"
+   }
+  },
+  {
+   "gross": "476.989",
+   "purchase": "343.538",
+   "rate": "5",
+   "expect": {
+    "net": "470.634",
+    "tax": "6.355",
+    "gross": "476.989",
+    "margin": "133.451"
+   }
+  },
+  {
+   "gross": "121.54",
+   "purchase": "23.19",
+   "rate": "5",
+   "expect": {
+    "net": "116.857",
+    "tax": "4.683",
+    "gross": "121.54",
+    "margin": "98.35"
+   }
+  },
+  {
+   "gross": "431.759",
+   "purchase": "394.645",
+   "rate": "5",
+   "expect": {
+    "net": "429.992",
+    "tax": "1.767",
+    "gross": "431.759",
+    "margin": "37.114"
+   }
+  },
+  {
+   "gross": "410.104",
+   "purchase": "342.534",
+   "rate": "5",
+   "expect": {
+    "net": "406.886",
+    "tax": "3.218",
+    "gross": "410.104",
+    "margin": "67.570"
+   }
+  },
+  {
+   "gross": "107.219",
+   "purchase": "79.834",
+   "rate": "5",
+   "expect": {
+    "net": "105.915",
+    "tax": "1.304",
+    "gross": "107.219",
+    "margin": "27.385"
+   }
+  },
+  {
+   "gross": "513.373",
+   "purchase": "365.009",
+   "rate": "5",
+   "expect": {
+    "net": "506.308",
+    "tax": "7.065",
+    "gross": "513.373",
+    "margin": "148.364"
+   }
+  },
+  {
+   "gross": "254.331",
+   "purchase": "288.414",
+   "rate": "5",
+   "expect": {
+    "net": "254.331",
+    "tax": "0",
+    "gross": "254.331",
+    "margin": "-34.083"
+   }
+  },
+  {
+   "gross": "141.737",
+   "purchase": "115.726",
+   "rate": "5",
+   "expect": {
+    "net": "140.498",
+    "tax": "1.239",
+    "gross": "141.737",
+    "margin": "26.011"
+   }
+  },
+  {
+   "gross": "446.969",
+   "purchase": "307.904",
+   "rate": "5",
+   "expect": {
+    "net": "440.347",
+    "tax": "6.622",
+    "gross": "446.969",
+    "margin": "139.065"
+   }
+  },
+  {
+   "gross": "118.327",
+   "purchase": "55.071",
+   "rate": "5",
+   "expect": {
+    "net": "115.315",
+    "tax": "3.012",
+    "gross": "118.327",
+    "margin": "63.256"
+   }
+  },
+  {
+   "gross": "375.453",
+   "purchase": "363.597",
+   "rate": "5",
+   "expect": {
+    "net": "374.888",
+    "tax": "0.565",
+    "gross": "375.453",
+    "margin": "11.856"
+   }
+  },
+  {
+   "gross": "358.948",
+   "purchase": "395.186",
+   "rate": "5",
+   "expect": {
+    "net": "358.948",
+    "tax": "0",
+    "gross": "358.948",
+    "margin": "-36.238"
+   }
+  },
+  {
+   "gross": "238.341",
+   "purchase": "138.14",
+   "rate": "5",
+   "expect": {
+    "net": "233.570",
+    "tax": "4.771",
+    "gross": "238.341",
+    "margin": "100.201"
+   }
+  },
+  {
+   "gross": "284.774",
+   "purchase": "299.001",
+   "rate": "5",
+   "expect": {
+    "net": "284.774",
+    "tax": "0",
+    "gross": "284.774",
+    "margin": "-14.227"
+   }
+  },
+  {
+   "gross": "247.193",
+   "purchase": "248.281",
+   "rate": "5",
+   "expect": {
+    "net": "247.193",
+    "tax": "0",
+    "gross": "247.193",
+    "margin": "-1.088"
+   }
+  },
+  {
+   "gross": "2.547",
+   "purchase": "11.552",
+   "rate": "5",
+   "expect": {
+    "net": "2.547",
+    "tax": "0",
+    "gross": "2.547",
+    "margin": "-9.005"
+   }
+  },
+  {
+   "gross": "91.145",
+   "purchase": "112.099",
+   "rate": "5",
+   "expect": {
+    "net": "91.145",
+    "tax": "0",
+    "gross": "91.145",
+    "margin": "-20.954"
+   }
+  },
+  {
+   "gross": "355.823",
+   "purchase": "375.118",
+   "rate": "5",
+   "expect": {
+    "net": "355.823",
+    "tax": "0",
+    "gross": "355.823",
+    "margin": "-19.295"
+   }
+  },
+  {
+   "gross": "362.970",
+   "purchase": "266.833",
+   "rate": "5",
+   "expect": {
+    "net": "358.392",
+    "tax": "4.578",
+    "gross": "362.970",
+    "margin": "96.137"
+   }
+  },
+  {
+   "gross": "162.517",
+   "purchase": "183.852",
+   "rate": "5",
+   "expect": {
+    "net": "162.517",
+    "tax": "0",
+    "gross": "162.517",
+    "margin": "-21.335"
+   }
+  },
+  {
+   "gross": "156.587",
+   "purchase": "204.906",
+   "rate": "5",
+   "expect": {
+    "net": "156.587",
+    "tax": "0",
+    "gross": "156.587",
+    "margin": "-48.319"
+   }
+  },
+  {
+   "gross": "376.116",
+   "purchase": "318.503",
+   "rate": "5",
+   "expect": {
+    "net": "373.373",
+    "tax": "2.743",
+    "gross": "376.116",
+    "margin": "57.613"
+   }
+  },
+  {
+   "gross": "333.279",
+   "purchase": "346.137",
+   "rate": "5",
+   "expect": {
+    "net": "333.279",
+    "tax": "0",
+    "gross": "333.279",
+    "margin": "-12.858"
+   }
+  },
+  {
+   "gross": "139.468",
+   "purchase": "91.067",
+   "rate": "5",
+   "expect": {
+    "net": "137.163",
+    "tax": "2.305",
+    "gross": "139.468",
+    "margin": "48.401"
+   }
+  },
+  {
+   "gross": "118.485",
+   "purchase": "6.682",
+   "rate": "5",
+   "expect": {
+    "net": "113.161",
+    "tax": "5.324",
+    "gross": "118.485",
+    "margin": "111.803"
+   }
+  },
+  {
+   "gross": "168.572",
+   "purchase": "152.734",
+   "rate": "5",
+   "expect": {
+    "net": "167.818",
+    "tax": "0.754",
+    "gross": "168.572",
+    "margin": "15.838"
+   }
+  },
+  {
+   "gross": "357.475",
+   "purchase": "208.947",
+   "rate": "5",
+   "expect": {
+    "net": "350.402",
+    "tax": "7.073",
+    "gross": "357.475",
+    "margin": "148.528"
+   }
+  },
+  {
+   "gross": "451.428",
+   "purchase": "330.068",
+   "rate": "5",
+   "expect": {
+    "net": "445.649",
+    "tax": "5.779",
+    "gross": "451.428",
+    "margin": "121.360"
+   }
+  },
+  {
+   "gross": "262.619",
+   "purchase": "243.463",
+   "rate": "5",
+   "expect": {
+    "net": "261.707",
+    "tax": "0.912",
+    "gross": "262.619",
+    "margin": "19.156"
+   }
+  },
+  {
+   "gross": "246.842",
+   "purchase": "259.821",
+   "rate": "5",
+   "expect": {
+    "net": "246.842",
+    "tax": "0",
+    "gross": "246.842",
+    "margin": "-12.979"
+   }
+  },
+  {
+   "gross": "392.458",
+   "purchase": "320.07",
+   "rate": "5",
+   "expect": {
+    "net": "389.011",
+    "tax": "3.447",
+    "gross": "392.458",
+    "margin": "72.388"
+   }
+  },
+  {
+   "gross": "70.943",
+   "purchase": "63.38",
+   "rate": "5",
+   "expect": {
+    "net": "70.583",
+    "tax": "0.360",
+    "gross": "70.943",
+    "margin": "7.563"
+   }
+  },
+  {
+   "gross": "250.003",
+   "purchase": "197.922",
+   "rate": "5",
+   "expect": {
+    "net": "247.523",
+    "tax": "2.480",
+    "gross": "250.003",
+    "margin": "52.081"
+   }
+  },
+  {
+   "gross": "245.456",
+   "purchase": "115.879",
+   "rate": "5",
+   "expect": {
+    "net": "239.286",
+    "tax": "6.170",
+    "gross": "245.456",
+    "margin": "129.577"
+   }
+  },
+  {
+   "gross": "54.082",
+   "purchase": "53.129",
+   "rate": "5",
+   "expect": {
+    "net": "54.037",
+    "tax": "0.045",
+    "gross": "54.082",
+    "margin": "0.953"
+   }
+  },
+  {
+   "gross": "254.825",
+   "purchase": "203.142",
+   "rate": "5",
+   "expect": {
+    "net": "252.364",
+    "tax": "2.461",
+    "gross": "254.825",
+    "margin": "51.683"
+   }
+  },
+  {
+   "gross": "178.164",
+   "purchase": "122.032",
+   "rate": "5",
+   "expect": {
+    "net": "175.491",
+    "tax": "2.673",
+    "gross": "178.164",
+    "margin": "56.132"
+   }
+  },
+  {
+   "gross": "440.730",
+   "purchase": "356.527",
+   "rate": "5",
+   "expect": {
+    "net": "436.720",
+    "tax": "4.010",
+    "gross": "440.730",
+    "margin": "84.203"
+   }
+  },
+  {
+   "gross": "260.170",
+   "purchase": "308.815",
+   "rate": "5",
+   "expect": {
+    "net": "260.170",
+    "tax": "0",
+    "gross": "260.170",
+    "margin": "-48.645"
+   }
+  }
+ ],
+ "apply": [
+  {
+   "outstanding": "120.000",
+   "due": "219.000",
+   "expect": {
+    "applied": "120.000",
+    "left": "0.000"
+   }
+  },
+  {
+   "outstanding": "120.000",
+   "due": "80.000",
+   "expect": {
+    "applied": "80.000",
+    "left": "40.000"
+   }
+  },
+  {
+   "outstanding": "50.000",
+   "due": "50.000",
+   "expect": {
+    "applied": "50.000",
+    "left": "0.000"
+   }
+  },
+  {
+   "outstanding": "0.000",
+   "due": "10.000",
+   "expect": {
+    "applied": "0.000",
+    "left": "0.000"
+   }
+  }
+ ]
+}

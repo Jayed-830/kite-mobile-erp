@@ -104,7 +104,6 @@ public static class Posting
     /// </summary>
     public static async Task EnsureDefaultRulesAsync(DbTx t, Guid businessId)
     {
-        var older = PostingRuleTemplates.Version1.ToDictionary(r => r.EventType, r => r.Definition.ToJson(), StringComparer.Ordinal);
         foreach (var (eventType, def) in PostingRuleTemplates.All)
         {
             await t.ExecuteAsync("""
@@ -112,15 +111,17 @@ public static class Posting
                 SELECT @id, @businessId, @eventType, 1, DATE '2000-01-01', @def::jsonb
                  WHERE NOT EXISTS (SELECT 1 FROM acct.posting_rule WHERE business_id = @businessId AND event_type = @eventType)
                 """, new { id = t.NewId(), businessId, eventType, def = def.ToJson() });
-            if (!older.TryGetValue(eventType, out var old)) continue;
+            // A rule still exactly one of the earlier defaults is upgraded; a rule the business changed is left alone.
+            var olds = PostingRuleTemplates.Earlier.SelectMany(v => v).Where(r => r.EventType == eventType).Select(r => r.Definition.ToJson()).Distinct().ToArray();
+            if (olds.Length == 0) continue;
             await t.ExecuteAsync("""
                 INSERT INTO acct.posting_rule (id, business_id, event_type, rule_version, effective_from, definition)
                 SELECT @id, @businessId, @eventType, r.rule_version + 1, r.effective_from, @def::jsonb
                   FROM (SELECT rule_version, effective_from, definition FROM acct.posting_rule
                          WHERE business_id = @businessId AND event_type = @eventType
                          ORDER BY effective_from DESC, rule_version DESC LIMIT 1) r
-                 WHERE r.definition = @old::jsonb AND r.definition <> @def::jsonb
-                """, new { id = t.NewId(), businessId, eventType, def = def.ToJson(), old });
+                 WHERE r.definition = ANY(@olds::jsonb[]) AND r.definition <> @def::jsonb
+                """, new { id = t.NewId(), businessId, eventType, def = def.ToJson(), olds });
         }
     }
 
