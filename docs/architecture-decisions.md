@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Each record states the decision, why, and what it costs. Records 1 to 7 implement the Phase 1 blueprint (section 1.1). Records 8 to 12 are Phase 2 choices, including where the code departs from the blueprint and why. Records 13 to 19 are Phase 3 choices.
+Each record states the decision, why, and what it costs. Records 1 to 7 implement the Phase 1 blueprint (section 1.1). Records 8 to 12 are Phase 2 choices, including where the code departs from the blueprint and why. Records 13 to 19 are Phase 3 choices. Records 54 to 60 are Phase 8 choices (repairs and WhatsApp).
 
 ## ADR 1: One server code base, three roles
 
@@ -320,3 +320,45 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Decision.** Every transaction that touches trade-in credit or store credit takes its locks in one order: the shift (when cash moves), the trade-ins by id, the customer's store credit, then document numbers and journals. Accepting and settling retry on a deadlock, as sales do.
 **Why.** The first exit-gate run at 20 tills deadlocked: accepting a trade-in as store credit held the journal-number lock and waited for the customer's credit lock, while a settlement held the credit lock and waited for the journal number. With the fixed order the same run had no deadlock at all.
 **Cost.** Locks are held a little longer in the busiest transactions.
+
+## ADR 54: Repair writers lock the job row first
+
+**Decision.** Every write to a repair job takes its locks in one order: the job row (`SELECT … FOR UPDATE`), then the shift (when the drawer moves), trade-ins, store credit, the job's deposit lock (`kite:deposit:<job>`, an advisory lock taken by the credit ledger's trigger), document numbers, journals, audit and the outbox. Writers run inside `PosEndpoints.WithRetryAsync`.
+**Why.** A job can be touched from several places at once: two tills taking a deposit or collecting it, the workshop moving it on, and a WhatsApp approval arriving through the gateway. Locking the job first makes them queue, so only one collection and one refund of the same money can succeed (the Phase 8 exit gate races both).
+**Cost.** Writes to one busy job wait for each other; writes to different jobs do not.
+
+## ADR 55: A deposit is drawer money held for the customer, applied to the invoice at collection
+
+**Decision.** A deposit is taken at the till with its own number (`DEP-…`) and receipt, and posts `repair.deposit`: debit the tender, credit 2300 customer deposits. It counts in the shift's drawer figures. At collection the repair invoice (a tax invoice, issued once) applies the deposit as a `deposit` tender (debit 2300) and takes the rest by any tender; the excess goes back in cash or as store credit (2310). Refunds post `repair.deposit_refund`.
+**Why.** Until the work is done and accepted the deposit is the customer's money, not revenue; one invoice at delivery carries the real charges (approved estimate, or the diagnosis fee for a cancelled or unrepairable job).
+**Cost.** Deposits and collections need the server and an open shift: emergency mode cannot take them.
+
+## ADR 56: Whether a deposit is a VAT point is the business's setting, off by default
+
+**Decision.** `repair.settings.deposit_vat_point` (default off) decides whether VAT is charged when a deposit is taken (`RepairMath.DepositTax`: amount × rate / (100 + rate)). Only a user with `TAX.MANAGE` can change it. When on, the VAT held moves with the deposit: its share goes back with a refund or an excess (`TaxShare`), and the applied share reduces the invoice's VAT due (`debit 2200 deposit_tax`).
+**Why.** Whether an advance payment creates a tax point depends on how the business takes deposits; that is a decision for the business and its tax adviser, not for the software.
+**Cost.** One more switch for accountants; the arithmetic is shared by the server, the till and an independent Python implementation through `tests/vectors/repair-math-vectors.json`.
+
+## ADR 57: The repair workflow is enforced by the database, with clearer checks in front of it
+
+**Decision.** The database holds the blueprint's transitions (`repair.transition`) and refuses any other (KT040 → REP-001); entering in progress, waiting for parts, testing or completed needs the current estimate approved (KT041 → REP-002); a job's deposits never go below zero (KT042 → REP-003); a delivered job cannot change except to delete its passcode; status history and assignments are written by triggers. The server checks the same things first so that the message says what to do (REP-005: "write the estimate first", "more than the customer authorised"). The pre-authorised ceiling is the larger of the job's pre-authorised amount and the highest estimate the customer approved by signature, phone or WhatsApp.
+**Why.** The exit gate requires every disallowed move to be rejected, whoever makes it; the database is the one place no path can skip.
+**Cost.** Two layers to keep in step; the SQL tests cover all 132 status pairs (22 allowed, 110 refused).
+
+## ADR 58: WhatsApp goes out from the main server's gateway only
+
+**Decision.** Every server writes messages to its own outbox. The main server's gateway receives them (branches relay over `/sync/v1/notif/push` with their client certificates) and sends them through a provider adapter: Meta's WhatsApp Cloud API, or the test chat that never leaves the server. The gateway sends a template only with the customer's consent, holds back customers who sent STOP, sends typed text only within 24 hours of the customer's last message, drops messages older than the stale limit and stops at the daily cap. Delivery events and replies go back to the server that queued the message, in order. A tap on Approve approves the estimate (method `whatsapp`, reference the message id) only if it is still the current version. Messages never carry passcodes or civil IDs.
+**Why.** One WhatsApp number and one Meta webhook per business, and branches that work while head office is away.
+**Cost.** Branch messages wait for the relay; the main server needs an internet address for Meta's webhook (ADR 59).
+
+## ADR 59: The main server's internet address comes from Nextdab, and only the webhook answers through it
+
+**Decision.** Nextdab Admin makes a Cloudflare tunnel `kme-<name>` and the address `https://<name>.nextdab.com` for the customer's main server, and sends it in a signed `web` command at check-in: the address, the tunnel token, and where to get cloudflared with its SHA-256 and size. KITE keeps the token encrypted (`lic.web_state`), stores the command with the token replaced, verifies the download before running it with `TUNNEL_TOKEN`, and reports the address and tunnel state (never the token). The tunnel reaches only a loopback port (8791); on that port, or for requests carrying Cloudflare's headers, only `/wa/webhook` and `/wa/ping` answer. If the port is taken the server starts without the webhook and says so.
+**Why.** Meta must reach the webhook, but the rest of KITE stays inside the shop's network; the customer does not have to run a tunnel themselves.
+**Cost.** Needs Nextdab Admin 5.19 and KITE 0.8.0 or newer on the main server; branch servers never get an address.
+
+## ADR 60: A repair invoice is not voided or returned at the till
+
+**Decision.** The till refuses to void, return or credit-sell a repair invoice (REP-002). A repair that fails goes back to the workshop as a warranty claim on the delivered job: at no charge, approved as `warranty`, its parts' cost posted to warranty expense (6600) at delivery.
+**Why.** The invoice applied the customer's deposit, cleared the job's work in progress and started its warranty; undoing it at the till would leave the job, its deposit and its accounts disagreeing.
+**Cost.** A genuine billing mistake on a repair invoice needs a credit note issued from the back office. That comes in Phase 9, where a credit note on a repair invoice must also reverse the technician's commission (blueprint 13, commissions).

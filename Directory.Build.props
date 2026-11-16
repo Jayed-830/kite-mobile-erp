@@ -11,7 +11,7 @@
     <Company>Nextdab</Company>
     <Product>KITE MOBILE ERP</Product>
     <Copyright>© Nextdab</Copyright>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 </Project>

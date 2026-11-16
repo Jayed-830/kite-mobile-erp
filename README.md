@@ -4,7 +4,7 @@
 
 Offline-first, multi-branch ERP and POS for mobile phone sales and repair shops. Oman first: OMR with 3 decimals, English and Arabic (right-to-left), Windows desktop and browser.
 
-**Status:** Phase 7 (trade-in management: the trade-in wizard at the till, a price guide with deductions and manager approval, the seller's consent and civil ID, the four ways a trade-in is settled — on a sale, on a sale with the rest as store credit or cash, store credit only, cash buy-back — the store credit ledger, a phone the business sold coming back to its own record, and the profit margin VAT scheme once the Tax Authority's approval is recorded) is done. See [`docs/phase-7-report.md`](docs/phase-7-report.md), the earlier [`docs/phase-6-report.md`](docs/phase-6-report.md), [`docs/phase-5-report.md`](docs/phase-5-report.md), [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
+**Status:** Phase 8 (repair and servicing management: the intake wizard with condition, accessories, an encrypted passcode and terms signed on screen, a job card with QR, the 12 repair statuses with only the blueprint's transitions, versioned estimates approved by signature, phone, WhatsApp or within the pre-authorised amount, parts into work in progress and labour, deposits at the till, collection with the repair invoice applying the deposit, cancellations with a diagnosis fee, warranty claims, uncollected-device reminders, and WhatsApp through a gateway on the main server, reached by Meta through an internet address Nextdab makes) is done. See [`docs/phase-8-report.md`](docs/phase-8-report.md), the earlier [`docs/phase-7-report.md`](docs/phase-7-report.md), [`docs/phase-6-report.md`](docs/phase-6-report.md), [`docs/phase-5-report.md`](docs/phase-5-report.md), [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
 
 ## Repository layout
 
@@ -37,11 +37,12 @@ tests/
   Kite.UnitTests               unit and property-based tests
   Kite.IntegrationTests        end-to-end tests against a real PostgreSQL
   vectors/                     NEXTDAB PROTOCOL 1 signing vectors (one made by Nextdab Admin 5.14 itself), POS,
-                               device and trade-in arithmetic vectors (from independent Python implementations), PIN hash vectors
+                               device, trade-in and repair arithmetic vectors (from independent Python implementations), PIN hash vectors
 e2e/                           browser walk-throughs of real servers (Phase 2; Phase 3 with two servers and a Nextdab stub;
                                Phase 4 the till and back office; Phase 5 phones from receiving to profit; Phase 6 IMEIs
                                across head office and a branch, with head office stopped and restarted; Phase 7
-                               trade-ins, store credit and a margin-scheme resale)
+                               trade-ins, store credit and a margin-scheme resale; Phase 8 repairs from intake to
+                               collection with a WhatsApp approval)
 poc/                           Phase 2 proofs of concept
 scripts/                       build helpers
 ```
@@ -98,6 +99,8 @@ For UI work without a server: `cd src/client && npm run dev:mock` (owner `owner`
 | End-to-end, IMEIs across two servers (Phase 6) | see the `e2e-phase6` CI job (`e2e/phase6.mjs` starts both servers itself) |
 | Trade-in settlements, 20 tills (Phase 7 exit gate) | `KITE_P7_TILLS=20 KITE_P7_ROUNDS=10 dotnet test tests/Kite.IntegrationTests --filter Phase7ExitGateTests` with `KITE_TEST_PG` set |
 | End-to-end, trade-ins (Phase 7) | see the `e2e-phase7` CI job (`e2e/phase7.mjs` + `e2e/nextdab-stub.mjs`; it reads the accounts with `psql`) |
+| Repair workflow at 4 branches at once (Phase 8 exit gate) | `KITE_P8_BRANCHES=4 KITE_P8_WORKERS=3 KITE_P8_ROUNDS=4 dotnet test tests/Kite.IntegrationTests --filter Phase8ExitGateTests` with `KITE_TEST_PG` set |
+| End-to-end, repairs and WhatsApp (Phase 8) | see the `e2e-phase8` CI job (`e2e/phase8.mjs` + `e2e/nextdab-stub.mjs`; it reads the accounts with `psql`) |
 | Proofs of concept | see `poc/*/` and the `pocs-*` CI jobs |
 
 Every push runs all of these on GitHub Actions (Linux and Windows, PostgreSQL 16 and 17).
