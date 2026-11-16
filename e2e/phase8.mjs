@@ -264,7 +264,7 @@ try {
   await office.getByText('SCR-IP14').first().waitFor();
   await office.getByLabel('Minutes').fill('60');
   await office.getByRole('button', { name: 'Log labour' }).click();
-  await office.getByText(/Log labour · 60 Minutes/).waitFor();
+  await office.getByText('Labour · 60 min · Tariq Al Amri').waitFor();   // logged against the job's technician
   await shot(office, 'parts-and-labour', { full: true });
   d1 = await api('GET', `/api/v1/repairs/${job1.id}`, undefined, owner);
   const COST = bz(30);

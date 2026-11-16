@@ -51,7 +51,7 @@ export const repairAr: typeof repairEn = {
       statuses: { draft: 'مسودة', sent: 'مُرسل', approved: 'معتمد', declined: 'مرفوض', superseded: 'مستبدل' },
     },
     work: {
-      fit: 'تركيب قطعة', part: 'القطعة', qty: 'الكمية', fitted: 'مُركّب', returnPart: 'إرجاع للمخزون', writeOff: 'شطب', writeOffReason: 'سبب الشطب',
+      labourLine: 'عمل · {n} دقيقة · {name}', fit: 'تركيب قطعة', part: 'القطعة', qty: 'الكمية', fitted: 'مُركّب', returnPart: 'إرجاع للمخزون', writeOff: 'شطب', writeOffReason: 'سبب الشطب',
       labour: 'تسجيل عمل', minutes: 'الدقائق', none: 'لا توجد قطع أو عمل بعد.', cost: 'التكلفة', left: 'المتبقي على الأمر', writtenOff: 'مشطوب', wip: 'أعمال قيد التنفيذ',
     },
     money: {

@@ -337,9 +337,9 @@ function Work({ d, onDone, onError }: { d: RepairDetail; onDone: (d: RepairDetai
       )}
       <DataTable rows={d.work} rowKey={(w) => w.id} empty={t('repair.work.none')}
         columns={[
-          { key: 'w', header: t('repair.work.part'), render: (w) => w.kind === 'labour' ? <span>{t('repair.work.labour')} · {w.minutes} {t('repair.work.minutes')} · {w.technicianName}</span> : <span>{pick(w.nameEn ?? '', w.nameAr ?? '')} <span className="ltr muted">{w.sku}</span>{w.writtenOff && <Badge tone="danger">{t('repair.work.writtenOff')}</Badge>}</span> },
+          { key: 'w', header: t('repair.work.part'), render: (w) => w.kind === 'labour' ? <span>{t('repair.work.labourLine', { n: w.minutes ?? 0, name: w.technicianName ?? '' })}</span> : <span>{pick(w.nameEn ?? '', w.nameAr ?? '')} <span className="ltr muted">{w.sku}</span>{w.writtenOff && <Badge tone="danger">{t('repair.work.writtenOff')}</Badge>}</span> },
           { key: 'q', header: t('repair.work.qty'), render: (w) => w.qty == null ? '' : <span className="num">{qty(w.qty)}</span> },
-          { key: 'c', header: t('repair.work.cost'), render: (w) => w.cost == null ? '' : <span className="num">{fmt(w.cost)}</span> },
+          { key: 'c', header: t('repair.work.cost'), render: (w) => w.cost == null || w.kind === 'labour' ? '' : <span className="num">{fmt(w.cost)}</span> },
           { key: 'l', header: t('repair.work.left'), render: (w) => w.qtyLeft == null ? '' : <span className="num">{qty(w.qtyLeft)} · {fmt(w.costLeft)}</span> },
           { key: 'a', header: '', render: (w) => <span className="muted">{formatDateTime(w.createdAt, lang)}</span> },
           { key: 'x', header: '', render: (w) => canWork && w.kind === 'part' && !w.returnOfId && !w.writtenOff && (w.qtyLeft ?? 0) > 0 ? (

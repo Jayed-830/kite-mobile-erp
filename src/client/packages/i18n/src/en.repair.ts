@@ -49,7 +49,7 @@ export const repairEn = {
       statuses: { draft: 'Draft', sent: 'Sent', approved: 'Approved', declined: 'Declined', superseded: 'Replaced' },
     },
     work: {
-      fit: 'Fit part', part: 'Part', qty: 'Qty', fitted: 'Fitted', returnPart: 'Return to stock', writeOff: 'Write off', writeOffReason: 'Why it is written off',
+      labourLine: 'Labour · {n} min · {name}', fit: 'Fit part', part: 'Part', qty: 'Qty', fitted: 'Fitted', returnPart: 'Return to stock', writeOff: 'Write off', writeOffReason: 'Why it is written off',
       labour: 'Log labour', minutes: 'Minutes', none: 'No parts or labour yet.', cost: 'Cost', left: 'Left on the job', writtenOff: 'Written off', wip: 'Work in progress',
     },
     money: {
