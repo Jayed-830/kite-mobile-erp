@@ -12,6 +12,10 @@
     <ProjectReference Include="..\Kite.Persistence\Kite.Persistence.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="QuestPDF" />
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Kite.Integration.Tests" />
   </ItemGroup>
 </Project>
