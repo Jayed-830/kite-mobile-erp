@@ -3,6 +3,7 @@ import { posAr } from './ar.pos';
 import { devicesAr } from './ar.devices';
 import { imeiAr } from './ar.imei';
 import { tradeinAr } from './ar.tradein';
+import { repairAr } from './ar.repair';
 
 // Arabic strings: first draft for professional review (blueprint 20.1).
 export const ar: Dictionary = {
@@ -10,6 +11,7 @@ export const ar: Dictionary = {
   ...devicesAr,
   ...imeiAr,
   ...tradeinAr,
+  ...repairAr,
   app: {
     name: 'كايت موبايل ERP',
     by: 'من نكستداب',
@@ -56,6 +58,9 @@ export const ar: Dictionary = {
     deviceSettings: 'إعدادات الأجهزة',
     tradeins: 'الاستبدال',
     tradeinSettings: 'إعدادات الاستبدال',
+    repairs: 'الصيانة',
+    repairSettings: 'إعدادات الصيانة',
+    whatsapp: 'واتساب',
     posSettings: 'نقطة البيع والطابعات',
     dashboard: 'لوحة التحكم',
     users: 'المستخدمون',

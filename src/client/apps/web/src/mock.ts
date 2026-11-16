@@ -60,6 +60,15 @@ const PERMISSIONS: Permission[] = [
   ['TRADEIN.PAYOUT', 'tradein', 'Pay a trade-in out in cash from the drawer (buy-back)', 'دفع قيمة الاستبدال نقدًا من الدرج (شراء)'],
   ['TRADEIN.VIEW', 'tradein', 'View trade-ins, their documents and reports', 'عرض عمليات الاستبدال ومستنداتها وتقاريرها'],
   ['TRADEIN.SETTINGS', 'tradein', 'Manage the price guide, deductions, limits and the declaration', 'إدارة دليل الأسعار والخصومات والحدود والإقرار'],
+  ['REPAIR.VIEW', 'repair', 'View repair jobs, the workshop board and their documents', 'عرض أوامر الصيانة ولوحة الورشة ومستنداتها'],
+  ['REPAIR.INTAKE', 'repair', 'Book devices in, take deposits and hand devices back', 'استلام الأجهزة وأخذ العربون وتسليم الأجهزة'],
+  ['REPAIR.WORK', 'repair', 'Diagnose, write estimates, fit parts, log labour and move jobs on', 'التشخيص وكتابة التقديرات وتركيب القطع وتسجيل العمل ونقل الأوامر'],
+  ['REPAIR.ASSIGN', 'repair', 'Assign repair jobs to technicians', 'إسناد أوامر الصيانة إلى الفنيين'],
+  ['REPAIR.CANCEL', 'repair', 'Cancel repair jobs and refund deposits', 'إلغاء أوامر الصيانة واسترداد العربون'],
+  ['REPAIR.SETTINGS', 'repair', 'Manage repair settings, kinds of repair, fault codes and terms', 'إدارة إعدادات الصيانة وأنواعها ورموز الأعطال والشروط'],
+  ['REPAIR.CREDENTIAL.VIEW', 'repair', 'See a customer device passcode (every view is logged)', 'عرض رمز قفل جهاز العميل (تُسجَّل كل مرة)'],
+  ['NOTIF.SETTINGS', 'notif', 'Manage WhatsApp settings and message templates', 'إدارة إعدادات واتساب وقوالب الرسائل'],
+  ['NOTIF.REPLY', 'notif', 'Reply to customers on WhatsApp', 'الرد على العملاء عبر واتساب'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -100,8 +109,9 @@ export function createMockApi(opts: MockOptions): KiteApi {
       'POS.CASH.PAY_OUT', 'POS.REPORTS.VIEW', 'APPROVALS.DECIDE', 'CATALOG.VIEW', 'CATALOG.MANAGE', 'CATALOG.PRICE.MANAGE', 'INV.VIEW', 'INV.ADJUST', 'INV.COUNT', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE',
       'DEVICE.VIEW', 'DEVICE.INSPECT', 'DEVICE.REFURBISH', 'DEVICE.PRICE', 'DEVICE.SELL_DAMAGED', 'DEVICE.WRITE_OFF', 'DEVICE.HOLD', 'DEVICE.SETTINGS',
       'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT',
-      'TRADEIN.CREATE', 'TRADEIN.APPROVE', 'TRADEIN.STORE_CREDIT', 'TRADEIN.PAYOUT', 'TRADEIN.VIEW', 'TRADEIN.SETTINGS'] },
-    { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE', 'TRADEIN.CREATE', 'TRADEIN.VIEW'] },
+      'TRADEIN.CREATE', 'TRADEIN.APPROVE', 'TRADEIN.STORE_CREDIT', 'TRADEIN.PAYOUT', 'TRADEIN.VIEW', 'TRADEIN.SETTINGS',
+      'REPAIR.VIEW', 'REPAIR.INTAKE', 'REPAIR.WORK', 'REPAIR.ASSIGN', 'REPAIR.CANCEL', 'REPAIR.SETTINGS', 'REPAIR.CREDENTIAL.VIEW', 'NOTIF.SETTINGS', 'NOTIF.REPLY'] },
+    { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE', 'TRADEIN.CREATE', 'TRADEIN.VIEW', 'REPAIR.VIEW', 'REPAIR.INTAKE', 'NOTIF.REPLY'] },
     { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW'] },
   ];
   const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!'], ['manager', 'Manager-Pass-2026'], ['cashier', 'Cashier-Pass-2026']]);

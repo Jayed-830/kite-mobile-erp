@@ -114,10 +114,12 @@ try {
   const rep = JSON.stringify(st1.lastReport);
   if (!st1.lastReport?.license || st1.lastReport.product !== 'kite-mobile-erp') throw new Error(`unexpected report ${rep.slice(0, 300)}`);
   // Only business-level facts go to Nextdab (NEXTDAB_PROTOCOL part 7): no customers, sales, devices or secrets.
-  const allowed = ['product', 'version', 'time', 'role', 'company', 'address', 'phone', 'email', 'cr_no', 'vatin', 'currency', 'admin_name', 'license', 'counts', 'modules', 'modules_off', 'suspended', 'backup', 'pc'];
+  const allowed = ['product', 'version', 'time', 'role', 'company', 'address', 'phone', 'email', 'cr_no', 'vatin', 'currency', 'admin_name', 'license', 'counts', 'modules', 'modules_off', 'suspended', 'backup', 'pc', 'web'];
   const extra = Object.keys(st1.lastReport).filter((k) => !allowed.includes(k));
   if (extra.length) throw new Error(`report has unexpected fields: ${extra.join(', ')}`);
   for (const bad of ['password', 'argon2', '$argon', 'totp']) if (rep.toLowerCase().includes(bad)) throw new Error(`report contains ${bad}`);
+  // Phase 8: the main server's internet address for WhatsApp (host, tunnel state, OS); never its tunnel token.
+  if (st1.lastReport.web && /token/i.test(JSON.stringify(st1.lastReport.web))) throw new Error('report.web contains a token');
   await stub('/stub/command', { mid, type: 'resume', data: {} });
   await main.getByRole('button', { name: 'Check in now' }).click();
   await until(main, 'switched-off banner gone', () => noLicenceWarning(main));

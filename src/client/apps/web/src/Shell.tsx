@@ -22,6 +22,7 @@ export function Shell() {
     { to: '/app/inventory', label: t('nav.inventory'), show: can(me, 'INV.VIEW') },
     { to: '/app/devices', label: t('nav.devices'), show: can(me, 'DEVICE.VIEW') },
     { to: '/app/tradeins', label: t('nav.tradeins'), show: can(me, 'TRADEIN.VIEW') },
+    { to: '/app/repairs', label: t('nav.repairs'), show: can(me, 'REPAIR.VIEW') },
     { to: '/app/users', label: t('nav.users'), show: can(me, 'USERS.VIEW'), section: t('nav.administration') },
     { to: '/app/roles', label: t('nav.roles'), show: can(me, 'USERS.VIEW') },
     { to: '/app/terminals', label: t('nav.terminals'), show: can(me, 'TERMINALS.APPROVE') },
@@ -36,6 +37,8 @@ export function Shell() {
     { to: '/app/settings/pos', label: t('nav.posSettings'), show: can(me, 'SETTINGS.VIEW') || can(me, 'POS.POLICY.MANAGE') },
     { to: '/app/settings/devices', label: t('nav.deviceSettings'), show: can(me, 'DEVICE.SETTINGS') },
     { to: '/app/settings/tradein', label: t('nav.tradeinSettings'), show: can(me, 'TRADEIN.SETTINGS') },
+    { to: '/app/settings/repairs', label: t('nav.repairSettings'), show: can(me, 'REPAIR.SETTINGS') },
+    { to: '/app/settings/whatsapp', label: t('nav.whatsapp'), show: can(me, 'NOTIF.SETTINGS') },
     { to: '/app/account', label: t('nav.account'), show: true, section: '' },
   ];
 

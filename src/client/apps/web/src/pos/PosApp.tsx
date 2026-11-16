@@ -13,6 +13,7 @@ import { ReceiptView } from './ReceiptView';
 import { ConditionBadge, Ident } from '../devices/bits';
 import { loadTerminal, newDeviceKey, saveTerminal, type StoredTerminal } from './terminalStore';
 import { TradeInWizard } from './TradeInWizard';
+import { RepairCounter } from './RepairCounter';
 
 /** The touch POS (10.1-10.5): this device as a terminal, sign-in, shift, selling, payments, receipts, returns, cash and close. */
 export function PosApp() {
@@ -138,7 +139,7 @@ function TerminalSignIn({ terminal, onForget }: { terminal: StoredTerminal; onFo
 
 // ------------------------------------------------------------------ the till
 interface CartRow { key: string; item: PosItem; qty: string; discount: string; unitPrice: string | null; unit?: PosUnit | null; damagedApprovalId?: string | null }
-type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | 'tradein' | { pickUnits: PosItem };
+type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | 'tradein' | 'repair' | { pickUnits: PosItem };
 interface ApprovalAsk { action: ApprovalAction; retry: (approvalId: string) => void }
 
 const asItem = (i: PosItem): Item => ({ ...i, taxRate: i.taxRate, listPrice: i.listPrice, minPrice: i.minPrice });
@@ -217,6 +218,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   const marginLines = okLines.filter((l) => l.item.taxKind === 'margin');
   const shownTax = sum.tax - marginLines.reduce((a, l) => a + l.tax, 0n);
   const tradeInsOn = can(me, 'TRADEIN.CREATE');
+  const repairsOn = can(me, 'REPAIR.INTAKE');
   const cartValid = cart.length > 0 && okLines.length === cart.length;
 
   const add = useCallback((item: PosItem, fromScan = false) => {
@@ -351,6 +353,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         {emergency && <Badge tone="danger">{t('pos.emergencyMode')}</Badge>}
         <span className="spacer" />
         {tradeInsOn && !emergency && <Button size="sm" onClick={() => setDialog('tradein')}>{t('tradein.start')}</Button>}
+        {repairsOn && !emergency && <Button size="sm" onClick={() => setDialog('repair')}>{t('repair.till.button')}</Button>}
         <Button size="sm" onClick={() => setDialog('parked')}>{t('pos.recall')}</Button>
         <Button size="sm" onClick={() => setDialog('return')}>{t('pos.return')}</Button>
         <Button size="sm" onClick={() => setDialog('cash')}>{t('pos.cashMenu')}</Button>
@@ -424,6 +427,8 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
 
       {dialog === 'pay' && policy.data && <PayDialog gross={sum.gross} policy={policy.data} busy={paying} error={payError} onClose={() => setDialog(null)} onPay={(x) => void complete(x)}
         customer={customer} cartId={cartId} tradeIns={tradeInsOn && !emergency} />}
+      {dialog === 'repair' && policy.data && <RepairCounter policy={policy.data} onClose={() => setDialog(null)}
+        onDone={(message, cash) => { setDialog(null); setNotice(message); if (cash) void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
       {dialog === 'tradein' && <TradeInWizard cartId={cartId} cartCustomer={customer} cartHasItems={cart.length > 0} onClose={() => setDialog(null)} ask={ask}
         onAccepted={(d, kind, c) => {
           if (kind === 'sale') setCustomer(c);

@@ -33,6 +33,11 @@ import { DeviceSettingsPage } from './devices/DeviceSettingsPage';
 import { useI18n } from '@kite/i18n';
 import { TradeInPage, TradeInsPage } from './tradein/TradeInsPage';
 import { TradeInSettingsPage } from './tradein/TradeInSettingsPage';
+import { RepairsPage } from './repairs/RepairsPage';
+import { IntakePage } from './repairs/IntakePage';
+import { RepairPage } from './repairs/RepairPage';
+import { RepairSettingsPage } from './repairs/RepairSettingsPage';
+import { WhatsAppPage } from './repairs/WhatsAppPage';
 
 function Guarded() {
   const { stage } = useAuth();
@@ -76,6 +81,11 @@ function AppRoutes() {
         <Route path="tradeins" element={<TradeInsPage />} />
         <Route path="tradeins/:id" element={<TradeInPage />} />
         <Route path="settings/tradein" element={<TradeInSettingsPage />} />
+        <Route path="repairs" element={<RepairsPage />} />
+        <Route path="repairs/new" element={<IntakePage />} />
+        <Route path="repairs/:id" element={<RepairPage />} />
+        <Route path="settings/repairs" element={<RepairSettingsPage />} />
+        <Route path="settings/whatsapp" element={<WhatsAppPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

@@ -69,6 +69,8 @@ export interface ShiftFigures {
   cardByTerminal: { cardTerminal: string; total: number }[];
   /** Phase 7: trade-in credit and store credit taken as payments, and trade-ins paid out of the drawer. */
   tradeInCredit?: number; storeCreditPayments?: number; tradeInPayouts?: number;
+  /** Phase 8: repair deposits taken and refunded through the drawer, and deposits applied to repair invoices. */
+  repairDeposits?: number; repairDepositRefunds?: number; repairDepositsApplied?: number;
 }
 export interface ShiftReport { shift: Shift; report: 'X' | 'Z'; figures: ShiftFigures; cardSettlements: { cardTerminal: string; batchTotal: number; recordedTotal: number; difference: number; reason: string | null }[]; cashEvents: { kind: string; amount: number; reason: string; createdAt: string }[] }
 export interface CartLineInput { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null; approvalId?: string | null; deviceUnitId?: string | null; damagedApprovalId?: string | null }

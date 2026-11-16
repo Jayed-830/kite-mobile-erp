@@ -1,10 +1,11 @@
 // In-memory Phase 4 server for tests, `npm run dev:mock` and design review: catalog, stock, customers, shifts, sales,
 // returns, approvals, printers. Prices and totals use the same arithmetic as the real server (@kite/pos), but the real
 // server is the source of truth and checks everything again.
-import { ApiError, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
+import { ApiError, type RepairApi, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
   type SaleDetail, type SaleLine, type SaleListRow, type Shift, type ShiftFigures, type TenderInput, type Terminal, type Tokens, type User } from '@kite/api';
 import { createMockDevices } from './mockDevices';
 import { createMockTradeIn } from './mockTradeIn';
+import { createMockRepairs } from './mockRepairs';
 import { apportionReturn, checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
 
 export interface MockPosContext {
@@ -33,7 +34,7 @@ const n = (b: bigint) => toNumber(b);
 interface StockRow { qty: bigint; value: bigint }
 interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null; tradeInId: string | null }[] }
 
-export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi {
+export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi & RepairApi {
   const products: ProductView[] = [];
   const stock = new Map<string, StockRow>();
   const customers: Customer[] = [];
@@ -121,6 +122,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     const credit = mine.filter((x) => x.detail.sale.docType === 'credit_note');
     const cash = sumOf('cash');
     const payouts = ev('tradein_payout');
+    const rep = (k: string, m?: string) => cashEvents.filter((e) => e.shiftId === s.id && e.kind === k && (m == null || e.reason === m)).reduce((a, e) => a + e.amount, 0n);
     const cards = new Map<string, bigint>();
     for (const p of pays.filter((p) => p.method === 'card')) cards.set(p.cardTerminal ?? '', (cards.get(p.cardTerminal ?? '') ?? 0n) + p.amount);
     const g = (xs: MockSale[], k: 'grossTotal' | 'netTotal' | 'taxTotal' | 'discountTotal' | 'cashRounding') => xs.reduce((a, x) => a + toBaisa(x.detail.sale[k]), 0n);
@@ -129,8 +131,9 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       salesDiscount: n(g(sold, 'discountTotal')), creditNotesCount: credit.length, creditNotesGross: n(g(credit, 'grossTotal')), cashRounding: n(g(sold, 'cashRounding') - g(credit, 'cashRounding')),
       cashPayments: n(cash), cardPayments: n(sumOf('card')), transferPayments: n(sumOf('bank_transfer')), payIns: n(ev('pay_in')), payOuts: n(ev('pay_out')), drops: n(ev('drop')),
       noSales: cashEvents.filter((e) => e.shiftId === s.id && e.kind === 'no_sale').length, openingFloat: s.openingFloat,
-      expectedCash: n(toBaisa(s.openingFloat) + cash + ev('pay_in') - ev('pay_out') - ev('drop') - payouts), cardByTerminal: [...cards].map(([cardTerminal, total]) => ({ cardTerminal, total: n(total) })),
+      expectedCash: n(toBaisa(s.openingFloat) + cash + ev('pay_in') - ev('pay_out') - ev('drop') - payouts + rep('repair_deposit', 'cash') - rep('repair_refund', 'cash')), cardByTerminal: [...cards].map(([cardTerminal, total]) => ({ cardTerminal, total: n(total) })),
       tradeInCredit: n(sumOf('trade_in')), storeCreditPayments: n(sumOf('store_credit')), tradeInPayouts: n(payouts),
+      repairDeposits: n(rep('repair_deposit')), repairDepositRefunds: n(rep('repair_refund')), repairDepositsApplied: n(rep('repair_applied')),
     };
   };
   const useApproval = (aid: string | null | undefined, action: ApprovalAction, requester: string) => {
@@ -197,13 +200,32 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     customers: () => customers, item: (vid) => { const f = variantOf(vid)!; return { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, tracking: f.p.product.tracking }; },
     dev, useApproval, marginCodeStatus: (active) => ctx.setMarginCode?.(active),
   });
+  const rp = createMockRepairs({
+    need: ctx.need, next, branchId: ctx.branchId, branchCode: 'B01', users: () => ctx.users, customers: () => customers,
+    item: (vid) => { const f = variantOf(vid); return f ? { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, listPrice: f.v.variant.price } : null; },
+    partMove: (vid, q, unitCost) => move(vid, q, unitCost), shift: () => myShift().s,
+    drawer: (sid, kind, method, amount) => cashEvents.push({ shiftId: sid, kind, amount, reason: method, createdAt: now() }),
+    invoice: (customerId, ls, tenders) => {
+      const { u, t, s } = myShift();
+      const cust = customers.find((c) => c.id === customerId) ?? null;
+      const sum = (k: 'netAmount' | 'taxAmount' | 'grossAmount') => ls.reduce((a, l) => a + toBaisa(l[k]), 0n);
+      const lines: SaleLine[] = ls.map((l) => ({ id: id(), variantId: l.variantId, productType: 'service', descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice,
+        listPrice: l.unitPrice, discount: 0, net: l.netAmount, taxRate: l.taxRate, tax: l.taxAmount, gross: l.grossAmount, returnedQty: 0, returnable: 0 }));
+      const d = write({ id: id(), branchId: t.branchId, number: next('inv', 'INV'), docType: 'tax_invoice', creditReason: null, originalSaleId: null, originalNumber: null, saleDate: now().slice(0, 10),
+        completedAt: now(), netTotal: n(sum('netAmount')), discountTotal: 0, taxTotal: n(sum('taxAmount')), grossTotal: n(sum('grossAmount')), cashRounding: 0, isEmergency: false, note: null,
+        customerId, customerName: cust?.nameEn ?? null, customerVat: cust?.vatNumber ?? null, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id }, lines, tenders, false, s.id, t);
+      return { id: d.sale.id, number: d.sale.number };
+    },
+  });
   // A walk-in customer for trade-ins (design review).
   customers.push({ id: id(), number: 'C-000002', kind: 'individual', nameEn: 'Maryam Al Hinai', nameAr: 'مريم الهنائية', phoneE164: '+96899112233', email: null, vatNumber: null, crNumber: null, addressEn: null, addressAr: null, status: 'active', version: 1 });
+  rp.seed();
 
   return {
     ...dev.api,
     ...dev.identity,
     ...ti.api,
+    ...rp.api,
     async brands() { ctx.need('CATALOG.VIEW'); return delay([]); },
     async createBrand(b) { ctx.need('CATALOG.MANAGE'); return delay({ id: id(), ...b, status: 'active', version: 1 }); },
     async categories() { ctx.need('CATALOG.VIEW'); return delay([]); },
