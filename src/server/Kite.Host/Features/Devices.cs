@@ -553,6 +553,8 @@ public static class DeviceEndpoints
                        (SELECT coalesce(sum(x.qty), 0) FROM sales.sale_line x WHERE x.returned_line_id = l.id) AS returned
                   FROM sales.sale_line l JOIN sales.sale s ON s.id = l.sale_id
                  WHERE l.device_unit_id IS NOT NULL AND s.doc_type <> 'credit_note'
+                   -- a phone the customer returned (or a voided sale) earned nothing: its credit note took the profit back
+                   AND l.qty > (SELECT coalesce(sum(x.qty), 0) FROM sales.sale_line x WHERE x.returned_line_id = l.id)
                    AND (@from::date IS NULL OR s.sale_date >= @from::date) AND (@to::date IS NULL OR s.sale_date <= @to::date)
                    AND (@branchId::uuid IS NULL OR s.branch_id = @branchId)
                  ORDER BY s.completed_at DESC LIMIT 1000
@@ -564,7 +566,7 @@ public static class DeviceEndpoints
         {
             http.User.Demand(Permissions.DeviceView, branchId);
             return Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
-                SELECT coalesce(tu.display_name_en, '-') AS technician, count(DISTINCT r.id) AS orders,
+                SELECT tu.display_name_en AS technician, count(DISTINCT r.id) AS orders,
                        count(DISTINCT r.id) FILTER (WHERE r.status = 'completed') AS completed,
                        coalesce(sum(c.amount) FILTER (WHERE c.kind = 'part'), 0) AS parts, coalesce(sum(c.amount) FILTER (WHERE c.kind = 'labour'), 0) AS labour,
                        coalesce(sum(c.amount) FILTER (WHERE c.kind = 'external'), 0) AS external, coalesce(sum(c.amount), 0) AS total

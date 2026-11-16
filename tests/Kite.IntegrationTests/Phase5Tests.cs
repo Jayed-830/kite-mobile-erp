@@ -202,6 +202,11 @@ public sealed class Phase5Tests(KiteServerFixture fx)
         var s3Lines = await Ok(await pos.GetAsync($"/api/v1/sales/{s3.GetProperty("id").GetGuid()}"));
         Assert.Contains("Damaged", s3Lines.GetProperty("lines")[0].GetProperty("descriptionEn").GetString());
 
+        // Profit per device sold counts only phones the customer kept: not the two returned, not the voided sale.
+        var ours = units.Select(u => u.Id).ToHashSet();
+        var profit = (await Ok(await owner.GetAsync("/api/v1/devices/reports/profit"))).EnumerateArray().Where(r => ours.Contains(r.GetProperty("unitId").GetGuid())).ToArray();
+        Assert.Equal([damaged.Id], profit.Select(r => r.GetProperty("unitId").GetGuid()).ToArray());
+
         // A write-off takes the unit out at its cost, to stock write-offs.
         var w = await Dev.GlSnapshotAsync("6700", "1410");
         await Ok(await owner.PostAsJsonAsync($"/api/v1/devices/{newOne.Id}/write-off", new { reason = "screen smashed in storage" }));

@@ -29,7 +29,7 @@ export const devicesAr: typeof devicesEn = {
     outcomes: { restock: 'إعادة إلى المخزون', refurbish: 'تجديد', for_parts: 'تخصيص للقطع', supplier_return: 'إرجاع إلى المورد' },
     resultCondition: 'الوضع بعد الفحص', note: 'ملاحظة', noteRequired: 'اذكر سبب اختلاف قرارك عن القائمة.', save: 'حفظ الفحص',
     inspected: 'حُفظ الفحص {number}.', queueEmpty: 'لا يوجد جهاز بانتظار الفحص.', waitingSince: 'بانتظار منذ',
-    refurbTitle: 'أمر التجديد {number}', problem: 'المشكلة', workDone: 'العمل المنجز', technician: 'الفني', costs: 'التكاليف', addCost: 'إضافة تكلفة',
+    refurbTitle: 'أمر التجديد {number}', problem: 'المشكلة', workDone: 'العمل المنجز', technician: 'الفني', unassigned: 'غير محدد', costs: 'التكاليف', addCost: 'إضافة تكلفة',
     kinds: { part: 'قطعة من المخزون', labour: 'أجور', external: 'عمل خارجي' }, part: 'القطعة', qty: 'الكمية', minutes: 'الدقائق', ratePerHour: 'أجر الساعة: {rate}',
     adds: 'يضيف {amount} إلى تكلفة الجهاز', vendor: 'المنفذ', reference: 'الفاتورة أو المرجع', amount: 'المبلغ', add: 'إضافة', reverse: 'إلغاء التكلفة', reversed: 'أُلغيت',
     reversal: 'إلغاء: {note}', reverseReason: 'لماذا تُلغى هذه التكلفة؟', complete: 'إكمال', completeTitle: 'إنهاء التجديد', comeBackAs: 'يعود الجهاز بوضع',

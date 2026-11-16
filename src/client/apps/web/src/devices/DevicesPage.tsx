@@ -112,7 +112,7 @@ function RefurbTab() {
           { key: 'n', header: t('devices.number'), render: (r) => <Link className="link-button ltr" to={`/app/refurbishments/${r.id}`}>{r.number}</Link> },
           { key: 'i', header: t('devices.identifier'), render: (r) => <Ident value={r.identifier} /> },
           { key: 'd', header: t('devices.item'), render: (r) => pick(r.descriptionEn, r.descriptionAr) },
-          { key: 't', header: t('devices.technician'), render: (r) => r.technicianName ?? '—' },
+          { key: 't', header: t('devices.technician'), render: (r) => r.technicianName ?? <span className="muted">{t('devices.unassigned')}</span> },
           { key: 'k', header: t('devices.costSoFar'), render: (r) => <span className="num">{fmt(r.unitCost)}</span> },
           { key: 's', header: t('devices.status'), render: (r) => t(`devices.orderStatus.${r.status}`) },
           { key: 'o', header: t('devices.opened'), render: (r) => formatDate(r.openedAt, lang) },
@@ -150,9 +150,9 @@ function ReportsTab() {
           { key: 'p', header: t('devices.profit'), render: (r) => <span className={`num${r.profit < 0 ? ' neg' : ''}`}>{fmt(r.profit)}</span> },
         ]} />
       <h3>{t('devices.refurbReport')}</h3>
-      <DataTable rows={refurb.data ?? []} rowKey={(r) => r.technician} empty={t('devices.none')}
+      <DataTable rows={refurb.data ?? []} rowKey={(r) => r.technician ?? ''} empty={t('devices.none')}
         columns={[
-          { key: 't', header: t('devices.technician'), render: (r) => r.technician },
+          { key: 't', header: t('devices.technician'), render: (r) => r.technician ?? <span className="muted">{t('devices.unassigned')}</span> },
           { key: 'o', header: t('devices.orders'), render: (r) => <span className="num">{r.orders}</span> },
           { key: 'c', header: t('devices.completedOrders'), render: (r) => <span className="num">{r.completed}</span> },
           { key: 'p', header: t('devices.parts'), render: (r) => <span className="num">{fmt(r.parts)}</span> },

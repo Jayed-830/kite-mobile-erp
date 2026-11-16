@@ -297,6 +297,9 @@ try {
   await shot(office, 'inspection-queue-returned-phone');
   await office.getByRole('tab', { name: 'Reports' }).click();
   await office.getByText('Profit per device sold').waitFor();
+  await office.getByText(USED).first().waitFor();
+  await office.getByText('Not assigned').waitFor();
+  check(await office.getByText(NEW_1).count() === 0, 'the profit report leaves out the phone the customer returned');
   await shot(office, 'devices-reports', { full: true });
 
   step('Arabic: the device page right to left');

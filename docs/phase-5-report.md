@@ -51,7 +51,7 @@ The run took 10.2 seconds. Each worker's random choices come from a fixed seed, 
 10. The receipt shows both IMEIs and warranty dates.
 11. Cost of sale is 180.000 for the new phone and 138.000 for the refurbished one.
 12. The new phone is returned by scanning it. It goes to "Returned, waiting for inspection", not back on sale.
-13. The refurbished phone's page shows its whole history and its profit: 178.095 net − 138.000 = 40.095. The page is also shown in Arabic.
+13. The refurbished phone's page shows its whole history and its profit: 178.095 net − 138.000 = 40.095. The page is also shown in Arabic. The profit report lists only this phone, not the one that came back.
 14. "Check the books" is OK. The stock ledger holds the two iPhones at 360.000 (180.000 each), 3 screens and all 6 batteries.
 
 ## What was built
@@ -129,6 +129,8 @@ The run took 10.2 seconds. Each worker's random choices come from a fixed seed, 
 - **A mistyped IMEI at the till showed a different message from the server's.** Found by a web test; both now say the same thing.
 - **The web CI job failed on the two server commits** until the web commit added English and Arabic messages for `DEV-001` to `DEV-013`. The rule that every server code has both messages caught it.
 - **The refurbishment's "problem" was just the English checklist label.** The walk-through screenshots showed it. It is now the inspector's note, or the failed checks in both languages.
+- **The profit report counted a returned phone.** A phone the customer brought back still showed the profit that its credit note took back. The report now lists only phones the customer kept; voids are left out too. The walk-through screenshots showed it, and a server test and the walk-through now check it.
+- **A refurbishment with no technician showed "-".** It now says "Not assigned".
 - **The version number was behind.** The server still said 0.3.0 during Phase 4 (the report said 0.4.0). The server and the Windows app are now both 0.5.0.
 
 ## Decisions and departures from the blueprint

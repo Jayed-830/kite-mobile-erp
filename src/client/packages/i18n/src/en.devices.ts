@@ -27,7 +27,7 @@ export const devicesEn = {
     outcomes: { restock: 'Back to stock', refurbish: 'Refurbish', for_parts: 'Set aside for parts', supplier_return: 'Return to supplier' },
     resultCondition: 'Condition after inspection', note: 'Note', noteRequired: 'Say why you decided differently from the checklist.', save: 'Save the inspection',
     inspected: 'Inspection {number} saved.', queueEmpty: 'No device is waiting for inspection.', waitingSince: 'Waiting since',
-    refurbTitle: 'Refurbishment {number}', problem: 'Problem', workDone: 'Work done', technician: 'Technician', costs: 'Costs', addCost: 'Add a cost',
+    refurbTitle: 'Refurbishment {number}', problem: 'Problem', workDone: 'Work done', technician: 'Technician', unassigned: 'Not assigned', costs: 'Costs', addCost: 'Add a cost',
     kinds: { part: 'Part from stock', labour: 'Labour', external: 'Outside work' }, part: 'Part', qty: 'Quantity', minutes: 'Minutes', ratePerHour: 'Rate per hour: {rate}',
     adds: 'Adds {amount} to the device', vendor: 'Done by', reference: 'Invoice or reference', amount: 'Amount', add: 'Add', reverse: 'Take back', reversed: 'Taken back',
     reversal: 'Taken back: {note}', reverseReason: 'Why is this cost taken back?', complete: 'Complete', completeTitle: 'Finish the refurbishment', comeBackAs: 'The device comes back as',

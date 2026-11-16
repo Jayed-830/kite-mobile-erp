@@ -92,7 +92,7 @@ export interface DeviceApi {
   completeRefurbishment(id: string, c: { condition: 'refurbished' | 'damaged'; gradeId: string | null; sellingPrice?: number | null; warrantyDays?: number | null; workDone?: string | null; version?: number }): Promise<{ id: string; number: string; unitId: string; cost: number }>;
   deviceStockReport(branchId?: string): Promise<{ status: DeviceStatus; condition: DeviceCondition; gradeCode: string | null; units: number; cost: number; averageAgeDays: number; age0to30: number; age31to90: number; ageOver90: number }[]>;
   deviceProfitReport(f?: { from?: string; to?: string; branchId?: string }): Promise<{ number: string; saleDate: string; unitId: string; descriptionEn: string; identifier: string | null; net: number; cost: number; profit: number; returned: number }[]>;
-  refurbishmentReport(f?: { from?: string; to?: string; branchId?: string }): Promise<{ technician: string; orders: number; completed: number; parts: number; labour: number; external: number; total: number }[]>;
+  refurbishmentReport(f?: { from?: string; to?: string; branchId?: string }): Promise<{ technician: string | null; orders: number; completed: number; parts: number; labour: number; external: number; total: number }[]>;
 }
 
 type Http = { get: <T>(p: string) => Promise<T>; post: <T>(p: string, b?: unknown) => Promise<T>; put: <T>(p: string, b: unknown) => Promise<T>; del: <T>(p: string) => Promise<T> };

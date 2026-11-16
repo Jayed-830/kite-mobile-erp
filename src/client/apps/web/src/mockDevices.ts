@@ -295,12 +295,12 @@ export function createMockDevices(h: DeviceHooks) {
     },
     async deviceProfitReport() {
       h.need('DEVICE.VIEW');
-      return delay([...unitSales].flatMap(([uid, ss]) => ss.filter((s) => s.docType !== 'credit_note').map((s) => ({ number: s.number, saleDate: s.completedAt.slice(0, 10), unitId: uid, descriptionEn: h.item(unit(uid).variantId).descriptionEn, identifier: ident(unit(uid)), net: s.net, cost: s.cost, profit: s.profit ?? 0, returned: 0 }))));
+      return delay([...unitSales].flatMap(([uid, ss]) => ss.filter((s, i) => s.docType !== 'credit_note' && !ss.slice(i + 1).some((x) => x.docType === 'credit_note')).map((s) => ({ number: s.number, saleDate: s.completedAt.slice(0, 10), unitId: uid, descriptionEn: h.item(unit(uid).variantId).descriptionEn, identifier: ident(unit(uid)), net: s.net, cost: s.cost, profit: s.profit ?? 0, returned: 0 }))));
     },
     async refurbishmentReport() {
       h.need('DEVICE.VIEW');
       const sumOf = (k: string) => num(costs.filter((c) => c.kind === k).reduce((a, c) => a + toBaisa(c.amount), 0n));
-      return delay(orders.length ? [{ technician: '-', orders: orders.length, completed: orders.filter((o) => o.status === 'completed').length, parts: sumOf('part'), labour: sumOf('labour'), external: sumOf('external'), total: num(costs.reduce((a, c) => a + toBaisa(c.amount), 0n)) }] : []);
+      return delay(orders.length ? [{ technician: null, orders: orders.length, completed: orders.filter((o) => o.status === 'completed').length, parts: sumOf('part'), labour: sumOf('labour'), external: sumOf('external'), total: num(costs.reduce((a, c) => a + toBaisa(c.amount), 0n)) }] : []);
     },
   };
 
