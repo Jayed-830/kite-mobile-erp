@@ -1,0 +1,25 @@
+# Restores the .NET solution and publishes the NuGet package folder as an artifact, so a development machine
+# without access to nuget.org can restore offline (dotnet restore --source <folder>). Run by hand.
+name: Package cache
+on:
+  workflow_dispatch:
+jobs:
+  nuget:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore every project into a fresh package folder
+        env:
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget-packages
+        run: |
+          dotnet restore Kite.slnx
+          for p in poc/questpdf-arabic/*.csproj; do dotnet restore "$p"; done
+          du -sh "$NUGET_PACKAGES"; ls "$NUGET_PACKAGES" | wc -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ${{ runner.temp }}/nuget-packages/
+          retention-days: 7
