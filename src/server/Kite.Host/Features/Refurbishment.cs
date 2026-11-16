@@ -195,11 +195,16 @@ public static class RefurbishmentEndpoints
         {
             orderId = t.NewId();
             orderNumber = await DocNumbers.NextAsync(t, biz.Id, u.BranchId, "refurb_order", fy, "RF");
-            var problem = string.Join("; ", items.Where(i => result.Failed.Contains(i.Code)).Select(i => i.LabelEn));
+            // What the technician has to fix: the inspector's own words if given, otherwise the failed checks in both languages.
+            string Failed(Func<InspectionAnswer, string> label) => string.Join("; ", result.Answers.Where(a => a.Passed == false).Select(a =>
+                a.Kind == "percent" && a.Value is { Length: > 0 } v ? $"{label(a)}: {v}" : label(a)));
+            var problem = note is { Length: > 0 } ? note
+                : result.Failed.Count == 0 ? null
+                : $"{Failed(i => i.LabelEn)} · {Failed(i => i.LabelAr)}";
             await t.ExecuteAsync("""
                 INSERT INTO refurb.refurb_order (id, business_id, branch_id, number, device_unit_id, inspection_id, technician_id, problem, opened_by, origin_server_id)
                 VALUES (@orderId, @b, @BranchId, @orderNumber, @id, @inspectionId, @TechnicianId, @problem, @uid, (SELECT id FROM core.server WHERE is_self))
-                """, new { orderId, b = biz.Id, u.BranchId, orderNumber, id, inspectionId, req.TechnicianId, problem = problem.Length == 0 ? note : problem, uid = http.User.UserIdOf() });
+                """, new { orderId, b = biz.Id, u.BranchId, orderNumber, id, inspectionId, req.TechnicianId, problem, uid = http.User.UserIdOf() });
         }
         await t.AuditAsync(new AuditEntry("device.inspected", "device_unit", id,
             After: Json.Obj(new { number, req.Outcome, suggested = result.SuggestedOutcome, req.Condition, failed = result.Failed, note, orderNumber }), BranchId: u.BranchId));
