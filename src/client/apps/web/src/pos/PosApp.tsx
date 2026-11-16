@@ -43,7 +43,7 @@ function PosFrame({ children, title }: { children: React.ReactNode; title: strin
 // ------------------------------------------------------------------ register this device
 function RegisterTerminal({ onRegistered }: { onRegistered: (t: StoredTerminal) => void }) {
   const api = useApi();
-  const { me, stage, signIn } = useAuth();
+  const { me, stage, signIn, signOut } = useAuth();
   const { t, pick } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -54,6 +54,14 @@ function RegisterTerminal({ onRegistered }: { onRegistered: (t: StoredTerminal) 
   const branches = useQuery({ queryKey: ['branches'], queryFn: () => api.branches(), enabled: stage === 'signedIn' });
   useEffect(() => { if (branches.data?.[0] && !form.branchId) setForm((f) => ({ ...f, branchId: me?.user.defaultBranchId ?? branches.data[0]!.id })); }, [branches.data, form.branchId, me]);
 
+  if (pending) {
+    return (
+      <PosFrame title={t('pos.waitingApproval')}>
+        <p>{t('pos.waitingApprovalHelp', { code: pending.code })}</p>
+        <Button variant="primary" onClick={() => onRegistered(pending)}>{t('pos.approvedContinue')}</Button>
+      </PosFrame>
+    );
+  }
   if (stage !== 'signedIn') {
     return (
       <PosFrame title={t('pos.registerTitle')}>
@@ -62,14 +70,6 @@ function RegisterTerminal({ onRegistered }: { onRegistered: (t: StoredTerminal) 
         <TextField label={t('login.password')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" dir="ltr" />
         <ErrorBox error={error} />
         <Button variant="primary" busy={busy} onClick={async () => { setBusy(true); setError(null); try { await signIn(username, password); } catch (e) { setError(e); } finally { setBusy(false); } }}>{t('login.submit')}</Button>
-      </PosFrame>
-    );
-  }
-  if (pending) {
-    return (
-      <PosFrame title={t('pos.waitingApproval')}>
-        <p>{t('pos.waitingApprovalHelp', { code: pending.code })}</p>
-        <Button variant="primary" onClick={() => onRegistered(pending)}>{t('pos.approvedContinue')}</Button>
       </PosFrame>
     );
   }
@@ -90,7 +90,8 @@ function RegisterTerminal({ onRegistered }: { onRegistered: (t: StoredTerminal) 
           const deviceKey = newDeviceKey();
           const r = await api.requestTerminal({ branchId: form.branchId, code: form.code, name: form.name || form.code, kind: 'browser', deviceKey });
           const x: StoredTerminal = { terminalId: r.id, deviceKey, code: form.code, branchId: form.branchId, printerId: null };
-          if (can(me, 'TERMINALS.APPROVE')) { await api.approveTerminal(r.id, false); onRegistered(x); } else setPending(x);
+          // The manager's own session is not a till session: sign out so a cashier signs in at this terminal.
+          if (can(me, 'TERMINALS.APPROVE')) { await api.approveTerminal(r.id, false); await signOut(); onRegistered(x); } else { await signOut(); setPending(x); }
         } catch (e) { setError(e); } finally { setBusy(false); }
       }}>{t('pos.register')}</Button>
     </PosFrame>
