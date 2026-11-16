@@ -370,7 +370,8 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         {notice && <Alert tone="info">{notice} <button className="link-button" onClick={() => setNotice(null)}>×</button></Alert>}
         <ErrorBox error={error} />
         <div className="tiles">
-          {(hits ?? quick.data ?? []).map((i) => (
+          {/* Repair labour, extra charges and the diagnosis fee are charged through a repair job (Repairs), not sold from the till. */}
+          {(hits ?? quick.data ?? []).filter((i) => !/^REPAIR-/i.test(i.sku)).map((i) => (
             <button key={i.variantId} className="tile" onClick={() => (i.tracking !== 'none' ? setDialog({ pickUnits: i }) : add(i))} disabled={!i.active}>
               <span className="tile-name">{pick(i.descriptionEn, i.descriptionAr)}</span>
               <span className="tile-meta"><span className="ltr">{i.sku}</span>{i.productType !== 'service' && <span className={i.stock <= 0 ? 'neg' : 'muted'}>{t('pos.inStock', { qty: qty(i.stock) })}</span>}</span>

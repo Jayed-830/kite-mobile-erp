@@ -968,3 +968,90 @@ jobs:
         with:
           name: e2e-phase7-screenshots
           path: ${{ runner.temp }}/e2e-phase7-shots/
+
+  e2e-phase8:
+    name: End-to-end Phase 8 (intake with signed terms, deposit at the till, estimate approved with WhatsApp, parts and labour, allowed and refused moves, collection by QR, cancelled job with diagnosis fee, accounts)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create the database and roles (the installer's job in production)
+        run: |
+          createdb kite
+          psql -v ON_ERROR_STOP=1 -d kite -f db/bootstrap/00_bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -d kite -c "ALTER ROLE kite_migrator PASSWORD 'e2e-migrator'; ALTER ROLE kite_app PASSWORD 'e2e-app';"
+      - name: Build the web app into the server, and the server
+        run: |
+          bash scripts/build-web.sh
+          dotnet build src/server/Kite.Host -c Release
+      - name: Start the Nextdab stub (checks its signing against the Nextdab Admin vectors first)
+        working-directory: e2e
+        run: |
+          npm ci
+          STUB_KEY_FILE="$RUNNER_TEMP/stub-key.txt" nohup node nextdab-stub.mjs > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/stub-key.txt" ] && break; sleep 1; done
+          cat "$RUNNER_TEMP/stub.log"
+          test -s "$RUNNER_TEMP/stub-key.txt"
+      - name: Start the KITE server
+        working-directory: src/server/Kite.Host
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development   # only so the test licence key below is accepted
+          export ASPNETCORE_URLS=http://localhost:5080
+          export ConnectionStrings__App="Host=localhost;Database=kite;Username=kite_app;Password=e2e-app"
+          export ConnectionStrings__Migrator="Host=localhost;Database=kite;Username=kite_migrator;Password=e2e-migrator"
+          export Kite__DataDir="$RUNNER_TEMP/kite-data" Kite__Sync__Port=0
+          export Kite__Licensing__ControlUrl=http://127.0.0.1:8799 Kite__Licensing__DevPublicKey="$(cat "$RUNNER_TEMP/stub-key.txt")"
+          nohup dotnet bin/Release/net10.0/Kite.Host.dll > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5080/health/ready > /dev/null && break; sleep 2; done
+          curl -sf http://localhost:5080/health/ready && test -s "$RUNNER_TEMP/kite-data/setup-code.txt"
+      - name: Browser walk-through
+        working-directory: e2e
+        env:
+          KITE_URL: http://localhost:5080
+          SETUP_CODE_FILE: ${{ runner.temp }}/kite-data/setup-code.txt
+          SHOTS_DIR: ${{ runner.temp }}/e2e-phase8-shots
+        run: node phase8.mjs
+      - name: Database after the walk-through (jobs, deposits, gateway, journals, audit chain)
+        if: always()
+        run: |
+          psql -d kite -c "SELECT number, status, outcome, collection_check, warranty_until, repair.deposit_balance(id) AS deposit, repair.wip(id) AS wip FROM repair.repair_job ORDER BY number;"
+          psql -d kite -c "SELECT j.number, h.from_status, h.to_status, h.at FROM repair.status_history h JOIN repair.repair_job j ON j.id = h.job_id ORDER BY h.id;"
+          psql -d kite -c "SELECT d.number, d.kind, d.amount, d.tax, d.method FROM repair.deposit d ORDER BY d.created_at;"
+          psql -d kite -c "SELECT template, status, phone_e164 FROM notif.gateway_message ORDER BY received_at;"
+          psql -d kite -c "SELECT a.code, sum(l.debit - l.credit) AS balance FROM acct.journal_line l JOIN acct.account a ON a.id = l.account_id WHERE a.code IN ('1100','1430','1460','2200','2300','4200','4210','5200') GROUP BY a.code ORDER BY a.code;"
+          psql -d kite -c "SELECT (SELECT count(*) FROM sales.sale) AS documents, (SELECT count(*) FROM acct.journal) AS journals, (SELECT ok FROM audit.verify_chain()) AS audit_chain_ok;"
+      - name: Print screenshots for review
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/e2e-phase8-shots/*.jpg; do
+            [ -f "$f" ] || continue
+            echo "SHOT-BEGIN $(basename "$f")"; base64 -w 40000 "$f"; echo "SHOT-END"
+          done
+      - name: Server log
+        if: always()
+        run: |
+          tail -n 200 "$RUNNER_TEMP/server.log" || true
+          echo "=== stub ==="; cat "$RUNNER_TEMP/stub.log" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-phase8-screenshots
+          path: ${{ runner.temp }}/e2e-phase8-shots/

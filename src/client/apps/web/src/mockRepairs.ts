@@ -56,7 +56,7 @@ export function createMockRepairs(h: RepairMockHooks) {
   const inbox: In[] = [];
   const optedOut = new Set<string>();
   let settings: RepairSettings = {
-    preAuthorised: 0, warrantyDays: 90, passcodeKeepDays: 0, uncollectedDays: [30, 60, 90], diagnosisFee: 3, hourlyRate: 12, depositVatPoint: false,
+    preAuthorised: 0, warrantyDays: 90, passcodeKeepDays: 30, uncollectedDays: [30, 60, 90], diagnosisFee: 3, hourlyRate: 12, depositVatPoint: false,
     notifyStatuses: ['received', 'waiting_approval', 'ready'], termsEn: 'We check the device, tell you the price before any work beyond what you allowed, and keep it for 90 days after it is ready.',
     termsAr: 'نفحص الجهاز ونبلغك بالسعر قبل أي عمل يتجاوز ما وافقت عليه، ونحتفظ به 90 يومًا بعد جاهزيته.', version: 1,
   };
@@ -113,7 +113,9 @@ export function createMockRepairs(h: RepairMockHooks) {
     if (!REPAIR_TRANSITIONS[j.status].includes(to)) throw problem(409, 'REP-001', `A job that is ${words(j.status)} cannot move to ${words(to)}.`);
     if (NEEDS_APPROVED_ESTIMATE.includes(to)) {
       const e = current(r);
-      if (e && e.status !== 'approved' && e.total <= ceiling(r) && e.lines.length > 0) approve(r, e, 'pre_authorised', null, null, u);
+      if (!e) throw problem(409, 'REP-005', 'Write the estimate first: the work goes ahead on an approved estimate.');
+      if (e.status !== 'approved' && e.total <= ceiling(r) && e.lines.length > 0) approve(r, e, 'pre_authorised', null, null, u);
+      if (e.status !== 'approved') throw problem(409, 'REP-005', `The estimate (${e.total.toFixed(3)}) is more than the customer authorised (${ceiling(r).toFixed(3)}). Send it and wait for the customer's approval.`);
       if (!current(r) || current(r)!.status !== 'approved') throw problem(409, 'REP-002', 'Approve the current estimate first.');
     }
     if (to === 'waiting_approval') {

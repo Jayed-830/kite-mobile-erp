@@ -82,7 +82,7 @@ export function IntakePage() {
           customerDeviceId: deviceId, device: deviceId ? null : { imei1: isImei ? k : null, serial: isImei ? null : k || null, brand: brand.trim() || null, model: model.trim(), colour: colour.trim() || null },
           faultCodes: faults, condition, conditionNotes: conditionNotes.trim() || null, accessories, accessoriesOther: accessoriesOther.trim() || null,
           preAuthorised: preAuth === '' ? null : Number(preAuth), promisedAt: promised ? new Date(promised).toISOString() : null, notifyWhatsapp: notify, lang: msgLang, photos,
-          technicianId: tech || null,
+          technicianId: tech || null, branchId: workBranchId(me) || null,
         });
         setDone(r);
         break;

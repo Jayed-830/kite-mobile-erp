@@ -160,16 +160,17 @@ function ClaimModal({ jobId, onClose }: { jobId: string; onClose: () => void }) 
 
 interface Draft { kind: 'labour' | 'part' | 'extra'; variantId: string; minutes?: number; qty?: number; unitPrice?: number | null; descriptionEn?: string; label: string }
 
-function ItemSearch({ onPick }: { onPick: (i: PosItem) => void }) {
+/** Parts in stock at the job's branch (the till's item search; devices and services are left out). */
+function ItemSearch({ branchId, onPick }: { branchId: string; onPick: (i: PosItem) => void }) {
   const api = useApi();
   const { t, pick } = useI18n();
   const [q, setQ] = useState('');
   const [found, setFound] = useState<PosItem[]>([]);
   useEffect(() => {
     if (q.trim().length < 2) { setFound([]); return; }
-    const h = setTimeout(() => { api.posItems(q, undefined, 20).then((xs) => setFound(xs.filter((x) => x.productType !== 'device' && x.productType !== 'service'))).catch(() => setFound([])); }, 200);
+    const h = setTimeout(() => { api.posItems(q, branchId, 20).then((xs) => setFound(xs.filter((x) => x.productType !== 'device' && x.productType !== 'service'))).catch(() => setFound([])); }, 200);
     return () => clearTimeout(h);
-  }, [q, api]);
+  }, [q, api, branchId]);
   return (
     <div className="stack">
       <TextField label={t('repair.work.part')} value={q} onChange={(e) => setQ(e.target.value)} dir="auto" />
@@ -223,7 +224,7 @@ function Estimates({ d, onDone, onError }: { d: RepairDetail; onDone: (d: Repair
               <Button size="sm" onClick={() => setLines([...lines, { kind: 'labour', variantId: svc('REPAIR-LABOUR'), minutes: 30, label: t('repair.estimates.addLabour') }])}>{t('repair.estimates.addLabour')}</Button>
               <Button size="sm" onClick={() => setLines([...lines, { kind: 'extra', variantId: svc('REPAIR-EXTRA'), unitPrice: null, descriptionEn: '', label: t('repair.estimates.addExtra') }])}>{t('repair.estimates.addExtra')}</Button>
             </div>
-            <ItemSearch onPick={(i) => setLines([...lines, { kind: 'part', variantId: i.variantId, qty: 1, unitPrice: i.listPrice, label: pick(i.descriptionEn, i.descriptionAr) }])} />
+            <ItemSearch branchId={j.branchId} onPick={(i) => setLines([...lines, { kind: 'part', variantId: i.variantId, qty: 1, unitPrice: i.listPrice, label: pick(i.descriptionEn, i.descriptionAr) }])} />
             <TextField label={t('repair.estimates.note')} value={note} onChange={(e) => setNote(e.target.value)} dir="auto" />
             <div className="row"><Button onClick={() => setLines(null)}>{t('app.cancel')}</Button><span className="spacer" /><Button variant="primary" onClick={save} disabled={lines.length === 0}>{t('repair.estimates.save')}</Button></div>
           </div>
@@ -323,7 +324,7 @@ function Work({ d, onDone, onError }: { d: RepairDetail; onDone: (d: RepairDetai
         <div className="grid-2">
           <Card><div className="stack">
             <strong>{t('repair.work.fit')}</strong>
-            {part ? <div className="row"><span className="grow">{pick(part.descriptionEn, part.descriptionAr)}</span><Button size="sm" variant="ghost" onClick={() => setPart(null)}>✕</Button></div> : <ItemSearch onPick={setPart} />}
+            {part ? <div className="row"><span className="grow">{pick(part.descriptionEn, part.descriptionAr)}</span><Button size="sm" variant="ghost" onClick={() => setPart(null)}>✕</Button></div> : <ItemSearch branchId={j.branchId} onPick={setPart} />}
             <TextField label={t('repair.work.qty')} inputMode="decimal" className="ltr num" value={partQty} onChange={(e) => setPartQty(e.target.value)} />
             <div><Button variant="primary" disabled={!part} onClick={() => api.fitPart(j.id, { variantId: part!.variantId, qty: Number(partQty) }).then((r) => { onDone(r); setPart(null); setPartQty('1'); }).catch(onError)}>{t('repair.work.fit')}</Button></div>
           </div></Card>

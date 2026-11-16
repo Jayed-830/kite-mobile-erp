@@ -92,8 +92,10 @@ export interface RepairIntake {
   faultCodes?: string[]; condition?: Record<string, ConditionValue>; conditionNotes?: string | null; accessories?: string[]; accessoriesOther?: string | null;
   passcode?: string | null; preAuthorised?: number | null; promisedAt?: string | null; notifyWhatsapp?: boolean; lang?: 'en' | 'ar'; photos?: PhotoInput[];
   technicianId?: string | null; id?: string;
+  /** The branch receiving the device, for users who work at more than one. */
+  branchId?: string | null;
 }
-export type WarrantyClaimInput = Omit<RepairIntake, 'customerId' | 'categoryId' | 'customerDeviceId' | 'device' | 'preAuthorised' | 'promisedAt' | 'lang' | 'technicianId' | 'id'>;
+export type WarrantyClaimInput = Omit<RepairIntake, 'customerId' | 'categoryId' | 'customerDeviceId' | 'device' | 'preAuthorised' | 'promisedAt' | 'lang' | 'technicianId' | 'id' | 'branchId'>;
 export interface EstimateLineInput { kind: 'labour' | 'part' | 'extra'; variantId: string; qty?: number; unitPrice?: number | null; minutes?: number | null; descriptionEn?: string | null; descriptionAr?: string | null }
 export interface EstimateApprove { method: 'signature' | 'phone' | 'pre_authorised'; approverName?: string | null; phone?: string | null; signature?: string | null; then?: RepairStatus | null }
 export interface DepositInput { amount: number; method: 'cash' | 'card' | 'bank_transfer'; tendered?: number | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null }
