@@ -120,7 +120,8 @@ public sealed class RepairKit(KiteServerFixture fx)
             ? new { amount, method, cardTerminal = "BANK-1", approvalCode = "A" + Suffix() } as object
             : new { amount, method }));
 
-    public static async Task<JsonElement> DeliveryAsync(HttpClient c, Guid job) => await Ok(await c.GetAsync($"/api/v1/repairs/{job}/delivery"));
+    public static async Task<JsonElement> DeliveryAsync(HttpClient c, Guid job, decimal? fee = null) =>
+        await Ok(await c.GetAsync($"/api/v1/repairs/{job}/delivery{(fee is { } f ? $"?diagnosisFee={f.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "")}"));
 
     public static Task<HttpResponseMessage> DeliverRawAsync(HttpClient pos, Guid job, string qr, object[]? payments = null, string check = "qr", decimal? fee = null,
         string? excessTo = null) =>

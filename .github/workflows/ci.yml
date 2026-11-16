@@ -318,6 +318,58 @@ jobs:
           name: phase7-report
           path: phase7-report.json
 
+  phase8-exit-gate:
+    name: Phase 8 exit gate (every repair transition at 4 branches at once; approvals, deposits, parts, deliveries post the expected journals)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The repair vectors are what the independent Python implementation writes
+        run: |
+          python3 tests/vectors/generators/repair_vectors.py
+          git diff --exit-code tests/vectors/repair-math-vectors.json
+      - run: dotnet build Kite.slnx -c Release
+      - name: 4 branches, 3 workers each, 4 rounds; all 132 transitions per branch; every approval method, deposits, parts, deliveries, cancellations, warranty claims
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+          KITE_P8_BRANCHES: "4"
+          KITE_P8_WORKERS: "3"
+          KITE_P8_ROUNDS: "4"
+          KITE_P8_REPORT: ${{ github.workspace }}/phase8-report.json
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~Phase8ExitGateTests" --logger "console;verbosity=detailed"
+      - name: Report
+        if: always()
+        run: |
+          test -f phase8-report.json && cat phase8-report.json
+          test -f phase8-report.json && python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          d = json.load(open('phase8-report.json'))
+          print('### Phase 8 exit gate\n')
+          print(f"{d['branches']} branches x {d['workersPerBranch']} workers x {d['rounds']} rounds in {d['seconds']} s. "
+                f"Transitions at every branch: {d['transitions']['perBranch']['allowed']} allowed passed, {d['transitions']['perBranch']['refused']} others refused.\n")
+          print(', '.join(f"{v} {k}" for k, v in d['counts'].items()) + '\n')
+          print('| Account | Expected | Moved |\n| --- | ---: | ---: |')
+          for a, v in d['accounts'].items(): print(f"| {a} | {v['expected']:.3f} | {v['actual']:.3f} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase8-report
+          path: phase8-report.json
+
   pocs-linux:
     name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)
     runs-on: ubuntu-latest

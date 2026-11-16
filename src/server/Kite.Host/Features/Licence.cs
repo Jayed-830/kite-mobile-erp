@@ -16,7 +16,8 @@ public sealed record ImportLicenceRequest(string FileText);
 /// never waits for Nextdab. Nextdab Admin can renew it, switch modules off, switch KITE off and send messages
 /// through signed commands; branch servers receive the same signed data from head office.
 /// </summary>
-public sealed class LicenceService(KiteDb db, ServerContext server, LicenceKeys keys, IClock clock, ModuleStateCache modules, ILogger<LicenceService> log)
+public sealed class LicenceService(KiteDb db, ServerContext server, LicenceKeys keys, IClock clock, ModuleStateCache modules, WebAddressService web,
+    ILogger<LicenceService> log)
 {
     public const string Product = LicenceFile.Product;
     private LicenceStatus? _cached;
@@ -170,12 +171,15 @@ public sealed class LicenceService(KiteDb db, ServerContext server, LicenceKeys 
             try { (ok, msg) = await ApplyAsync(cmd, "nextdab", ct); }
             catch (KiteException e) { ok = false; msg = e.Message; }
         }
+        // A "web" command's tunnel token is kept only encrypted (lic.web_state): the stored copy of the command leaves it out.
+        var stored = raw.DeepClone().AsObject();
+        if (type == "web" && stored["data"] is JsonObject sd && sd.ContainsKey("token")) sd["token"] = "(kept encrypted)";
         await db.InTransactionAsync(AccessScope.System, ActorContext.System, async t =>
         {
             await t.ExecuteAsync("""
                 INSERT INTO lic.command (id, type, seq, issued_at, body, ok, msg) VALUES (@id, @type, @seq, @issued, @body::jsonb, @ok, @msg)
                 ON CONFLICT (id) DO NOTHING
-                """, new { id, type, seq = cmd?.Seq, issued = cmd?.Issued?.UtcDateTime, body = raw.ToJsonString(), ok, msg });
+                """, new { id, type, seq = cmd?.Seq, issued = cmd?.Issued?.UtcDateTime, body = stored.ToJsonString(), ok, msg });
             if (cmd?.Type == "message" && ok)
                 await t.ExecuteAsync("""
                     INSERT INTO lic.message (id, title, text, title_ar, text_ar, level, audience, until)
@@ -250,6 +254,10 @@ public sealed class LicenceService(KiteDb db, ServerContext server, LicenceKeys 
                 return (true, "removed");
             }
             case "checkin": return (true, "");
+            // The main server's internet address for the WhatsApp webhook (Nextdab Admin 5.19, like MOBILE STORE ERP's "web").
+            case "web":
+                if (source != "nextdab" || server.Role == "branch") return (false, "only the main server takes an internet address from Nextdab");
+                return await web.ApplyAsync(cmd.Id, cmd.Data, ct);
             case "update": return (false, "updates are installed with the KITE installer (Phase 14)");
             default: return (false, "unknown command type");
         }
@@ -282,7 +290,7 @@ public sealed class LicenceService(KiteDb db, ServerContext server, LicenceKeys 
 /// no data about the shop's customers, and carries out the signed commands it gets back.
 /// </summary>
 public sealed class NextdabCheckinService(KiteDb db, ServerContext server, LicenceService licence, KiteOptions opts, IClock clock,
-    IHttpClientFactory httpFactory, ILogger<NextdabCheckinService> log) : BackgroundService
+    IHttpClientFactory httpFactory, WebAddressService web, ILogger<NextdabCheckinService> log) : BackgroundService
 {
     private readonly SemaphoreSlim _now = new(0, 1);
 
@@ -400,6 +408,8 @@ public sealed class NextdabCheckinService(KiteDb db, ServerContext server, Licen
             ["suspended"] = s.State == LicenceState.Suspended,
             ["backup"] = new JsonObject { ["last"] = r?.LastBackup?.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), ["status"] = r?.BackupStatus ?? "none" },
             ["pc"] = new JsonObject { ["name"] = Environment.MachineName, ["os"] = System.Runtime.InteropServices.RuntimeInformation.OSDescription },
+            // The internet address for the WhatsApp webhook (no token): what Nextdab Admin needs to make and watch it.
+            ["web"] = server.Role == "branch" ? null : await web.ReportAsync(ct),
         };
     }
 

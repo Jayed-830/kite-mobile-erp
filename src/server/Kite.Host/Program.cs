@@ -44,6 +44,14 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<NextdabCheckinServ
 builder.Services.AddSingleton<BackupService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BackupService>());
 builder.Services.AddHttpClient("nextdab", c => c.Timeout = TimeSpan.FromSeconds(30));
+// Phase 8: the main server's internet address (Nextdab "web" command), the WhatsApp gateway and relay, repair reminders.
+builder.Services.AddSingleton<WebAddressService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<WebAddressService>());
+builder.Services.AddSingleton<WhatsAppGateway>();
+builder.Services.AddSingleton<NotifRelay>();
+builder.Services.AddSingleton<RepairHousekeeping>();
+builder.Services.AddHostedService<WhatsAppWorker>();
+builder.Services.AddHttpClient("whatsapp", c => c.Timeout = TimeSpan.FromSeconds(20));
 
 // Kestrel: the web/API addresses from configuration ("urls"), plus the TLS sync port on which branch servers
 // register and send heartbeats with their client certificates (blueprint 18.1, 18.4).
@@ -58,6 +66,8 @@ builder.WebHost.ConfigureKestrel(o =>
         else if (IPAddress.TryParse(a.Host.Trim('[', ']'), out var ip)) o.Listen(ip, a.Port);
         else o.ListenAnyIP(a.Port);
     }
+    // The WhatsApp webhook port: loopback only, for the Nextdab tunnel (only /wa/webhook answers on it).
+    if (kite.WhatsApp.WebhookPort > 0) o.Listen(IPAddress.Loopback, kite.WhatsApp.WebhookPort);
     if (kite.Sync.Port > 0)
         o.ListenAnyIP(kite.Sync.Port, lo => lo.UseHttps(new HttpsConnectionAdapterOptions
         {
@@ -80,6 +90,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamin
 var app = builder.Build();
 
 app.UseKiteErrors();
+app.UseTunnelGuard(kite.WhatsApp.WebhookPort);
 app.UseMiddleware<SuspensionMiddleware>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -110,11 +121,13 @@ DeviceCounts.Map(app);
 TradeInEndpoints.Map(app);
 RefurbishmentEndpoints.Map(app);
 RepairEndpoints.Map(app);
+WhatsAppEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>
 {
-    if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/health") || ctx.Request.Path.StartsWithSegments("/sync"))
+    if (ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/health") || ctx.Request.Path.StartsWithSegments("/sync")
+        || ctx.Request.Path.StartsWithSegments("/wa"))
     {
         ctx.Response.StatusCode = StatusCodes.Status404NotFound;
         return;
