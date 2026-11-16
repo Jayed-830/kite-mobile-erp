@@ -4,7 +4,7 @@
 
 Offline-first, multi-branch ERP and POS for mobile phone sales and repair shops. Oman first: OMR with 3 decimals, English and Arabic (right-to-left), Windows desktop and browser.
 
-**Status:** Phase 5 (new, used and refurbished devices: phones received by IMEI with their own cost, inspections with checklists, refurbishment costs flowing into each phone and the books, selling by IMEI at the till, returns to inspection, profit per phone) is done. See [`docs/phase-5-report.md`](docs/phase-5-report.md), the earlier [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
+**Status:** Phase 6 (IMEI and serial number management: a central IMEI register at head office, online checks before a branch receives a phone, phones received offline confirmed later, IMEI conflicts held and fixed where the phone is, the blocked list copied to every branch, model hints and serial formats, counting phones by IMEI, and phones sold in emergency mode) is done. See [`docs/phase-6-report.md`](docs/phase-6-report.md), the earlier [`docs/phase-5-report.md`](docs/phase-5-report.md), [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
 
 ## Repository layout
 
@@ -39,7 +39,8 @@ tests/
   vectors/                     NEXTDAB PROTOCOL 1 signing vectors (one made by Nextdab Admin 5.14 itself), POS
                                and device arithmetic vectors (from independent Python implementations), PIN hash vectors
 e2e/                           browser walk-throughs of real servers (Phase 2; Phase 3 with two servers and a Nextdab stub;
-                               Phase 4 the till and back office; Phase 5 phones from receiving to profit)
+                               Phase 4 the till and back office; Phase 5 phones from receiving to profit; Phase 6 IMEIs
+                               across head office and a branch, with head office stopped and restarted)
 poc/                           Phase 2 proofs of concept
 scripts/                       build helpers
 ```
@@ -92,6 +93,8 @@ For UI work without a server: `cd src/client && npm run dev:mock` (owner `owner`
 | End-to-end, till and back office (Phase 4) | see the `e2e-phase4` CI job (`e2e/phase4.mjs` + `e2e/nextdab-stub.mjs`) |
 | Device costs, 10 workers (Phase 5 exit gate) | `KITE_P5_WORKERS=10 KITE_P5_PHONES=12 dotnet test tests/Kite.IntegrationTests --filter Phase5CostFlowTests` with `KITE_TEST_PG` set |
 | End-to-end, phones (Phase 5) | see the `e2e-phase5` CI job (`e2e/phase5.mjs` + `e2e/nextdab-stub.mjs`) |
+| IMEI uniqueness, 20 tills and 10 branch servers (Phase 6 exit gate) | `KITE_P6_TILLS=20 KITE_P6_BRANCHES=10 KITE_P6_ROUNDS=8 KITE_P6_UNITS=8 dotnet test tests/Kite.IntegrationTests --filter Phase6ExitGateTests` with `KITE_TEST_PG` set |
+| End-to-end, IMEIs across two servers (Phase 6) | see the `e2e-phase6` CI job (`e2e/phase6.mjs` starts both servers itself) |
 | Proofs of concept | see `poc/*/` and the `pocs-*` CI jobs |
 
 Every push runs all of these on GitHub Actions (Linux and Windows, PostgreSQL 16 and 17).

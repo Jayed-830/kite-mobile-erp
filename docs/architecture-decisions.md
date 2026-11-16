@@ -194,6 +194,69 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 
 ## ADR 33: Emergency mode does not sell phones until Phase 6
 
+**Superseded by ADR 41 on 16 November 2026 (Phase 6).**
+
 **Decision.** The Windows app's offline snapshot leaves out serialized items, and an offline upload with a phone line is refused (`DEV-002`). Phones are sold only while the server is reachable.
 **Why.** Selling a phone offline needs a central IMEI register to stop two tills selling the same unit while apart; that is Phase 6 (IMEI and serial number management).
 **Cost.** A shop with its server down can still sell accessories, parts and services, but not phones, until Phase 6.
+
+## ADR 34: Head office keeps the IMEI register, and a second claim is recorded, not refused
+
+**Decision.** Head office (role main or combined) keeps `device.central_registry`: every IMEI and serial number of every device in every branch, with the branch, the server, the device's status and a partial unique index so that only one row per identifier is active. A branch server sends its devices to head office (`/sync/v1/imei/register`, mutual TLS) after a receipt and with every heartbeat until head office has answered. When a device claims an identifier another device already holds, head office stores it as a `conflict` row and opens an IMEI conflict (`device.imei_conflict` and its sides); it never refuses the device. Requests touching the same identifier take an advisory lock per identifier, always in sorted order.
+**Why.** Branch servers work offline (blueprint 6). A branch that received a phone while head office was down cannot be told "no" later: the phone is on its shelf. Head office's job is to notice and get it fixed, not to pretend it did not happen.
+**Cost.** Head office stores a row per identifier per device ever received. A business with many branches and years of trade-ins will hold millions of rows; the indexes are on the value only.
+
+## ADR 35: A branch asks head office before receiving; offline it receives and the device waits for head office
+
+**Decision.** A branch server asks head office online (4-second limit) before it receives devices, corrects an identifier or checks a scan. If head office already has the identifier on another device, the receipt is refused with `DEV-007`, naming the branch that has it. If head office cannot be reached, the branch checks its own devices and the blocked list, receives the device, and marks it "head office check pending" (`device.central_check`). By default a pending device can be sold. The setting "Keep devices off sale until head office confirms the IMEI" (`device.settings.strict_central_check`) keeps it off sale (`DEV-015`) until head office answers; emergency snapshots leave such devices out.
+**Why.** Most shops would rather sell a phone than leave a customer waiting because a cable to head office is down; some want the opposite. The online check catches almost all duplicates while everything is up; the pending state makes the rest visible.
+**Cost.** A device sold while pending can later turn out to be a duplicate. The conflict then shows one side as sold; the business settles it (Phase 6 records it; it cannot unsell the phone).
+
+## ADR 36: A duplicate found later holds every device concerned, is fixed where the device is, and closes by itself
+
+**Decision.** When head office opens an IMEI conflict, every device claiming the identifier goes on hold: head office's own devices directly, a branch's devices through an instruction (`device.central_instruction`, a gap-free sequence per server) delivered with the next heartbeat. There is no "resolve" button at head office. The conflict is fixed where a device is: correct a mistyped identifier, or reverse the receipt of a device that was never really there (ADR 40). When only one device still claims the identifier, head office closes the conflict, records each side's outcome (kept, corrected, reversed) and releases the devices (a release instruction for branches). Instructions are immutable; a branch remembers the last sequence it applied.
+**Why.** Only the person holding the phone can tell which IMEI is right. A head office button would let someone close a conflict without either phone being checked.
+**Cost.** A conflict whose sides nobody fixes stays open and keeps both devices off sale. The devices list, the banner and the conflicts tab show it on every server concerned.
+
+## ADR 37: Answers carry a stamp and instructions an order, so a late message never undoes a newer one
+
+**Decision.** Head office takes one lock (`kite:central_instruction`) while it writes an instruction or works out an answer, so every answer carries a stamp equal to the highest instruction sequence it has seen. A branch keeps, per device, the stamp of the last thing it applied. It applies an answer only if the answer's stamp is at least the device's stamp, and an instruction only if its sequence is greater. The same rule is used by the server code and the exit-gate model.
+**Why.** An answer to a push and a heartbeat's instructions travel separately. Without ordering, an old answer saying "no conflict" could arrive after a hold instruction and release a device that must stay held. The exit-gate run ignored about 220 older instructions without a single wrong hold.
+**Cost.** The lock serialises instruction writing at head office; at 10 branch servers it added no visible delay, but it is a single point to watch if the business grows to hundreds of branches.
+
+## ADR 38: Holds have reasons, and a device stays on hold while any hold is open
+
+**Decision.** `device.unit_hold` records why a device is on hold: a manager's hold, an IMEI conflict or the blocked list, each with its note. A device is "On hold" while any hold is open and returns to its earlier status when the last one is released. A manager releases only a manager's hold (`DEV-018` otherwise); conflict and blocked-list holds are released only by settling the conflict or taking the IMEI off the list. Holds from Phase 5 were converted to manager holds.
+**Why.** One "on hold" flag would let a manager release a phone that head office is holding for a duplicate IMEI.
+**Cost.** One more table to read on every hold and release.
+
+## ADR 39: Identifiers are retired, never changed
+
+**Decision.** An IMEI or serial number row is never updated or deleted. Correcting it retires the old row (`device.retire_identifier`, with the reason and who did it) and adds a new one; reversing a receipt retires the device's identifiers. A trigger refuses any other change. Uniqueness applies to active rows only. Typed identifiers are recorded as typed (entry "manual") and audited.
+**Why.** "Which IMEI did this phone have when it was sold?" must always have an answer, and a correction must not hide a mistake or a fraud.
+**Cost.** Look-ups must say active or retired; the history look-up shows both.
+
+## ADR 40: A receipt is reversed only for a device held by an IMEI conflict
+
+**Decision.** "Reverse the receipt" takes a device out of stock at its cost with posting rule `device.receipt_reversal`: Dr 3900 opening balance equity for opening stock, Dr 6700 stock write-offs for "found" stock; Cr the device's inventory account. The device's status becomes "Receipt reversed" and its identifiers are retired. It is allowed only for a device on hold because of an IMEI conflict; any other device is written off instead.
+**Why.** A phone received twice, or on the wrong branch, was never stock; writing it off would report a loss that did not happen.
+**Cost.** A second reversal path next to write-offs. The permission is the write-off permission.
+
+## ADR 41: Emergency mode sells phones; a phone sold elsewhere meanwhile is kept for a manager to settle
+
+**Decision.** The Windows app's snapshot now includes the phones in stock at that branch, with their own price and warranty (pending devices are left out when the strict option is on). In emergency mode the till scans or picks a phone from the snapshot, never sells the same one twice on that till, and records the device on the sale. When the sale is uploaded, the phone is applied if it is still in stock; if it was sold or moved meanwhile, the sale is kept as a conflict. A manager (`DEVICE.CONFLICTS`) settles it from Devices › IMEI conflicts: record the sale with the phone the customer actually took (any phone of the same model in stock), or close it with a note (`sales.emergency_settlement`, immutable). If the emergency shift was already closed, the cash counted as over at close is taken back with a shift-variance journal.
+**Why.** A phone shop whose server is down still needs to sell phones. Two tills selling the same phone while apart is rare and visible; refusing all phone sales is not.
+**Cost.** Until the manager settles it, the sale is not in the books and the cash sits in the shift's variance. Supersedes ADR 33.
+
+## ADR 42: The blocked list lives at head office and reaches branches with the heartbeat
+
+**Decision.** Head office keeps `device.blocked_imei` (reason, police or report reference, who added it, who removed it and why; a sequence for changes). Branch servers receive changes with their heartbeat and keep a copy. A blocked identifier is refused at receiving (`DEV-014`) on every server, and a device already in stock with that identifier is put on hold; taking it off the list releases the hold. Only head office can add or remove (`DEVICE.BLOCKLIST`).
+**Why.** A stolen phone reported in Muscat must be refused in Sohar the same day, even if Sohar's server is offline at the moment it is added.
+**Cost.** A branch that is offline when an IMEI is added learns it at its next heartbeat; until then only head office's online check stops it.
+
+## ADR 43: Model hints warn, serial formats refuse
+
+**Decision.** An imported model table (TAC: the first 8 digits of an IMEI, brand, model) gives a hint while scanning ("Looks like a Samsung Galaxy A55") and warns when it does not match the item chosen; it never blocks. A serial number pattern per brand (a regular expression, checked with a 100 ms limit) refuses a serial number that does not match (`DEV-017`). At the till, scanning a phone of another model than the one chosen is refused (`DEV-016`).
+**Why.** TAC tables are incomplete and change; a missing or wrong row must not stop a sale. A serial format is set by the shop for its own brands and is exact.
+**Cost.** The TAC table is imported by hand from a CSV file; there is no subscription feed.
+
