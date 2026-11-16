@@ -40,7 +40,7 @@ public static class ReceiptEndpoints
 {
     public static void Map(WebApplication app)
     {
-        QuestPDF.Settings.License = LicenseType.Community;   // licence to be confirmed by Nextdab before production (blueprint 20.1)
+        QuestPDF.Settings.License = LicenseType.Community;   // confirmed by Nextdab on 16 November 2026 (ADR 22)
 
         app.MapGet("/api/v1/sales/{id:guid}/receipt", async (Guid id, bool? reprint, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t =>

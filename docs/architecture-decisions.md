@@ -129,6 +129,7 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Decision.** A4 tax invoices are drawn with QuestPDF (Arabic shaping proven in the Phase 1 proof of concept) with the QR code from QRCoder.
 **Why.** It renders Arabic correctly without a browser on the server.
 **Cost.** The QuestPDF Community licence is free only while the developer (Nextdab) has annual gross revenue under USD 1,000,000 and is not publicly traded; end customers never need a licence. Nextdab must confirm it qualifies, or buy the Professional licence. Receipts on 58/80 mm printers do not use QuestPDF.
+**Confirmed on 16 November 2026.** Nextdab confirmed the Community licence. If Nextdab's annual gross revenue reaches USD 1,000,000, a Professional licence is needed and this line changes.
 
 ## ADR 23: Receipts are pictures sent as ESC/POS raster; the server relays only to private addresses
 
