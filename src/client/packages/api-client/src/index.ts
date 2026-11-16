@@ -1,5 +1,8 @@
-// Typed client for the KITE server API (blueprint 22). Written by hand for Phases 2 and 3; generating it from the
-// server's OpenAPI document is moved to Phase 4 (ADR 18), when the API grows past what is practical to keep by hand.
+// Typed client for the KITE server API (blueprint 22), written by hand. ADR 18 (revised in Phase 4): the server's
+// minimal-API endpoints return untyped results, so a generated client would type the requests only. Instead a server
+// test checks that every path this client calls exists on the server (ApiContractTests).
+import { posMethods, type PosApi } from './pos';
+export * from './pos';
 
 export interface Problem {
   title: string;
@@ -138,7 +141,7 @@ export interface BackupStatus {
 export interface JoinRequest { mainUrl: string; setupCode: string; token: string; confirmedFingerprint: string; serverName?: string }
 
 /** Everything the web app calls. The real client and the in-memory mock both implement it. */
-export interface KiteApi {
+export interface KiteApi extends PosApi {
   setupStatus(): Promise<{ configured: boolean; role: string | null }>;
   setup(req: SetupRequest): Promise<{ businessId: string; branchId: string; ownerUserId: string }>;
   login(username: string, password: string): Promise<Tokens>;
@@ -165,7 +168,7 @@ export interface KiteApi {
   modules(): Promise<Module[]>;
   updateModules(changes: Record<string, boolean>): Promise<Module[]>;
   terminals(): Promise<Terminal[]>;
-  requestTerminal(t: { branchId: string; code: string; name: string; kind: 'windows' | 'browser' }): Promise<{ id: string }>;
+  requestTerminal(t: { branchId: string; code: string; name: string; kind: 'windows' | 'browser'; deviceKey?: string }): Promise<{ id: string }>;
   approveTerminal(id: string, emergencyEnabled: boolean): Promise<Terminal>;
   revokeTerminal(id: string): Promise<void>;
   taxCodes(): Promise<TaxCode[]>;
@@ -251,6 +254,16 @@ export function createHttpApi(baseUrl = ''): KiteApi {
   const get = <T>(p: string) => request<T>('GET', p);
   const post = <T>(p: string, b?: unknown) => request<T>('POST', p, b ?? {});
   const put = <T>(p: string, b: unknown) => request<T>('PUT', p, b);
+  const del = <T>(p: string) => request<T>('DELETE', p);
+  async function blob(p: string): Promise<Blob> {
+    let r = await raw('GET', p);
+    if (r.status === 401 && await refresh()) r = await raw('GET', p);
+    if (!r.ok) {
+      const pr = (await r.json().catch(() => null)) as Problem | null;
+      throw new ApiError(pr ?? { title: r.statusText || 'Request failed', status: r.status, code: `HTTP-${r.status}` });
+    }
+    return r.blob();
+  }
 
   Object.assign(api, {
     setupStatus: () => get('/api/v1/setup/status'),
@@ -309,6 +322,7 @@ export function createHttpApi(baseUrl = ''): KiteApi {
     backups: () => get('/api/v1/backups'),
     runBackup: (kind: string) => post('/api/v1/backups/run', { kind }),
     backupRecoveryKey: (password: string) => post('/api/v1/backups/recovery-key', { password }),
+    ...posMethods({ get, post, put, del, blob, setToken: (t: string) => { accessToken = t; } }),
   });
   return api;
 }

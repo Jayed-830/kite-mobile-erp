@@ -1,7 +1,9 @@
 import type { Dictionary } from './en';
+import { posAr } from './ar.pos';
 
 // Arabic strings: first draft for professional review (blueprint 20.1).
 export const ar: Dictionary = {
+  ...posAr,
   app: {
     name: 'كايت موبايل ERP',
     by: 'من نكستداب',
@@ -36,6 +38,15 @@ export const ar: Dictionary = {
     none: 'لا يوجد',
   },
   nav: {
+    pos: 'نقطة البيع',
+    sales: 'المبيعات',
+    salesReports: 'المبيعات والورديات',
+    approvals: 'الموافقات',
+    customers: 'العملاء',
+    stock: 'المخزون',
+    catalog: 'المنتجات',
+    inventory: 'المخزون والجرد',
+    posSettings: 'نقطة البيع والطابعات',
     dashboard: 'لوحة التحكم',
     users: 'المستخدمون',
     roles: 'الأدوار',

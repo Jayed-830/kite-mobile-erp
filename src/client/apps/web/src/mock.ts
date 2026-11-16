@@ -1,6 +1,7 @@
 // In-memory stand-in for the KITE server, used by tests, `npm run dev:mock` and design review.
 // It mirrors the server's main rules (permissions, module dependencies, password policy) but is
 // NOT the source of truth: the real server enforces everything again.
+import { createMockPos } from './mockPos';
 import { ApiError, type Account, type AuditRow, type BackupRun, type Branch, type BranchAdmin, type Business, type KiteApi, type LicenceDetails, type LicenceState, type Me, type Module, type NextdabMessage, type Permission, type RegistrationTokenRow, type Role, type ServerInfo, type TaxCode, type Terminal, type Tokens, type User } from '@kite/api';
 
 const PERMISSIONS: Permission[] = [
@@ -20,6 +21,26 @@ const PERMISSIONS: Permission[] = [
   ['LICENCE.MANAGE', 'core', 'View and import the licence', 'عرض الترخيص واستيراده'],
   ['BACKUP.VIEW', 'core', 'View backups', 'عرض النسخ الاحتياطية'],
   ['BACKUP.MANAGE', 'core', 'Run backups and show the recovery key', 'تشغيل النسخ الاحتياطي وعرض مفتاح الاسترداد'],
+  ['CATALOG.VIEW', 'catalog', 'View products and prices', 'عرض المنتجات والأسعار'],
+  ['CATALOG.MANAGE', 'catalog', 'Create and edit products, barcodes and categories', 'إنشاء المنتجات والباركود والفئات وتعديلها'],
+  ['CATALOG.PRICE.MANAGE', 'catalog', 'Set prices and branch price overrides', 'تحديد الأسعار وأسعار الفروع'],
+  ['INV.VIEW', 'inv', 'View stock levels and movements', 'عرض أرصدة المخزون وحركاته'],
+  ['INV.ADJUST', 'inv', 'Post stock adjustments and opening stock', 'ترحيل تسويات المخزون والأرصدة الافتتاحية'],
+  ['INV.COUNT', 'inv', 'Run and post stock counts', 'إجراء جرد المخزون وترحيله'],
+  ['CUSTOMERS.VIEW', 'crm', 'View customers', 'عرض العملاء'],
+  ['CUSTOMERS.MANAGE', 'crm', 'Create and edit customers', 'إنشاء العملاء وتعديلهم'],
+  ['POS.SHIFT.OPEN', 'sales', 'Open and close own shifts', 'فتح الورديات الخاصة وإغلاقها'],
+  ['POS.CASH.PAY_OUT', 'sales', 'Pay cash out of the drawer', 'صرف نقد من الدرج'],
+  ['POS.REPORTS.VIEW', 'sales', 'View sales, shifts and X/Z reports of the branch', 'عرض المبيعات والورديات وتقارير X وZ للفرع'],
+  ['POS.POLICY.MANAGE', 'sales', 'Change POS policy (returns, refunds, rounding)', 'تغيير سياسة نقطة البيع'],
+  ['APPROVALS.DECIDE', 'iam', 'Decide remote approval requests', 'البت في طلبات الموافقة عن بعد'],
+  ['POS.DISCOUNT.ABOVE_LIMIT', 'sales', 'Give discounts above the cashier limit', 'منح خصومات أعلى من حد أمين الصندوق'],
+  ['POS.PRICE.OVERRIDE', 'sales', 'Change prices and sell under the minimum price', 'تغيير الأسعار والبيع بأقل من الحد الأدنى'],
+  ['POS.SALE.VOID', 'sales', 'Void a sale', 'إلغاء عملية بيع'],
+  ['POS.REFUND', 'sales', 'Refund above the cap or after the return period', 'الاسترداد فوق الحد أو بعد مدة الإرجاع'],
+  ['POS.DRAWER.NO_SALE', 'sales', 'Open the drawer without a sale', 'فتح الدرج بدون بيع'],
+  ['POS.RECEIPT.REPRINT', 'sales', 'Reprint receipts', 'إعادة طباعة الإيصالات'],
+  ['POS.SHIFT.ACCEPT_VARIANCE', 'sales', 'Accept a cash difference at shift close', 'قبول فرق النقد عند إغلاق الوردية'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -55,16 +76,23 @@ export function createMockApi(opts: MockOptions): KiteApi {
   };
   const roles: Role[] = [
     { id: id(), code: 'owner', nameEn: 'Owner', nameAr: 'المالك', isSystem: true, version: 1, permissions: PERMISSIONS.map((p) => p.code) },
-    { id: id(), code: 'branch_manager', nameEn: 'Branch manager', nameAr: 'مدير الفرع', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'TERMINALS.APPROVE', 'USERS.VIEW', 'AUDIT.VIEW', 'POS.SELL'] },
-    { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL'] },
+    { id: id(), code: 'branch_manager', nameEn: 'Branch manager', nameAr: 'مدير الفرع', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'TERMINALS.APPROVE', 'USERS.VIEW', 'AUDIT.VIEW', 'POS.SELL',
+      'POS.DISCOUNT.ABOVE_LIMIT', 'POS.PRICE.OVERRIDE', 'POS.SALE.VOID', 'POS.REFUND', 'POS.DRAWER.NO_SALE', 'POS.RECEIPT.REPRINT', 'POS.SHIFT.ACCEPT_VARIANCE', 'POS.SHIFT.OPEN',
+      'POS.CASH.PAY_OUT', 'POS.REPORTS.VIEW', 'APPROVALS.DECIDE', 'CATALOG.VIEW', 'CATALOG.MANAGE', 'CATALOG.PRICE.MANAGE', 'INV.VIEW', 'INV.ADJUST', 'INV.COUNT', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE'] },
+    { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE'] },
     { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.REVIEW'] },
   ];
-  const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!']]);
+  const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!'], ['manager', 'Manager-Pass-2026'], ['cashier', 'Cashier-Pass-2026']]);
+  const pins = new Map<string, string>([['manager', '1357'], ['cashier', '2468']]);
   const users: User[] = [{
     id: id(), username: 'owner', displayNameEn: 'Salim Al Harthy', displayNameAr: 'سالم الحارثي', email: null, phone: null, status: 'active',
     locked: false, totpEnabled: false, hasPin: false, preferredLanguage: 'en', defaultBranchId: branch.id, lastLoginAt: new Date().toISOString(),
     version: 1, roles: [{ roleId: roles[0]!.id, roleCode: 'owner', roleNameEn: 'Owner', roleNameAr: 'المالك', branchId: null }],
-  }];
+  }, ...(['manager', 'cashier'] as const).map((username): User => ({
+    id: id(), username, displayNameEn: username === 'manager' ? 'Huda Al Balushi' : 'Ahmed Al Rawahi', displayNameAr: username === 'manager' ? 'هدى البلوشية' : 'أحمد الرواحي', email: null, phone: null,
+    status: 'active', locked: false, totpEnabled: false, hasPin: true, preferredLanguage: 'en', defaultBranchId: branch.id, lastLoginAt: null, version: 1,
+    roles: [{ roleId: roles[username === 'manager' ? 1 : 2]!.id, roleCode: username === 'manager' ? 'branch_manager' : 'cashier', roleNameEn: '', roleNameAr: '', branchId: branch.id }],
+  }))];
   const modules = MODULES.map((m) => ({ ...m }));
   const terminals: Terminal[] = [
     { id: id(), branchId: branch.id, code: 'T01', name: 'Front counter', kind: 'windows', status: 'active', emergencyEnabled: true, requestedAt: new Date(Date.now() - 86400000).toISOString(), approvedAt: new Date().toISOString(), version: 2 },
@@ -134,8 +162,13 @@ export function createMockApi(opts: MockOptions): KiteApi {
     if (pw.toLowerCase().includes(username.toLowerCase())) throw problem(400, 'AUTH-006', 'Password must not contain the username.');
   };
   const delay = <T>(v: T): Promise<T> => new Promise((r) => setTimeout(() => r(v), 30));
+  const pos = createMockPos({
+    need, current: () => current, setCurrent: (u) => { current = u; mfaPending = false; }, permsOf, users, passwords, pins, terminals, branchId: branch.id,
+    taxCodeId: taxCodes[0]!.id, business: () => business, tokens,
+  });
 
   const api: KiteApi = {
+    ...pos,
     async setupStatus() { return delay({ configured, role: configured ? 'combined' : null }); },
     async setup(req) {
       if (configured) throw problem(409, 'SET-001', 'This server is already set up.');
@@ -177,7 +210,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
       checkPassword(next, u.username);
       passwords.set(u.username, next);
     },
-    async setPin(pin) { const u = need(); if (!/^\d{4,8}$/.test(pin)) throw problem(400, 'AUTH-006', 'PIN must be 4 to 8 digits.'); u.hasPin = true; },
+    async setPin(pin) { const u = need(); if (!/^\d{4,8}$/.test(pin)) throw problem(400, 'AUTH-006', 'PIN must be 4 to 8 digits.'); u.hasPin = true; pins.set(u.username, pin); },
     async startTotp() { need(); return delay({ secret: 'JBSWY3DPEHPK3PXP', otpauthUri: 'otpauth://totp/KITE%20MOBILE%20ERP:owner?secret=JBSWY3DPEHPK3PXP&issuer=KITE%20MOBILE%20ERP' }); },
     async enableTotp(code) { const u = need(); if (code !== '123456') throw problem(400, 'AUTH-005', 'That code is not correct.'); u.totpEnabled = true; },
     async disableTotp() { const u = need(); u.totpEnabled = false; },

@@ -1,5 +1,7 @@
+import { posEn } from './en.pos';
 // English strings. Arabic (ar.ts) must have exactly the same keys; a test enforces it.
 export const en = {
+  ...posEn,
   app: {
     name: 'KITE MOBILE ERP',
     by: 'by Nextdab',
@@ -34,6 +36,15 @@ export const en = {
     none: 'None',
   },
   nav: {
+    pos: 'Point of sale',
+    sales: 'Sales',
+    salesReports: 'Sales and shifts',
+    approvals: 'Approvals',
+    customers: 'Customers',
+    stock: 'Stock',
+    catalog: 'Products',
+    inventory: 'Inventory',
+    posSettings: 'POS and printers',
     dashboard: 'Dashboard',
     users: 'Users',
     roles: 'Roles',

@@ -18,6 +18,13 @@ import { ServersPage } from './pages/Servers';
 import { LicencePage } from './pages/Licence';
 import { BackupsPage } from './pages/Backups';
 import { AccountPage } from './pages/Account';
+import { CatalogPage } from './pages/Catalog';
+import { InventoryPage } from './pages/Inventory';
+import { CustomersPage } from './pages/Customers';
+import { ApprovalsPage } from './pages/Approvals';
+import { SalesPage } from './pages/Sales';
+import { PosSettingsPage } from './pages/PosSettings';
+import { PosApp } from './pos/PosApp';
 import { useI18n } from '@kite/i18n';
 
 function Guarded() {
@@ -33,6 +40,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/pos" element={<PosApp />} />
       <Route path="/app" element={<Guarded />}>
         <Route index element={<DashboardPage />} />
         <Route path="users" element={<UsersPage />} />
@@ -47,6 +55,12 @@ function AppRoutes() {
         <Route path="licence" element={<LicencePage />} />
         <Route path="backups" element={<BackupsPage />} />
         <Route path="account" element={<AccountPage />} />
+        <Route path="catalog" element={<CatalogPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="customers" element={<CustomersPage />} />
+        <Route path="approvals" element={<ApprovalsPage />} />
+        <Route path="sales" element={<SalesPage />} />
+        <Route path="settings/pos" element={<PosSettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

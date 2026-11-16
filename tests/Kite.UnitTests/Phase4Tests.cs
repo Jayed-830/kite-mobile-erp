@@ -280,3 +280,58 @@ public class PosMathTests
         return (l.Gross == l.Net + l.Tax && l.Net >= 0 && Math.Abs(paid.CashRounding) <= 0.0025m && paid.Paid == l.Gross + paid.CashRounding).ToProperty();
     }
 }
+
+/// <summary>The POS vectors shared with the TypeScript copy (@kite/pos), written by an independent implementation.</summary>
+public class PosVectorTests
+{
+    private static System.Text.Json.JsonElement Vectors() =>
+        System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot.Path, "tests", "vectors", "pos-math-vectors.json"))).RootElement;
+
+    private static decimal Dec(System.Text.Json.JsonElement e) => decimal.Parse(e.GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+    private static decimal? DecOrNull(System.Text.Json.JsonElement e) => e.ValueKind == System.Text.Json.JsonValueKind.Null ? null : Dec(e);
+
+    [Fact]
+    public void Line_pricing_matches_the_shared_vectors()
+    {
+        var n = 0;
+        foreach (var v in Vectors().GetProperty("lines").EnumerateArray())
+        {
+            var item = new Kite.Sales.PricedItem(Guid.NewGuid(), "V", "accessory", "none", "x", "x", Guid.NewGuid(), "standard", Dec(v.GetProperty("taxRate")),
+                Dec(v.GetProperty("listPrice")), DecOrNull(v.GetProperty("minPrice")), 0, true);
+            var lim = v.GetProperty("limit");
+            var limit = new Kite.Sales.DiscountLimit(Dec(lim.GetProperty("percent")), Dec(lim.GetProperty("amount")), lim.GetProperty("unlimited").GetBoolean());
+            var l = Kite.Sales.PosMath.PriceLine(1, new(item.VariantId, Dec(v.GetProperty("qty")), DecOrNull(v.GetProperty("unitPrice")), Dec(v.GetProperty("discount"))),
+                item, v.GetProperty("inclusive").GetBoolean(), limit);
+            var e = v.GetProperty("expect");
+            Assert.Equal((Dec(e.GetProperty("net")), Dec(e.GetProperty("tax")), Dec(e.GetProperty("gross"))), (l.Net, l.Tax, l.Gross));
+            Assert.Equal(e.GetProperty("needsPriceOverride").GetBoolean(), l.NeedsPriceOverride);
+            Assert.Equal(e.GetProperty("needsDiscountApproval").GetBoolean(), l.NeedsDiscountApproval);
+            n++;
+        }
+        Assert.True(n >= 15);
+    }
+
+    [Fact]
+    public void Cash_rounding_and_return_shares_match_the_shared_vectors()
+    {
+        foreach (var v in Vectors().GetProperty("roundCash").EnumerateArray())
+            Assert.Equal(Dec(v.GetProperty("expect")), Kite.Sales.PosMath.RoundCash(Dec(v.GetProperty("amount")), Dec(v.GetProperty("step"))));
+        foreach (var v in Vectors().GetProperty("apportion").EnumerateArray())
+        {
+            var l = v.GetProperty("line");
+            var o = new Kite.Sales.ReturnableLine(Dec(l.GetProperty("qty")), Dec(l.GetProperty("net")), Dec(l.GetProperty("tax")), Dec(l.GetProperty("gross")), Dec(l.GetProperty("discount")), 0, 0, 0, 0, 0);
+            var expect = v.GetProperty("expect").EnumerateArray().ToArray();
+            var i = 0;
+            foreach (var q in v.GetProperty("returns").EnumerateArray())
+            {
+                var a = Kite.Sales.PosMath.ApportionReturn(o, Dec(q));
+                Assert.Equal((Dec(expect[i].GetProperty("net")), Dec(expect[i].GetProperty("tax")), Dec(expect[i].GetProperty("gross")), Dec(expect[i].GetProperty("discount"))),
+                    (a.Net, a.Tax, a.Gross, a.Discount));
+                o = o with { ReturnedQty = o.ReturnedQty + Dec(q), ReturnedNet = o.ReturnedNet + a.Net, ReturnedTax = o.ReturnedTax + a.Tax, ReturnedGross = o.ReturnedGross + a.Gross, ReturnedDiscount = o.ReturnedDiscount + a.Discount };
+                i++;
+            }
+            Assert.Equal(o.Qty, o.ReturnedQty);
+            Assert.Equal(o.Gross, o.ReturnedGross);
+        }
+    }
+}

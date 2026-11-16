@@ -1,0 +1,536 @@
+{
+ "comment": "Shared POS vectors written by an independent Python Decimal implementation; Kite.Sales.PosMath (C#) and @kite/pos (TypeScript) must both reproduce them.",
+ "lines": [
+  {
+   "listPrice": "2.333",
+   "minPrice": null,
+   "qty": "3",
+   "unitPrice": null,
+   "discount": "0",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "6.666",
+    "tax": "0.333",
+    "gross": "6.999",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "2.333",
+   "minPrice": null,
+   "qty": "3",
+   "unitPrice": null,
+   "discount": "0",
+   "taxRate": "5",
+   "inclusive": false,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "6.999",
+    "tax": "0.350",
+    "gross": "7.349",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "10.000",
+   "minPrice": null,
+   "qty": "2",
+   "unitPrice": null,
+   "discount": "1.000",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "18.095",
+    "tax": "0.905",
+    "gross": "19.000",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "10.000",
+   "minPrice": null,
+   "qty": "2",
+   "unitPrice": null,
+   "discount": "1.001",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "18.094",
+    "tax": "0.905",
+    "gross": "18.999",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": true
+   }
+  },
+  {
+   "listPrice": "100.000",
+   "minPrice": null,
+   "qty": "1",
+   "unitPrice": null,
+   "discount": "2.000",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "93.333",
+    "tax": "4.667",
+    "gross": "98.000",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "100.000",
+   "minPrice": null,
+   "qty": "1",
+   "unitPrice": null,
+   "discount": "2.001",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "93.332",
+    "tax": "4.667",
+    "gross": "97.999",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": true
+   }
+  },
+  {
+   "listPrice": "10.000",
+   "minPrice": "9.700",
+   "qty": "1",
+   "unitPrice": null,
+   "discount": "0.400",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "100",
+    "amount": "0",
+    "unlimited": true
+   },
+   "expect": {
+    "net": "9.143",
+    "tax": "0.457",
+    "gross": "9.600",
+    "needsPriceOverride": true,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "10.000",
+   "minPrice": "9.700",
+   "qty": "1",
+   "unitPrice": null,
+   "discount": "0.300",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "9.238",
+    "tax": "0.462",
+    "gross": "9.700",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "10.000",
+   "minPrice": null,
+   "qty": "1",
+   "unitPrice": "9.000",
+   "discount": "0",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "8.571",
+    "tax": "0.429",
+    "gross": "9.000",
+    "needsPriceOverride": true,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "0.105",
+   "minPrice": null,
+   "qty": "1",
+   "unitPrice": null,
+   "discount": "0",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "0.100",
+    "tax": "0.005",
+    "gross": "0.105",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "7.250",
+   "minPrice": null,
+   "qty": "0.500",
+   "unitPrice": null,
+   "discount": "0",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "3.452",
+    "tax": "0.173",
+    "gross": "3.625",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "1.555",
+   "minPrice": null,
+   "qty": "3",
+   "unitPrice": null,
+   "discount": "0.100",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "10",
+    "amount": "10",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "4.348",
+    "tax": "0.217",
+    "gross": "4.565",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "3.333",
+   "minPrice": null,
+   "qty": "7",
+   "unitPrice": null,
+   "discount": "0",
+   "taxRate": "0",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "23.331",
+    "tax": "0.000",
+    "gross": "23.331",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "15.000",
+   "minPrice": null,
+   "qty": "1",
+   "unitPrice": null,
+   "discount": "0",
+   "taxRate": "5",
+   "inclusive": false,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "15.000",
+    "tax": "0.750",
+    "gross": "15.750",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "0.999",
+   "minPrice": null,
+   "qty": "13",
+   "unitPrice": null,
+   "discount": "0.500",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "5",
+    "amount": "2",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "11.892",
+    "tax": "0.595",
+    "gross": "12.487",
+    "needsPriceOverride": false,
+    "needsDiscountApproval": false
+   }
+  },
+  {
+   "listPrice": "250.000",
+   "minPrice": "240.000",
+   "qty": "2",
+   "unitPrice": null,
+   "discount": "21.000",
+   "taxRate": "5",
+   "inclusive": true,
+   "limit": {
+    "percent": "10",
+    "amount": "10",
+    "unlimited": false
+   },
+   "expect": {
+    "net": "456.190",
+    "tax": "22.810",
+    "gross": "479.000",
+    "needsPriceOverride": true,
+    "needsDiscountApproval": true
+   }
+  }
+ ],
+ "roundCash": [
+  {
+   "amount": "6.999",
+   "step": "0.005",
+   "expect": "7.000"
+  },
+  {
+   "amount": "2.333",
+   "step": "0.005",
+   "expect": "2.335"
+  },
+  {
+   "amount": "2.332",
+   "step": "0.005",
+   "expect": "2.330"
+  },
+  {
+   "amount": "4.149",
+   "step": "0.100",
+   "expect": "4.100"
+  },
+  {
+   "amount": "4.150",
+   "step": "0.100",
+   "expect": "4.200"
+  },
+  {
+   "amount": "1.234",
+   "step": "0",
+   "expect": "1.234"
+  },
+  {
+   "amount": "0.002",
+   "step": "0.005",
+   "expect": "0.000"
+  },
+  {
+   "amount": "0.003",
+   "step": "0.005",
+   "expect": "0.005"
+  },
+  {
+   "amount": "-2.333",
+   "step": "0.005",
+   "expect": "-2.335"
+  },
+  {
+   "amount": "99.975",
+   "step": "0.050",
+   "expect": "100.000"
+  },
+  {
+   "amount": "12.345",
+   "step": "0.010",
+   "expect": "12.350"
+  }
+ ],
+ "apportion": [
+  {
+   "line": {
+    "qty": "3",
+    "net": "6.666",
+    "tax": "0.333",
+    "gross": "6.999",
+    "discount": "0.100"
+   },
+   "returns": [
+    "1",
+    "1",
+    "1"
+   ],
+   "expect": [
+    {
+     "net": "2.222",
+     "tax": "0.111",
+     "gross": "2.333",
+     "discount": "0.033"
+    },
+    {
+     "net": "2.222",
+     "tax": "0.111",
+     "gross": "2.333",
+     "discount": "0.033"
+    },
+    {
+     "net": "2.222",
+     "tax": "0.111",
+     "gross": "2.333",
+     "discount": "0.034"
+    }
+   ]
+  },
+  {
+   "line": {
+    "qty": "7",
+    "net": "22.220",
+    "tax": "1.111",
+    "gross": "23.331",
+    "discount": "0"
+   },
+   "returns": [
+    "2",
+    "2",
+    "3"
+   ],
+   "expect": [
+    {
+     "net": "6.349",
+     "tax": "0.317",
+     "gross": "6.666",
+     "discount": "0.000"
+    },
+    {
+     "net": "6.349",
+     "tax": "0.317",
+     "gross": "6.666",
+     "discount": "0.000"
+    },
+    {
+     "net": "9.522",
+     "tax": "0.477",
+     "gross": "9.999",
+     "discount": "0.000"
+    }
+   ]
+  },
+  {
+   "line": {
+    "qty": "1.5",
+    "net": "3.000",
+    "tax": "0.150",
+    "gross": "3.150",
+    "discount": "0"
+   },
+   "returns": [
+    "0.5",
+    "1"
+   ],
+   "expect": [
+    {
+     "net": "1.000",
+     "tax": "0.050",
+     "gross": "1.050",
+     "discount": "0.000"
+    },
+    {
+     "net": "2.000",
+     "tax": "0.100",
+     "gross": "2.100",
+     "discount": "0.000"
+    }
+   ]
+  },
+  {
+   "line": {
+    "qty": "10",
+    "net": "95.238",
+    "tax": "4.762",
+    "gross": "100.000",
+    "discount": "5.000"
+   },
+   "returns": [
+    "3",
+    "3",
+    "3",
+    "1"
+   ],
+   "expect": [
+    {
+     "net": "28.571",
+     "tax": "1.429",
+     "gross": "30.000",
+     "discount": "1.500"
+    },
+    {
+     "net": "28.571",
+     "tax": "1.429",
+     "gross": "30.000",
+     "discount": "1.500"
+    },
+    {
+     "net": "28.571",
+     "tax": "1.429",
+     "gross": "30.000",
+     "discount": "1.500"
+    },
+    {
+     "net": "9.525",
+     "tax": "0.475",
+     "gross": "10.000",
+     "discount": "0.500"
+    }
+   ]
+  }
+ ]
+}

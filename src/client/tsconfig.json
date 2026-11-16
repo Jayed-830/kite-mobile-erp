@@ -18,7 +18,8 @@
     "paths": {
       "@kite/ui": ["packages/ui/src/index.tsx"],
       "@kite/i18n": ["packages/i18n/src/index.ts"],
-      "@kite/api": ["packages/api-client/src/index.ts"]
+      "@kite/api": ["packages/api-client/src/index.ts"],
+      "@kite/pos": ["packages/pos/src/index.ts"]
     }
   },
   "include": ["packages/*/src", "apps/web/src", "apps/web/vite.config.ts", "vitest.config.ts"]

@@ -11,6 +11,7 @@ export default defineConfig({
       '@kite/ui': r('./packages/ui/src/index.tsx'),
       '@kite/i18n': r('./packages/i18n/src/index.ts'),
       '@kite/api': r('./packages/api-client/src/index.ts'),
+      '@kite/pos': r('./packages/pos/src/index.ts'),
     },
   },
   test: {

@@ -854,7 +854,8 @@ public static class PosEndpoints
         {
             sale = s,
             lines = lines.Select(l => new { l.Id, l.VariantId, l.ProductType, l.DescriptionEn, l.DescriptionAr, l.Qty, l.UnitPrice, l.ListPrice, l.Discount, l.Net,
-                                            l.TaxRate, l.Tax, l.Gross, l.ReturnedQty, returnable = l.Qty - l.ReturnedQty }),
+                                            l.TaxRate, l.Tax, l.Gross, l.ReturnedQty, l.ReturnedNet, l.ReturnedTax, l.ReturnedGross, l.ReturnedDiscount,
+                                            returnable = l.Qty - l.ReturnedQty }),
             payments, creditNotes = credits,
         };
     }
