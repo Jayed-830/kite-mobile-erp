@@ -21,7 +21,7 @@ public static class CommissionEndpoints
 {
     private const string AccrualList = """
         SELECT a.id, a.job_id AS "jobId", j.number AS "jobNumber", a.branch_id AS "branchId", b.code AS "branchCode", a.technician_id AS "technicianId",
-               u.display_name_en AS "technicianName", a.kind, a.kind_version AS "kindVersion", a.amount, a.share, a.basis, a.basis_amounts AS "basisAmounts",
+               u.display_name_en AS "technicianName", u.display_name_ar AS "technicianNameAr", a.kind, a.kind_version AS "kindVersion", a.amount, a.share, a.basis, a.basis_amounts AS "basisAmounts",
                a.trace, a.rule_key AS "ruleKey", a.rule_version AS "ruleVersion", r.name_en AS "ruleNameEn", r.name_ar AS "ruleNameAr", s.number AS "invoiceNumber",
                a.accrual_date AS "accrualDate", a.status, a.reverses_id AS "reversesId", a.reason, ap.display_name_en AS "approvedBy", a.approved_at AS "approvedAt",
                p.number AS "payoutNumber", a.created_at AS "createdAt"
@@ -63,7 +63,7 @@ public static class CommissionEndpoints
         g.MapGet("/rules", async (HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
                 SELECT r.id, r.rule_key AS "ruleKey", r.version, r.name_en AS "nameEn", r.name_ar AS "nameAr", r.basis, r.amount, r.rate, r.min_amount AS "minAmount",
-                       r.max_amount AS "maxAmount", r.technician_id AS "technicianId", u.display_name_en AS "technicianName", r.branch_id AS "branchId", b.code AS "branchCode",
+                       r.max_amount AS "maxAmount", r.technician_id AS "technicianId", u.display_name_en AS "technicianName", u.display_name_ar AS "technicianNameAr", r.branch_id AS "branchId", b.code AS "branchCode",
                        r.category_id AS "categoryId", c.name_en AS "categoryEn", c.name_ar AS "categoryAr", r.effective_from AS "effectiveFrom", r.effective_to AS "effectiveTo",
                        r.status, comm.scope_rank(r.technician_id, r.branch_id, r.category_id) AS rank,
                        r.version = (SELECT max(x.version) FROM comm.rule x WHERE x.rule_key = r.rule_key) AS latest,
@@ -150,11 +150,11 @@ public static class CommissionEndpoints
         // ---------------------------------------------------------------- payouts (15.4)
         g.MapGet("/payable", async (Guid? branchId, Guid? technicianId, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
-                SELECT a.branch_id AS "branchId", b.code AS "branchCode", a.technician_id AS "technicianId", u.display_name_en AS "technicianName",
+                SELECT a.branch_id AS "branchId", b.code AS "branchCode", a.technician_id AS "technicianId", u.display_name_en AS "technicianName", u.display_name_ar AS "technicianNameAr",
                        count(*) AS count, sum(a.amount) AS total, min(a.accrual_date) AS "oldest"
                   FROM comm.accrual a JOIN core.branch b ON b.id = a.branch_id JOIN iam."user" u ON u.id = a.technician_id
                  WHERE a.status = 'approved' AND (@branchId::uuid IS NULL OR a.branch_id = @branchId) AND (@technicianId::uuid IS NULL OR a.technician_id = @technicianId)
-                 GROUP BY a.branch_id, b.code, a.technician_id, u.display_name_en ORDER BY b.code, u.display_name_en
+                 GROUP BY a.branch_id, b.code, a.technician_id, u.display_name_en, u.display_name_ar ORDER BY b.code, u.display_name_en
                 """, new { branchId, technicianId }), ct))).RequirePermission(Permissions.CommView).RequireModule("comm");
 
         g.MapPost("/payouts", async (PayoutRequest req, HttpContext http, KiteDb db, CancellationToken ct) =>
@@ -169,7 +169,7 @@ public static class CommissionEndpoints
 
         g.MapGet("/payouts", async (Guid? technicianId, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
-                SELECT p.id, p.number, p.branch_id AS "branchId", b.code AS "branchCode", p.technician_id AS "technicianId", u.display_name_en AS "technicianName",
+                SELECT p.id, p.number, p.branch_id AS "branchId", b.code AS "branchCode", p.technician_id AS "technicianId", u.display_name_en AS "technicianName", u.display_name_ar AS "technicianNameAr",
                        p.method, p.total, p.reference, p.note, p.payout_date AS "payoutDate", c.display_name_en AS "createdBy",
                        (SELECT count(*) FROM comm.payout_line l WHERE l.payout_id = p.id) AS lines
                   FROM comm.payout p JOIN core.branch b ON b.id = p.branch_id JOIN iam."user" u ON u.id = p.technician_id JOIN iam."user" c ON c.id = p.created_by
@@ -183,6 +183,7 @@ public static class CommissionEndpoints
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), async t => new
             {
                 technician = await t.ExecuteScalarAsync<string>("SELECT display_name_en FROM iam.\"user\" WHERE id = @technicianId", new { technicianId }),
+                technicianAr = await t.ExecuteScalarAsync<string?>("SELECT display_name_ar FROM iam.\"user\" WHERE id = @technicianId", new { technicianId }),
                 from, to,
                 opening = await t.ExecuteScalarAsync<decimal>("""
                     SELECT coalesce((SELECT sum(amount) FROM comm.accrual WHERE technician_id = @technicianId AND accrual_date < @from), 0)
@@ -210,7 +211,7 @@ public static class CommissionEndpoints
                          FROM repair.repair_job j
                         WHERE j.status = 'delivered' AND j.outcome = 'repaired' AND j.technician_id IS NOT NULL
                           AND (j.delivered_at AT TIME ZONE (SELECT time_zone FROM core.business LIMIT 1))::date BETWEEN @from::date AND @to::date AND (@branchId::uuid IS NULL OR j.branch_id = @branchId))
-                SELECT u.id AS "technicianId", u.display_name_en AS "technicianName",
+                SELECT u.id AS "technicianId", u.display_name_en AS "technicianName", u.display_name_ar AS "technicianNameAr",
                        count(*) FILTER (WHERE jobs.warranty_of_id IS NULL) AS jobs,
                        coalesce(sum(jobs.revenue), 0) AS revenue,
                        round(avg(extract(epoch FROM coalesce(jobs.completed_at, jobs.delivered_at) - jobs.created_at) / 3600)::numeric, 1) AS "avgTurnaroundHours",
@@ -218,7 +219,7 @@ public static class CommissionEndpoints
                          WHERE o.technician_id = u.id AND (c.created_at AT TIME ZONE (SELECT time_zone FROM core.business LIMIT 1))::date BETWEEN @from::date AND @to::date) AS rework,
                        (SELECT coalesce(sum(a.amount), 0) FROM comm.accrual a WHERE a.technician_id = u.id AND a.accrual_date BETWEEN @from AND @to) AS commission
                   FROM jobs JOIN iam."user" u ON u.id = jobs.technician_id
-                 GROUP BY u.id, u.display_name_en ORDER BY u.display_name_en
+                 GROUP BY u.id, u.display_name_en, u.display_name_ar ORDER BY u.display_name_en
                 """, new { from = D(from), to = D(to), branchId }), ct))).RequirePermission(Permissions.CommView).RequireModule("comm");
 
         // Which rule versions produced which commissions.
@@ -234,7 +235,7 @@ public static class CommissionEndpoints
         // ---------------------------------------------------------------- a job's technician shares (15.2)
         app.MapGet("/api/v1/repairs/{id:guid}/shares", async (Guid id, HttpContext http, KiteDb db, CancellationToken ct) =>
             Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.RowsAsync("""
-                SELECT s.technician_id AS "technicianId", u.display_name_en AS "technicianName", s.share FROM comm.job_share s JOIN iam."user" u ON u.id = s.technician_id
+                SELECT s.technician_id AS "technicianId", u.display_name_en AS "technicianName", u.display_name_ar AS "technicianNameAr", s.share FROM comm.job_share s JOIN iam."user" u ON u.id = s.technician_id
                  WHERE s.job_id = @id ORDER BY s.share DESC, u.display_name_en
                 """, new { id }), ct))).RequirePermission(Permissions.RepairView).RequireModule("repair");
 

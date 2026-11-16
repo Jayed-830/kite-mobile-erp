@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { DeliverResult, PosPolicy, RepairBoardRow, TenderInput } from '@kite/api';
+import { can, type DeliverResult, type PosPolicy, type RepairBoardRow, type TenderInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
-import { toBaisa } from '@kite/pos';
+import { fromBaisa, toBaisa } from '@kite/pos';
 import { Alert, Button, Modal, SelectField, TextField } from '@kite/ui';
-import { ErrorBox, useApi } from '../core';
+import { ErrorBox, useApi, useAuth } from '../core';
 import { fmt, parseAmount } from '../money';
 import { RepairStatusBadge, SignaturePad } from '../repairs/bits';
 import { PayDialog } from './dialogs';
@@ -13,18 +13,23 @@ import { openPdf } from './TradeInWizard';
 /**
  * Repairs at the till (13.4, 13.5): find a job by its card's QR, number or the customer's phone; take a deposit into the drawer,
  * or hand the device back: the job card or a check of the customer, their signature, the repair invoice with the deposit applied,
- * and the rest paid by any tender (or the deposit's excess back).
+ * and the rest paid by any tender (or the deposit's excess back). Phase 9: a manager corrects a delivered job's invoice here.
  */
 export function RepairCounter({ policy, onClose, onDone }: { policy: PosPolicy; onClose: () => void; onDone: (message: string, cash: boolean) => void }) {
   const api = useApi();
+  const { me } = useAuth();
   const { t, pick } = useI18n();
   const [q, setQ] = useState('');
   const [job, setJob] = useState<RepairBoardRow | null>(null);
-  const [mode, setMode] = useState<'deposit' | 'collect' | null>(null);
+  const [mode, setMode] = useState<'deposit' | 'collect' | 'correct' | null>(null);
+  const [delivered, setDelivered] = useState(false);
   const [scannedQr, setScannedQr] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const found = useQuery({ queryKey: ['tillRepairs', q], enabled: q.trim().length >= 2, queryFn: () => api.repairs({ q: q.trim().startsWith('KITE-R|') ? q.trim().split('|')[1] : q.trim(), open: true }) });
-  const pickJob = (r: RepairBoardRow) => { setJob(r); setMode(null); setError(null); setScannedQr(q.trim().startsWith('KITE-R|') ? q.trim() : null); };
+  const term = q.trim().startsWith('KITE-R|') ? q.trim().split('|')[1] : q.trim();
+  const found = useQuery({ queryKey: ['tillRepairs', q, delivered], enabled: q.trim().length >= 2,
+    queryFn: () => api.repairs(delivered ? { q: term, status: 'delivered' } : { q: term, open: true }) });
+  const pickJob = (r: RepairBoardRow) => { setJob(r); setMode(delivered ? 'correct' : null); setError(null); setScannedQr(q.trim().startsWith('KITE-R|') ? q.trim() : null); };
+  const corrector = can(me, 'REPAIR.INVOICE.CORRECT');
 
   return (
     <Modal open title={t('repair.till.title')} onClose={onClose}>
@@ -32,7 +37,10 @@ export function RepairCounter({ policy, onClose, onDone }: { policy: PosPolicy; 
         <ErrorBox error={error} />
         {!job ? (
           <>
-            <TextField label={t('repair.till.find')} value={q} onChange={(e) => setQ(e.target.value)} className="ltr" autoFocus
+            {corrector && (
+              <label className="row"><input type="checkbox" checked={delivered} onChange={(e) => setDelivered(e.target.checked)} /> {t('correct.action')}</label>
+            )}
+            <TextField label={delivered ? t('correct.find') : t('repair.till.find')} value={q} onChange={(e) => setQ(e.target.value)} className="ltr" autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter' && found.data?.length === 1) pickJob(found.data[0]!); }} />
             <ErrorBox error={found.error} />
             <div className="picker-list">
@@ -51,7 +59,8 @@ export function RepairCounter({ policy, onClose, onDone }: { policy: PosPolicy; 
               <Button size="sm" variant="ghost" onClick={() => { setJob(null); setMode(null); }}>{t('app.back')}</Button>
             </div>
             <div className="row"><span>{t('repair.money.balance')}: <strong className="num">{fmt(job.deposit)}</strong></span></div>
-            {mode == null && (
+            {mode == null && job.status === 'delivered' && corrector && <div><Button onClick={() => setMode('correct')}>{t('correct.action')}</Button></div>}
+            {mode == null && job.status !== 'delivered' && (
               <div className="row">
                 <Button onClick={() => setMode('deposit')} disabled={job.outcome != null}>{t('repair.till.deposit')}</Button>
                 <Button variant="primary" onClick={() => setMode('collect')} disabled={job.status !== 'ready'}>{t('repair.till.collect')}</Button>
@@ -59,6 +68,7 @@ export function RepairCounter({ policy, onClose, onDone }: { policy: PosPolicy; 
               </div>
             )}
             {mode === 'deposit' && <Deposit jobId={job.id} onDone={(m, cash) => onDone(m, cash)} />}
+            {mode === 'correct' && <Correct jobId={job.id} policy={policy} onDone={(m, cash) => onDone(m, cash)} />}
             {mode === 'collect' && <Collect jobId={job.id} policy={policy} qr={scannedQr} onDone={(r, cash) => onDone(t('repair.till.delivered', { number: r.number, sale: r.saleNumber ?? '—' }), cash)} />}
           </>
         )}
@@ -153,6 +163,72 @@ function Collect({ jobId, policy, qr, onDone }: { jobId: string; policy: PosPoli
           : <Button variant="primary" disabled={!ready} busy={busy} onClick={() => void deliver([])}>{t('repair.till.collect')}</Button>}
       </div>
       {paying && <PayDialog gross={toBaisa(p.due)} policy={policy} busy={busy} error={error} onClose={() => setPaying(false)} onPay={(x) => void deliver(x)} />}
+    </div>
+  );
+}
+
+/**
+ * Correcting a delivered repair invoice (owner decision, Phase 9): the invoice is credited in full, the money goes back from the
+ * drawer or to store credit, and a corrected invoice may be issued with the right prices and paid here. The commissions follow.
+ */
+function Correct({ jobId, policy, onDone }: { jobId: string; policy: PosPolicy; onDone: (message: string, cash: boolean) => void }) {
+  const api = useApi();
+  const { t, pick } = useI18n();
+  const detail = useQuery({ queryKey: ['repair', jobId], queryFn: () => api.repair(jobId) });
+  const [reason, setReason] = useState('');
+  const [refundTo, setRefundTo] = useState<'cash' | 'store_credit'>('cash');
+  const [reissue, setReissue] = useState(true);
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const [paying, setPaying] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [requestId] = useState(() => crypto.randomUUID());
+  const d = detail.data;
+  if (!d) return <ErrorBox error={detail.error} />;
+  if (d.job.status !== 'delivered') return <Alert tone="warning">{t('correct.deliveredOnly')}</Alert>;
+  const inv = d.invoice;
+  if (!inv) return <Alert tone="info">{t('correct.noInvoice')}</Alert>;
+  const priceOf = (id: string, unit: number) => (prices[id] === undefined ? unit : parseAmount(prices[id]!) ?? 0);
+  const newLines = inv.lines.filter((l) => priceOf(l.id, l.unitPrice) > 0);
+  const newGross = toBaisa(newLines.reduce((a, l) => a + Math.round(priceOf(l.id, l.unitPrice) * l.qty * 1000), 0) / 1000);
+  const submit = async (payments: TenderInput[]) => {
+    setBusy(true); setError(null);
+    try {
+      const r = await api.correctRepairInvoice(jobId, {
+        id: requestId, reason: reason.trim(), refunds: [{ method: refundTo, amount: inv.header.grossTotal }], expectedCredit: inv.header.grossTotal,
+        lines: reissue ? newLines.map((l) => ({ kind: l.kind ?? 'extra', variantId: l.variantId, qty: l.qty, unitPrice: priceOf(l.id, l.unitPrice), descriptionEn: l.kind === 'extra' ? l.descriptionEn : null })) : null,
+        payments: reissue ? payments : null,
+      });
+      onDone(t('correct.done', { cn: r.creditNoteNumber, inv: r.correctedNumber ? t('correct.doneInvoice', { number: r.correctedNumber }) : '' }),
+        refundTo === 'cash' || payments.some((p) => p.method === 'cash'));
+    } catch (e) { setError(e); setPaying(false); } finally { setBusy(false); }
+  };
+  const ready = reason.trim().length >= 3 && (!reissue || newLines.length > 0);
+  return (
+    <div className="stack">
+      <ErrorBox error={error} />
+      <p className="muted">{t('correct.intro')}</p>
+      <div className="row"><strong>{t('correct.invoice')}</strong> <span className="ltr">{inv.header.number}</span><span className="spacer" />{t('correct.credit')}: <strong className="num">{fmt(inv.header.grossTotal)}</strong></div>
+      <TextField label={t('correct.reason')} value={reason} onChange={(e) => setReason(e.target.value)} dir="auto" autoFocus />
+      <SelectField label={t('correct.refundTo')} value={refundTo} onChange={(e) => setRefundTo(e.target.value as 'cash' | 'store_credit')}>
+        <option value="cash">{t('repair.till.excessTos.cash')}</option><option value="store_credit">{t('repair.till.excessTos.store_credit')}</option>
+      </SelectField>
+      <SelectField label={t('correct.corrected')} value={reissue ? 'yes' : 'no'} onChange={(e) => setReissue(e.target.value === 'yes')}>
+        <option value="yes">{t('correct.reissue')}</option><option value="no">{t('correct.noReissue')}</option>
+      </SelectField>
+      {reissue && inv.lines.map((l) => (
+        <div key={l.id} className="row">
+          <span className="grow">{pick(l.descriptionEn, l.descriptionAr)} <span className="muted num">× {l.qty}</span></span>
+          <TextField label={t('correct.newPrice')} inputMode="decimal" className="ltr num" value={prices[l.id] ?? String(l.unitPrice)} onChange={(e) => setPrices({ ...prices, [l.id]: e.target.value })} />
+        </div>
+      ))}
+      <Alert tone="info">{t('correct.commissionsNote')}</Alert>
+      <div>
+        {reissue
+          ? <Button variant="primary" disabled={!ready} onClick={() => setPaying(true)}>{t('correct.pay')} {fmt(Number(fromBaisa(newGross)))}</Button>
+          : <Button variant="danger" disabled={!ready} busy={busy} onClick={() => void submit([])}>{t('correct.action')}</Button>}
+      </div>
+      {paying && <PayDialog gross={newGross} policy={policy} busy={busy} error={error} onClose={() => setPaying(false)} onPay={(x) => void submit(x)} />}
     </div>
   );
 }

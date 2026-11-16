@@ -361,4 +361,47 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 
 **Decision.** The till refuses to void, return or credit-sell a repair invoice (REP-002). A repair that fails goes back to the workshop as a warranty claim on the delivered job: at no charge, approved as `warranty`, its parts' cost posted to warranty expense (6600) at delivery.
 **Why.** The invoice applied the customer's deposit, cleared the job's work in progress and started its warranty; undoing it at the till would leave the job, its deposit and its accounts disagreeing.
-**Cost.** A genuine billing mistake on a repair invoice needs a credit note issued from the back office. That comes in Phase 9, where a credit note on a repair invoice must also reverse the technician's commission (blueprint 13, commissions).
+**Cost.** A genuine billing mistake on a repair invoice needs its own path. Phase 9 adds it at the till, for a manager (ADR 66), and it reverses the technician's commission.
+
+## ADR 61: Audit and outbox rows are written just before the commit
+
+**Decision.** `DbTx.AuditAsync` and `DbTx.PublishAsync` collect their rows; `KiteDb.InTransactionAsync` writes them, audit entries first and then outbox events, after the work and just before it commits. A transaction that fails writes neither. Two counters that relied on the audit lock to serialise (the module-switch event's version and the CRL number) take their own advisory locks.
+**Why.** The audit chain and the outbox each take one server-wide advisory lock that is held until commit. Taken in the middle of a transaction, every lock taken after them could deadlock with another transaction that held that lock and was waiting to audit; the full test suite showed a dozen such deadlocks a run under load (retried, but not acceptable at the exit gate). Taken last, a transaction that holds them never waits for anything else: the suite now runs with none.
+**Cost.** Code cannot read its own audit or outbox rows inside the transaction that wrote them (none did). The order of rows within a transaction is unchanged.
+
+## ADR 62: The latest approved estimate decides what a job holds in stock
+
+**Decision.** The parts of a job's latest approved estimate, less what is fitted, are reserved in the branch's stock (`inv.reservation`, one row per job and part; the balance's `reserved` column follows it in an AFTER trigger). What the branch lacks is a parts request, ordered by when it was opened. Stock is given out oldest request first: a job reserving now cannot take what an older request is waiting for. A job sent to repair while short waits for parts, and moves to in progress by itself when its parts are given out (a background filler every 10 seconds, or the "give out now" button). The till cannot sell what is reserved or waited for. Reservations go when the job ends; a new estimate version waiting for the customer does not release them. Balances are locked through `inv.lock_part_balance` (the application only reads balances), job first and then balances in part order (ADR 54), and before the journal of a fitting takes its number.
+**Why.** The blueprint's "parts reserved on approval" without a race: two jobs and a till cannot all count the same last part.
+**Cost.** A part waited for by a job cannot be sold over the counter even if the job is far away in the queue; staff see why in the message.
+
+## ADR 63: Serial-tracked spare parts are estimated by quantity and fitted by serial
+
+**Decision.** A spare part may be tracked by serial number. Estimates and invoices carry it by quantity (whole units); fitting scans the serial, which moves that unit out of stock at its own cost and marks it `fitted`; returning it brings the same unit back (`unfitted`), and writing it off ends it. The job's work lines keep the serial.
+**Why.** A logic board or a camera module has its own serial and cost; the customer's invoice does not need to show it, the job and the stock do.
+**Cost.** A serial part is fitted one unit at a time.
+
+## ADR 64: A commission is written once and never changed
+
+**Decision.** Commissions are generated in the same transaction as the repair invoice (or when it is paid, if the business chooses), per technician share, from the most specific rule in force on the invoice date (technician and kind of repair, technician, branch and kind, kind, branch, everyone). Each accrual carries its rule version, the figures it was worked out from and a trace, and its journal (Dr 6300 / Cr 2400). The unique key on job, technician, kind and invoice version makes a second accrual impossible, however often or concurrently the generator runs. An accrual is approved (at the branch or only at head office), paid in exactly one payout line, or reversed by its exact opposite; a paid accrual's reversal becomes an approved deduction from the next payout. Rules are versioned, never edited: two active rules of the same scope never overlap in time.
+**Why.** "Duplicate generation impossible" (row 9 of the exit gate), and a history that explains every amount to the technician.
+**Cost.** Correcting a commission means reversing it and generating a new version, not editing it.
+
+## ADR 65: Repair profit uses the job's own costs
+
+**Decision.** The profit basis is labour and parts charged on the invoice, without VAT and after discounts, less the parts cost in the job's work in progress and outside work at cost, never below zero (a minimum still applies). The arithmetic (fixed amount, rate of labour or profit, minimum and maximum per job, then the share, each rounded half away from zero to the baisa) is shared by the server (`CommissionMath`), the web app (`@kite/pos commission.ts`) and an independent Python implementation through `tests/vectors/commission-math-vectors.json` (122 vectors; CI regenerates them and fails on any difference).
+**Why.** The commission should follow what the job really earned, including what another workshop charged for it.
+**Cost.** Outside work recorded after delivery does not change a commission already generated.
+
+## ADR 66: A delivered repair invoice is corrected at the till by a manager
+
+**Decision.** `POST /api/v1/repairs/{id}/correct` (permission `REPAIR.INVOICE.CORRECT`, branch managers and owners) credits the invoice that stands in full (credit reason `correction`; nothing goes back to stock: the parts are in the customer's device), refunds from the drawer or to store credit, and may issue a corrected invoice paid at the same till. The job keeps its record (`repair.invoice_correction`; the chain decides which invoice stands). Commissions on the credited invoice are reversed and generated again from the corrected one. The request is idempotent by its id. Its locks follow ADR 54: job, the job's commissions, shift, store credit, both document numbers, then journals.
+**Why.** The owner chose the till: the customer is usually there, the money moves through the drawer, and the till already counts it.
+**Cost.** Needs an open shift; head office cannot correct an invoice without a till.
+
+## ADR 67: Commission payouts are cash, bank or payroll, and payroll is a clearing account
+
+**Decision.** A payout pays approved commissions of one technician at one branch (a document `COM-B01-…`, one line per accrual, the total above zero). It posts Dr 2400 / Cr 1100 cash, 1200 bank or 2410 payroll clearing. Racing payouts for the same accruals lock them in order: one succeeds, the others are refused (COM-002).
+**Why.** Many shops pay commissions with salaries; the payroll system then clears 2410.
+**Cost.** KITE does not run payroll; 2410 must be cleared by the accountant when salaries are paid.
+

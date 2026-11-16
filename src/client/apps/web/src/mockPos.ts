@@ -202,8 +202,22 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
   });
   const rp = createMockRepairs({
     need: ctx.need, next, branchId: ctx.branchId, branchCode: 'B01', users: () => ctx.users, customers: () => customers,
-    item: (vid) => { const f = variantOf(vid); return f ? { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, listPrice: f.v.variant.price } : null; },
+    item: (vid) => { const f = variantOf(vid); return f ? { sku: f.v.variant.sku, descriptionEn: f.p.product.nameEn, descriptionAr: f.p.product.nameAr, productType: f.p.product.productType, listPrice: f.v.variant.price, tracking: f.p.product.tracking } : null; },
     partMove: (vid, q, unitCost) => move(vid, q, unitCost), shift: () => myShift().s,
+    partStock: (vid) => stock.get(vid)?.qty ?? 0n, can: (p) => can(ctx.need(), p),
+    // Phase 9: a repair invoice credited in full at the till (a correction): nothing goes back to stock.
+    creditNote: (originalId, reason, tenders) => {
+      const { u, t, s } = myShift();
+      const o = sales.find((x) => x.detail.sale.id === originalId)!;
+      const gross = o.detail.lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
+      const tax = o.detail.lines.reduce((a, l) => a + toBaisa(l.tax), 0n);
+      const d = write({ ...o.detail.sale, id: id(), number: next('cn', 'CN'), docType: 'credit_note', creditReason: 'correction', originalSaleId: originalId, originalNumber: o.detail.sale.number,
+        completedAt: now(), netTotal: n(gross - tax), discountTotal: 0, taxTotal: n(tax), grossTotal: n(gross), cashRounding: 0, note: reason, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id },
+        o.detail.lines.map((l) => ({ ...l, id: id(), returnedQty: 0, returnable: 0 })), tenders, true, s.id, t);
+      o.detail.creditNotes.push({ id: d.sale.id, number: d.sale.number, creditReason: 'correction', grossTotal: d.sale.grossTotal });
+      ti.applyPayments(tenders, o.detail.sale.customerId, d.sale.id, d.sale.number, true, u.displayNameEn);
+      return { id: d.sale.id, number: d.sale.number };
+    },
     drawer: (sid, kind, method, amount) => cashEvents.push({ shiftId: sid, kind, amount, reason: method, createdAt: now() }),
     invoice: (customerId, ls, tenders) => {
       const { u, t, s } = myShift();

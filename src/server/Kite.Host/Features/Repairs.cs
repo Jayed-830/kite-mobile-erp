@@ -581,6 +581,28 @@ public static partial class RepairEndpoints
         IReadOnlyList<RepairEstimateLine> charges = j.Outcome is not null ? await RepairCore.ChargesAsync(t, j, settings.DiagnosisFee) : [];
         var chargesTotal = charges.Sum(c => c.GrossAmount);
         var ceiling = await RepairCore.CeilingAsync(t, id);
+        // Phase 9: the invoice that stands now (after any corrections at the till), its lines, and the corrections.
+        object? invoice = null;
+        if (await t.ExecuteScalarAsync<Guid?>("SELECT repair.current_invoice(@id)", new { id }) is { } invoiceId)
+            invoice = new
+            {
+                header = (await t.RowsAsync("""
+                    SELECT s.id, s.number, s.sale_date AS "saleDate", s.gross_total AS "grossTotal", s.tax_total AS "taxTotal", s.net_total AS "netTotal",
+                           s.cash_rounding AS "cashRounding" FROM sales.sale s WHERE s.id = @invoiceId
+                    """, new { invoiceId }))[0],
+                lines = await t.RowsAsync("""
+                    SELECT l.id, l.repair_kind AS kind, l.variant_id AS "variantId", l.description_en AS "descriptionEn", l.description_ar AS "descriptionAr", l.qty,
+                           l.unit_price AS "unitPrice", l.net_amount AS "netAmount", l.tax_amount AS "taxAmount", l.gross_amount AS "grossAmount"
+                      FROM sales.sale_line l WHERE l.sale_id = @invoiceId ORDER BY l.line_no
+                    """, new { invoiceId }),
+            };
+        var corrections = await t.RowsAsync("""
+            SELECT c.id, cs.number AS "creditedNumber", cn.number AS "creditNoteNumber", cn.gross_total AS credited, co.number AS "correctedNumber",
+                   co.gross_total AS "correctedGross", c.reason, c.created_at AS "createdAt", u.display_name_en AS "createdBy"
+              FROM repair.invoice_correction c JOIN sales.sale cs ON cs.id = c.credited_sale_id JOIN sales.sale cn ON cn.id = c.credit_note_id
+              LEFT JOIN sales.sale co ON co.id = c.corrected_sale_id JOIN iam."user" u ON u.id = c.created_by
+             WHERE c.job_id = @id ORDER BY c.created_at
+            """, new { id });
         return new
         {
             job = new
@@ -595,7 +617,7 @@ public static partial class RepairEndpoints
                 j.CollectionCheck, j.WarrantyUntil, j.RemindedDays, j.CreatedAt, j.CreatedByName, j.Version, qr = QrText(j),
                 next = RepairCore.Transitions[j.Status],
             },
-            estimates, work, clearing, deposits, history, assignments, photos, claims, parts = await RepairParts.SummaryAsync(t, id),
+            estimates, work, clearing, deposits, history, assignments, photos, claims, parts = await RepairParts.SummaryAsync(t, id), invoice, corrections,
             money = new { deposit, depositTax = await RepairCore.DepositTaxAsync(t, id), wip, charges, chargesTotal, due = Math.Max(0, chargesTotal - deposit),
                           excess = Math.Max(0, deposit - chargesTotal), settings.DiagnosisFee, settings.HourlyRate, settings.DepositVatPoint },
         };

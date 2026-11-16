@@ -1,13 +1,15 @@
 // In-memory Phase 8 repairs and WhatsApp for tests, `npm run dev:mock` and design review: intake, the 12 statuses and only the
 // blueprint's transitions, versioned estimates and their approval, parts and labour on the job, deposits in the drawer,
-// collection with the repair invoice, messages and the WhatsApp test chat. The arithmetic is @kite/pos (the same vectors as
+// collection with the repair invoice, messages and the WhatsApp test chat. Phase 9: parts held and waited for, serial parts,
+// outside work, technician shares, commissions (mockCommissions.ts) and correcting a delivered invoice at the till. The arithmetic is @kite/pos (the same vectors as
 // the server); the real server and database check everything again and are the source of truth.
 import {
   ApiError, NEEDS_APPROVED_ESTIMATE, REPAIR_TRANSITIONS, type Customer, type DeliverInput, type EstimateLineInput, type FaultCode, type RepairApi, type RepairCategory,
   type RepairDetail, type RepairEstimate, type RepairEstimateLine, type RepairIntake, type RepairJob, type RepairMessage, type RepairSettings, type RepairStatus,
-  type RepairWorkLine, type TestChat, type User, type WhatsAppTemplate,
+  type RepairWorkLine, type TestChat, type User, type WhatsAppTemplate, type RepairPartRow, type RepairCorrectionRow, type PartsNeededRow,
 } from '@kite/api';
-import { depositTax, fromBaisa, labourPrice, returnCost, splitDelivery, taxShare, toBaisa, toNumber, type Tender } from '@kite/pos';
+import { createMockCommissions, type CommissionJob } from './mockCommissions';
+import { depositTax, fromBaisa, labourPrice, returnCost, sharesComplete, splitDelivery, taxShare, toBaisa, toNumber, type Tender } from '@kite/pos';
 
 const problem = (status: number, code: string, title: string) => new ApiError({ status, code, title });
 const id = () => crypto.randomUUID();
@@ -25,7 +27,11 @@ export interface RepairMockHooks {
   users: () => User[];
   customers: () => Customer[];
   /** A catalogue item: its names, type and price (tax-inclusive). */
-  item: (variantId: string) => { sku: string; descriptionEn: string; descriptionAr: string; productType: string; listPrice: number | null } | null;
+  item: (variantId: string) => { sku: string; descriptionEn: string; descriptionAr: string; productType: string; listPrice: number | null; tracking?: string } | null;
+  /** Phase 9: what is on hand of a part (for what jobs can hold), whether the user holds a permission, and a full credit note at the till. */
+  partStock?: (variantId: string) => bigint;
+  can?: (perm: string) => boolean;
+  creditNote?: (originalSaleId: string, reason: string, tenders: Tender[]) => { id: string; number: string };
   /** Moves stock; returns the value moved (negative when stock goes out). */
   partMove: (variantId: string, qty: bigint, unitCost?: bigint) => bigint;
   /** The till: the open shift of this terminal (POS-001/POS-004 when none). */
@@ -41,6 +47,7 @@ interface In { id: string; kind: string; text: string | null; handled: string | 
 interface Row {
   job: RepairJob; estimates: RepairEstimate[]; work: RepairWorkLine[]; clearing: RepairDetail['clearing']; deposits: (RepairDetail['deposits'][number] & { method: string | null })[];
   history: RepairDetail['history']; assignments: RepairDetail['assignments']; photos: RepairDetail['photos']; passcode: string | null; readyAt: string | null;
+  shares: { technicianId: string; share: number }[]; invoices: { id: string; number: string; lines: RepairEstimateLine[] }[]; corrections: RepairCorrectionRow[];
 }
 
 const SERVICES = [
@@ -90,7 +97,43 @@ export function createMockRepairs(h: RepairMockHooks) {
   const current = (r: Row) => r.estimates[0] ?? null;
   const ceiling = (r: Row) => r.estimates.filter((e) => e.status === 'approved' && ['signature', 'phone', 'whatsapp'].includes(e.approvalMethod ?? ''))
     .reduce((m, e) => Math.max(m, e.total), r.job.preAuthorised);
-  const wip = (r: Row) => r.work.filter((w) => w.kind === 'part').reduce((a, w) => a + b(w.cost ?? 0), 0n) - r.clearing.reduce((a, c) => a + b(c.amount), 0n);
+  const wip = (r: Row) => r.work.filter((w) => w.kind === 'part' || w.kind === 'external').reduce((a, w) => a + b(w.cost ?? 0), 0n) - r.clearing.reduce((a, c) => a + b(c.amount), 0n);
+  // Phase 9 (13.4): what each job's latest approved estimate needs; free stock goes to the oldest jobs first.
+  const latestApproved = (r: Row) => r.estimates.find((e) => e.status === 'approved') ?? null;
+  const remaining = (r: Row) => {
+    const out = new Map<string, { needed: number; fitted: number }>();
+    for (const l of latestApproved(r)?.lines ?? []) if (l.kind === 'part') out.set(l.variantId, { needed: (out.get(l.variantId)?.needed ?? 0) + l.qty, fitted: 0 });
+    for (const w of r.work) if (w.kind === 'part' && w.variantId) out.set(w.variantId, { needed: out.get(w.variantId)?.needed ?? 0, fitted: (out.get(w.variantId)?.fitted ?? 0) + (w.qty ?? 0) });
+    return out;
+  };
+  const partsOf = (r: Row): RepairPartRow[] => {
+    const ended = !!r.job.outcome || r.job.status === 'delivered';
+    const open = [...rows.values()].filter((x) => !x.job.outcome && x.job.status !== 'delivered').sort((x, y) => x.job.createdAt.localeCompare(y.job.createdAt));
+    return [...remaining(r)].map(([vid, q]) => {
+      const it = itemOf(vid);
+      const left = ended ? 0 : Math.max(0, q.needed - q.fitted);
+      let free = Number(fromBaisa(h.partStock?.(vid) ?? 1_000_000_000n));
+      for (const o of open) { if (o === r) break; const oq = remaining(o).get(vid); if (oq) free -= Math.max(0, oq.needed - oq.fitted); }
+      const reserved = Math.max(0, Math.min(left, free));
+      return { variantId: vid, sku: it?.sku ?? '', nameEn: it?.descriptionEn ?? '', nameAr: it?.descriptionAr ?? '', tracking: (it?.tracking ?? 'none') as RepairPartRow['tracking'],
+        needed: q.needed, fitted: q.fitted, reserved, requested: left - reserved, requestedSince: left - reserved > 0 ? r.job.createdAt : null };
+    });
+  };
+  const short = (r: Row) => partsOf(r).reduce((a, p) => a + p.requested, 0);
+  /** The invoice that stands: the latest one, unless a correction credited it. */
+  const standing = (r: Row) => { const inv = r.invoices.at(-1); return inv && !r.corrections.some((c) => c.creditedNumber === inv.number) ? inv : null; };
+  const commJob = (r: Row): CommissionJob => {
+    const inv = standing(r);
+    const net = (k: string) => (inv?.lines ?? []).filter((l) => l.kind === k).reduce((a, l) => a + l.netAmount, 0);
+    return { id: r.job.id, number: r.job.number, branchId: r.job.branchId, branchCode: r.job.branchCode, technicianId: r.job.technicianId, categoryId: r.job.categoryId,
+      status: r.job.status, outcome: r.job.outcome, warranty: !!r.job.warrantyOfId, warrantyOfId: r.job.warrantyOfId, saleId: inv?.id ?? null, saleNumber: inv?.number ?? null,
+      invoiceVersion: 1 + r.corrections.filter((c) => c.correctedNumber).length, shares: r.shares,
+      basis: { labour: net('labour'), partsRevenue: net('part'), partsCost: n(r.work.filter((w) => w.kind === 'part').reduce((a, w) => a + b(w.cost ?? 0), 0n)),
+        external: n(r.work.filter((w) => w.kind === 'external').reduce((a, w) => a + b(w.cost ?? 0), 0n)) },
+      createdAt: r.job.createdAt, deliveredAt: r.job.deliveredAt };
+  };
+  const comm = createMockCommissions({ need: h.need, can: (p) => h.can?.(p) ?? true, next: h.next, users: h.users, jobs: () => [...rows.values()].map(commJob),
+    categoryName: (cid) => { const c = categories.find((x) => x.id === cid); return c ? { en: c.nameEn, ar: c.nameAr } : null; } });
   const balance = (r: Row) => r.deposits.reduce((a, d) => a + (d.kind === 'deposit' ? b(d.amount) : -b(d.amount)), 0n);
   const heldTax = (r: Row) => r.deposits.reduce((a, d) => a + (d.kind === 'deposit' ? b(d.tax) : -b(d.tax)), 0n);
   const nameOf = (u: User) => u.displayNameEn;
@@ -130,6 +173,8 @@ export function createMockRepairs(h: RepairMockHooks) {
     j.next = REPAIR_TRANSITIONS[to];
     j.version += 1;
     if (to === 'ready') { r.readyAt = now(); if (settings.notifyStatuses.includes('ready')) notify(r, 'ready', [j.customerName.split(' ')[0]!, j.number]); }
+    // Work cannot start without its parts: the job waits for them (13.4).
+    if (to === 'in_progress' && short(r) > 0) move(r, 'waiting_parts', u, `Waiting for parts: ${short(r)} not in stock`);
   };
   const approve = (r: Row, e: RepairEstimate, method: NonNullable<RepairEstimate['approvalMethod']>, approver: string | null, ref: string | null, u: User | null) => {
     if (method === 'pre_authorised' && e.total > ceiling(r)) throw problem(409, 'REP-005', `The estimate is above the pre-authorised ${ceiling(r).toFixed(3)}.`);
@@ -166,6 +211,15 @@ export function createMockRepairs(h: RepairMockHooks) {
       claims: [...rows.values()].filter((x) => x.job.warrantyOfId === r.job.id).map((x) => ({ id: x.job.id, number: x.job.number, status: x.job.status })),
       money: { deposit: n(dep), depositTax: n(heldTax(r)), wip: n(wip(r)), charges: ch, chargesTotal: n(total), due: n(total > dep ? total - dep : 0n), excess: n(dep > total ? dep - total : 0n),
         diagnosisFee: fee, hourlyRate: settings.hourlyRate, depositVatPoint: settings.depositVatPoint },
+      parts: partsOf(r), corrections: r.corrections,
+      invoice: (() => {
+        const inv = standing(r);
+        if (!inv) return null;
+        const sum = (k: 'netAmount' | 'taxAmount' | 'grossAmount') => inv.lines.reduce((a, l) => a + l[k], 0);
+        return { header: { id: inv.id, number: inv.number, saleDate: now().slice(0, 10), grossTotal: sum('grossAmount'), taxTotal: sum('taxAmount'), netTotal: sum('netAmount'), cashRounding: 0 },
+          lines: inv.lines.map((l) => ({ id: l.id, kind: l.kind, variantId: l.variantId, descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice,
+            netAmount: l.netAmount, taxAmount: l.taxAmount, grossAmount: l.grossAmount })) };
+      })(),
     });
   };
   const messagesOf = (r: Row) => {
@@ -206,7 +260,8 @@ export function createMockRepairs(h: RepairMockHooks) {
     };
     job.qr = `KITE-R|${job.number}|${job.id.replace(/-/g, '').slice(0, 12)}`;
     const r: Row = { job, estimates: [], work: [], clearing: [], deposits: [], history: [{ from: null, to: 'received', note: warrantyOf ? `Warranty claim on ${warrantyOf.job.number}` : null, at, userName: nameOf(u) }],
-      assignments: job.technicianId ? [{ at, fromName: null, toName: job.technicianName, byName: nameOf(u) }] : [], photos: [], passcode: req.passcode ?? null, readyAt: null };
+      assignments: job.technicianId ? [{ at, fromName: null, toName: job.technicianName, byName: nameOf(u) }] : [], photos: [], passcode: req.passcode ?? null, readyAt: null,
+      shares: [], invoices: [], corrections: [] };
     r.photos.push({ id: id(), stage: 'terms_signature', contentType: 'image/png', size: req.termsSignature.length, sha256: '', caption: `Terms accepted by ${job.termsName}`, createdAt: at });
     for (const p of req.photos ?? []) r.photos.push({ id: id(), stage: p.stage, contentType: 'image/jpeg', size: p.dataUrl.length, sha256: '', caption: p.caption ?? null, createdAt: at });
     if (warrantyOf) r.estimates.unshift({ id: id(), estimateNo: 1, status: 'approved', netTotal: 0, taxTotal: 0, total: 0, note: null, sentAt: null, approvalMethod: 'warranty', approvedAt: at,
@@ -267,7 +322,9 @@ export function createMockRepairs(h: RepairMockHooks) {
       const o = rowOf(jid);
       if (o.job.status !== 'delivered' || o.job.outcome !== 'repaired') throw problem(409, 'REP-002', 'A warranty claim is made on a repaired job that was delivered.');
       if (!o.job.warrantyUntil || o.job.warrantyUntil < now().slice(0, 10)) throw problem(409, 'REP-002', 'The repair warranty has ended.');
-      return delay(detail(intake({ ...req, customerId: o.job.customerId, categoryId: o.job.categoryId }, u, o)));
+      const claim = intake({ ...req, customerId: o.job.customerId, categoryId: o.job.categoryId }, u, o);
+      comm.clawback(commJob(o), claim.job.number);
+      return delay(detail(claim));
     },
     async moveRepair(jid, to, note) {
       const u = h.need(to === 'cancelled' ? 'REPAIR.CANCEL' : 'REPAIR.WORK');
@@ -446,6 +503,7 @@ export function createMockRepairs(h: RepairMockHooks) {
       if (gross > 0n) {
         const tenders = [...pays, ...(s.applied > 0n ? [{ method: 'deposit', amount: s.applied } as unknown as Tender] : [])];
         sale = h.invoice(j.customerId, ch, tenders);
+        r.invoices.push({ id: sale.id, number: sale.number, lines: ch });
         r.deposits.push({ id: id(), number: h.next('deposit', 'DEP'), kind: 'applied', amount: n(s.applied), tax: n(s.appliedTax), method: null, reason: null, saleNumber: sale.number, createdAt: now(), createdBy: nameOf(u) });
         if (s.applied > 0n) h.drawer(h.shift().id, 'repair_applied', 'deposit', s.applied);
       }
@@ -456,12 +514,17 @@ export function createMockRepairs(h: RepairMockHooks) {
         r.deposits.push({ id: id(), number: refundNumber, kind: 'refund', amount: n(s.excess), tax: n(s.excessTax), method: d.excessTo ?? 'cash', reason: 'Excess at collection', saleNumber: null, createdAt: now(), createdBy: nameOf(u) });
       }
       const w = wip(r);
-      if (w !== 0n) r.clearing.push({ kind: j.warrantyOfId ? 'warranty' : j.outcome === 'repaired' ? 'cost_of_repair' : 'written_off', amount: n(w), reason: null, createdAt: now() });
+      const outside = r.work.filter((x) => x.kind === 'external').reduce((a, x) => a + b(x.cost ?? 0), 0n);
+      if (w !== 0n && outside !== 0n && j.outcome === 'repaired' && !j.warrantyOfId) {
+        r.clearing.push({ kind: 'cost_of_repair', amount: n(w - outside), reason: null, createdAt: now() });
+        r.clearing.push({ kind: 'outside_work', amount: n(outside), reason: null, createdAt: now() });
+      } else if (w !== 0n) r.clearing.push({ kind: j.warrantyOfId ? 'warranty' : j.outcome === 'repaired' ? 'cost_of_repair' : 'written_off', amount: n(w), reason: null, createdAt: now() });
       const until = j.outcome === 'repaired' && !j.warrantyOfId ? new Date(Date.now() + j.warrantyDays * 864e5).toISOString().slice(0, 10) : null;
       r.history.push({ from: 'ready', to: 'delivered', note: d.note ?? null, at: now(), userName: nameOf(u) });
       Object.assign(j, { status: 'delivered', next: [], deliveredAt: now(), deliveredByName: nameOf(u), collectedBy: d.collectedBy.trim(), collectionCheck: d.check, deliverySaleId: sale?.id ?? null,
         deliverySaleNumber: sale?.number ?? null, warrantyUntil: until, passcodeHeld: false, passcodePurgedAt: r.passcode ? now() : null, version: j.version + 1 });
       r.passcode = null;
+      comm.generate(commJob(r), u);
       const change = pays.reduce((a, p) => a + (p.tendered != null ? p.tendered - p.amount : 0n), 0n);
       return delay({ id: j.id, number: j.number, saleId: sale?.id ?? null, saleNumber: sale?.number ?? null, gross: n(gross), applied: n(s.applied), due: n(s.due), excess: n(s.excess),
         refundId: null, refundNumber, change: n(change), cashRounding: 0, warrantyUntil: until });
@@ -553,6 +616,101 @@ export function createMockRepairs(h: RepairMockHooks) {
       }
       return delay({ ok: true });
     },
+    // ---------------------------------------------------------------- Phase 9
+    async fitSerialPart(jid, p) {
+      const u = h.need('REPAIR.WORK');
+      const r = rowOf(jid);
+      if (!p.serial.trim()) throw problem(400, 'VAL-001', 'Scan the serial number of the part.');
+      const it = h.item(p.variantId);
+      if (!it) throw problem(400, 'VAL-001', 'Unknown part.');
+      if ([...rows.values()].some((x) => x.work.some((w) => w.serial === p.serial.trim().toUpperCase() && (w.qtyLeft ?? 0) > 0)))
+        throw problem(409, 'DEV-004', `That ${it.descriptionEn} is fitted, not in stock here.`);
+      const cost = -h.partMove(p.variantId, -1000n);
+      r.work.push({ id: id(), kind: 'part', variantId: p.variantId, sku: it.sku, nameEn: it.descriptionEn, nameAr: it.descriptionAr, qty: 1, cost: n(cost), returnOfId: null, minutes: null,
+        technicianName: null, note: p.note ?? null, createdAt: now(), createdBy: nameOf(u), qtyLeft: 1, costLeft: n(cost), writtenOff: false, serial: p.serial.trim().toUpperCase() });
+      return delay(detail(r));
+    },
+    async addOutsideWork(jid, w) {
+      const u = h.need('REPAIR.WORK');
+      const r = rowOf(jid);
+      if (!w.vendor.trim()) throw problem(400, 'VAL-001', 'Name who did the work.');
+      if (!(w.amount > 0)) throw problem(400, 'VAL-001', 'The amount is above zero, in baisa.');
+      if (!['under_diagnosis', 'waiting_parts', 'in_progress', 'testing'].includes(r.job.status)) throw problem(409, 'REP-002', `Outside work is recorded while the job is diagnosed or repaired; it is ${words(r.job.status)}.`);
+      r.work.push({ id: id(), kind: 'external', variantId: null, sku: null, nameEn: null, nameAr: null, qty: null, cost: w.amount, returnOfId: null, minutes: null, technicianName: r.job.technicianName,
+        note: w.note ?? null, createdAt: now(), createdBy: nameOf(u), qtyLeft: null, costLeft: null, writtenOff: false, vendor: w.vendor.trim(), reference: w.reference ?? null, reversed: false });
+      return delay(detail(r));
+    },
+    async reverseOutsideWork(jid, lineId, reason) {
+      const u = h.need('REPAIR.WORK');
+      const r = rowOf(jid); const l = r.work.find((x) => x.id === lineId && x.kind === 'external' && (x.cost ?? 0) > 0);
+      if (!l) throw problem(404, 'GEN-404', 'That outside work is not on this job.');
+      if (l.reversed) throw problem(409, 'REP-002', 'That outside work was already reversed or written off.');
+      if (!reason.trim()) throw problem(400, 'VAL-001', 'Say why it is reversed.');
+      l.reversed = true;
+      r.work.push({ ...l, id: id(), cost: -(l.cost ?? 0), returnOfId: l.id, note: reason.trim(), createdAt: now(), createdBy: nameOf(u), reversed: false });
+      return delay(detail(r));
+    },
+    async partsNeeded() {
+      h.need('REPAIR.VIEW');
+      const out: PartsNeededRow[] = [];
+      for (const r of [...rows.values()].sort((x, y) => x.job.createdAt.localeCompare(y.job.createdAt)))
+        for (const p of partsOf(r).filter((x) => x.requested > 0))
+          out.push({ jobId: r.job.id, jobNumber: r.job.number, jobStatus: r.job.status, branchCode: r.job.branchCode, branchId: r.job.branchId, variantId: p.variantId, sku: p.sku,
+            nameEn: p.nameEn, nameAr: p.nameAr, outstanding: p.requested, requested: p.requested, filled: 0, openSince: p.requestedSince, onHand: Number(fromBaisa(h.partStock?.(p.variantId) ?? 0n)),
+            reserved: 0, linkDocType: null, linkDocId: null });
+      return delay(out);
+    },
+    async fillPartsRequests() {
+      const u = h.need('REPAIR.WORK');
+      let moved = 0;
+      for (const r of [...rows.values()].sort((x, y) => x.job.createdAt.localeCompare(y.job.createdAt)))
+        if (r.job.status === 'waiting_parts' && short(r) === 0) { move(r, 'in_progress', u, 'Parts arrived'); moved++; }
+      return delay({ moved });
+    },
+    async jobShares(jid) {
+      h.need('REPAIR.VIEW');
+      return delay(rowOf(jid).shares.map((s) => ({ ...s, technicianName: h.users().find((x) => x.id === s.technicianId)?.displayNameEn ?? '' })));
+    },
+    async setJobShares(jid, shares) {
+      h.need('REPAIR.ASSIGN');
+      const r = rowOf(jid);
+      if (new Set(shares.map((s) => s.technicianId)).size !== shares.length) throw problem(400, 'COM-003', 'A technician appears twice.');
+      if (shares.some((s) => !(s.share > 0 && s.share <= 100)) || !sharesComplete(shares.map((s) => s.share))) throw problem(400, 'COM-003', 'The shares must make 100%.');
+      if (comm.settings() && r.job.status === 'delivered' && r.invoices.length > 0) throw problem(409, 'COM-002', 'The job’s commissions were generated; correct the invoice to change who shares them.');
+      r.shares = shares.map((s) => ({ ...s }));
+      return delay(undefined);
+    },
+    async correctRepairInvoice(jid, c) {
+      const u = h.need('REPAIR.INVOICE.CORRECT');
+      const r = rowOf(jid); const j = r.job;
+      const done = r.corrections.find((x) => x.id === c.id);
+      if (done) return delay({ jobId: jid, creditNoteId: c.id, creditNoteNumber: done.creditNoteNumber, credited: done.credited, correctedId: null, correctedNumber: done.correctedNumber, correctedGross: done.correctedGross });
+      if (j.status !== 'delivered') throw problem(409, 'REP-008', 'Only a delivered job’s invoice is corrected; before delivery, change the estimate.');
+      if ((c.reason ?? '').trim().length < 3) throw problem(400, 'VAL-001', 'Give the reason for the correction.');
+      const inv = standing(r);
+      if (!inv) throw problem(409, 'REP-008', `Job ${j.number} has no invoice standing: it was credited already.`);
+      const gross = inv.lines.reduce((a, l) => a + b(l.grossAmount), 0n);
+      const refunds: Tender[] = c.refunds.map((p) => ({ ...p, amount: b(p.amount), tendered: null }));
+      if (refunds.reduce((a, p) => a + p.amount, 0n) !== gross) throw problem(400, 'POS-006', `Refund ${fromBaisa(gross)}: the whole invoice is credited.`);
+      const cn = h.creditNote?.(inv.id, c.reason.trim(), refunds) ?? { id: c.id, number: h.next('cn', 'CN') };
+      comm.reverseInvoice(jid, inv.number, `Invoice ${inv.number} credited: ${c.reason.trim()}`, u);
+      let corrected: { id: string; number: string } | null = null;
+      let correctedGross: number | null = null;
+      if (c.lines && c.lines.length > 0) {
+        const lines = priceLines(c.lines);
+        const pays: Tender[] = (c.payments ?? []).map((p) => ({ ...p, amount: b(p.amount), tendered: p.tendered == null ? null : b(p.tendered) }));
+        const g = lines.reduce((a, l) => a + b(l.grossAmount), 0n);
+        if (pays.reduce((a, p) => a + p.amount, 0n) !== g) throw problem(400, 'POS-006', `Pay ${fromBaisa(g)} for the corrected invoice.`);
+        corrected = h.invoice(j.customerId, lines, pays);
+        correctedGross = n(g);
+        r.invoices.push({ id: corrected.id, number: corrected.number, lines });
+      }
+      r.corrections.push({ id: c.id, creditedNumber: inv.number, creditNoteNumber: cn.number, credited: n(gross), correctedNumber: corrected?.number ?? null, correctedGross,
+        reason: c.reason.trim(), createdAt: now(), createdBy: nameOf(u) });
+      if (corrected) comm.generate(commJob(r), u);
+      return delay({ jobId: jid, creditNoteId: cn.id, creditNoteNumber: cn.number, credited: n(gross), correctedId: corrected?.id ?? null, correctedNumber: corrected?.number ?? null, correctedGross });
+    },
+    ...comm.api,
   };
-  return { api, seed };
+  return { api, seed: () => { seed(); comm.seed(); } };
 }

@@ -69,6 +69,12 @@ const PERMISSIONS: Permission[] = [
   ['REPAIR.CREDENTIAL.VIEW', 'repair', 'See a customer device passcode (every view is logged)', 'عرض رمز قفل جهاز العميل (تُسجَّل كل مرة)'],
   ['NOTIF.SETTINGS', 'notif', 'Manage WhatsApp settings and message templates', 'إدارة إعدادات واتساب وقوالب الرسائل'],
   ['NOTIF.REPLY', 'notif', 'Reply to customers on WhatsApp', 'الرد على العملاء عبر واتساب'],
+  ['REPAIR.INVOICE.CORRECT', 'repair', 'Correct a delivered repair invoice at the till (credit note and corrected invoice)', 'تصحيح فاتورة صيانة مُسلَّمة عند نقطة البيع (إشعار دائن وفاتورة مصححة)'],
+  ['COMM.VIEW', 'comm', 'View technician commissions, payouts and reports', 'عرض عمولات الفنيين ودفعاتها وتقاريرها'],
+  ['COMM.OWN', 'comm', 'See one’s own commissions', 'عرض العمولات الخاصة'],
+  ['COMM.RULES', 'comm', 'Manage commission rules and settings', 'إدارة قواعد العمولة وإعداداتها'],
+  ['COMM.APPROVE', 'comm', 'Approve and reverse commissions', 'اعتماد العمولات وعكسها'],
+  ['COMM.PAY', 'comm', 'Pay commissions out', 'دفع العمولات'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -110,9 +116,11 @@ export function createMockApi(opts: MockOptions): KiteApi {
       'DEVICE.VIEW', 'DEVICE.INSPECT', 'DEVICE.REFURBISH', 'DEVICE.PRICE', 'DEVICE.SELL_DAMAGED', 'DEVICE.WRITE_OFF', 'DEVICE.HOLD', 'DEVICE.SETTINGS',
       'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT',
       'TRADEIN.CREATE', 'TRADEIN.APPROVE', 'TRADEIN.STORE_CREDIT', 'TRADEIN.PAYOUT', 'TRADEIN.VIEW', 'TRADEIN.SETTINGS',
-      'REPAIR.VIEW', 'REPAIR.INTAKE', 'REPAIR.WORK', 'REPAIR.ASSIGN', 'REPAIR.CANCEL', 'REPAIR.SETTINGS', 'REPAIR.CREDENTIAL.VIEW', 'NOTIF.SETTINGS', 'NOTIF.REPLY'] },
+      'REPAIR.VIEW', 'REPAIR.INTAKE', 'REPAIR.WORK', 'REPAIR.ASSIGN', 'REPAIR.CANCEL', 'REPAIR.SETTINGS', 'REPAIR.CREDENTIAL.VIEW', 'NOTIF.SETTINGS', 'NOTIF.REPLY',
+      'REPAIR.INVOICE.CORRECT', 'COMM.VIEW', 'COMM.OWN', 'COMM.APPROVE'] },
     { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE', 'TRADEIN.CREATE', 'TRADEIN.VIEW', 'REPAIR.VIEW', 'REPAIR.INTAKE', 'NOTIF.REPLY'] },
-    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW'] },
+    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW', 'COMM.VIEW', 'COMM.PAY'] },
+    { id: id(), code: 'technician', nameEn: 'Technician', nameAr: 'فني', isSystem: true, version: 1, permissions: ['REPAIR.VIEW', 'REPAIR.WORK', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'COMM.OWN'] },
   ];
   const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!'], ['manager', 'Manager-Pass-2026'], ['cashier', 'Cashier-Pass-2026']]);
   const pins = new Map<string, string>([['manager', '1357'], ['cashier', '2468']]);

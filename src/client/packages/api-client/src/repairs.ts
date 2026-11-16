@@ -1,5 +1,7 @@
 // Phase 8 API: repair jobs (intake, the workshop board, estimates, parts and labour, deposits, collection, messages), repair
 // settings, and WhatsApp on the main server (settings, templates, the test chat).
+// Phase 9: parts reserved and requested, serial parts, outside work, technician shares, commissions and payouts, and the
+// correction of a delivered repair invoice at the till.
 import type { TenderInput } from './pos';
 
 export const REPAIR_STATUSES = [
@@ -61,10 +63,22 @@ export interface RepairEstimate {
   approvalRef: string | null; declineReason: string | null; declinedAt: string | null; createdAt: string; createdBy: string; version: number; lines: RepairEstimateLine[];
 }
 export interface RepairWorkLine {
-  id: string; kind: 'part' | 'labour'; variantId: string | null; sku: string | null; nameEn: string | null; nameAr: string | null; qty: number | null; cost: number | null;
+  id: string; kind: 'part' | 'labour' | 'external'; variantId: string | null; sku: string | null; nameEn: string | null; nameAr: string | null; qty: number | null; cost: number | null;
   returnOfId: string | null; minutes: number | null; technicianName: string | null; note: string | null; createdAt: string; createdBy: string; qtyLeft: number | null;
   costLeft: number | null; writtenOff: boolean;
+  /** Phase 9: the serial number of a serial-tracked part; who did outside work and their reference; an outside-work line reversed. */
+  serial?: string | null; vendor?: string | null; reference?: string | null; reversed?: boolean;
 }
+/** Phase 9 (13.4): what the job's approved estimate needs of each part, fitted, reserved in stock and still requested. */
+export interface RepairPartRow {
+  variantId: string; sku: string; nameEn: string; nameAr: string; tracking: 'none' | 'serial' | 'imei'; needed: number; fitted: number; reserved: number;
+  requested: number; requestedSince: string | null;
+}
+export interface PartsNeededRow {
+  jobId: string; jobNumber: string; jobStatus: RepairStatus; branchCode: string; branchId: string; variantId: string; sku: string; nameEn: string; nameAr: string;
+  outstanding: number; requested: number; filled: number; openSince: string | null; onHand: number; reserved: number; linkDocType: string | null; linkDocId: string | null;
+}
+export interface JobShare { technicianId: string; technicianName: string; technicianNameAr?: string | null; share: number }
 export interface RepairDeposit {
   id: string; number: string; kind: 'deposit' | 'refund' | 'applied'; amount: number; tax: number; method: string | null; reason: string | null;
   saleNumber: string | null; createdAt: string; createdBy: string;
@@ -76,6 +90,19 @@ export interface RepairDetail {
   photos: { id: string; stage: string; contentType: string; size: number; sha256: string; caption: string | null; createdAt: string }[];
   claims: { id: string; number: string; status: RepairStatus }[];
   money: { deposit: number; depositTax: number; wip: number; charges: RepairEstimateLine[]; chargesTotal: number; due: number; excess: number; diagnosisFee: number; hourlyRate: number; depositVatPoint: boolean };
+  /** Phase 9: what the job needs of each part; the invoice that stands now (after corrections at the till); the corrections. */
+  parts?: RepairPartRow[];
+  invoice?: RepairInvoice | null;
+  corrections?: RepairCorrectionRow[];
+}
+export interface RepairInvoice {
+  header: { id: string; number: string; saleDate: string; grossTotal: number; taxTotal: number; netTotal: number; cashRounding: number };
+  lines: { id: string; kind: 'labour' | 'part' | 'extra' | null; variantId: string; descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number;
+    netAmount: number; taxAmount: number; grossAmount: number }[];
+}
+export interface RepairCorrectionRow {
+  id: string; creditedNumber: string; creditNoteNumber: string; credited: number; correctedNumber: string | null; correctedGross: number | null; reason: string;
+  createdAt: string; createdBy: string;
 }
 export interface RepairLookup {
   kind: string; value: string;
@@ -150,6 +177,48 @@ export interface TestChat {
 }
 export type TestChatAction = 'delivered' | 'read' | 'failed' | 'button' | 'text' | 'stop' | 'start';
 
+// ------------------------------------------------------------------ Phase 9: commissions (blueprint 15)
+export type CommissionBasisKind = 'fixed' | 'labour' | 'profit';
+export interface CommissionSettings { generateOn: 'delivered' | 'paid'; approvalBy: 'branch' | 'head_office'; clawbackDays: number; clawbackPercent: number; version: number }
+export interface CommissionRule {
+  id: string; ruleKey: string; version: number; nameEn: string; nameAr: string; basis: CommissionBasisKind; amount: number | null; rate: number | null;
+  minAmount: number | null; maxAmount: number | null; technicianId: string | null; technicianName: string | null; technicianNameAr?: string | null; branchId: string | null; branchCode: string | null;
+  categoryId: string | null; categoryEn: string | null; categoryAr: string | null; effectiveFrom: string; effectiveTo: string | null; status: 'active' | 'inactive';
+  rank: number; latest: boolean; used: number; createdAt: string;
+}
+export interface CommissionRuleInput {
+  nameEn: string; nameAr: string; basis: CommissionBasisKind; amount?: number | null; rate?: number | null; minAmount?: number | null; maxAmount?: number | null;
+  technicianId?: string | null; branchId?: string | null; categoryId?: string | null; effectiveFrom: string; effectiveTo?: string | null;
+}
+export type AccrualStatus = 'accrued' | 'approved' | 'paid' | 'reversed';
+export interface CommissionAccrual {
+  id: string; jobId: string; jobNumber: string; branchId: string; branchCode: string; technicianId: string; technicianName: string; technicianNameAr?: string | null;
+  kind: 'repair' | 'clawback' | 'reversal'; kindVersion: number; amount: number; share: number | null; basis: CommissionBasisKind | null;
+  basisAmounts: { labour?: number; partsRevenue?: number; partsCost?: number; external?: number; profit?: number };
+  trace: Record<string, unknown>; ruleKey: string | null; ruleVersion: number | null; ruleNameEn: string | null; ruleNameAr: string | null; invoiceNumber: string | null;
+  accrualDate: string; status: AccrualStatus; reversesId: string | null; reason: string | null; approvedBy: string | null; approvedAt: string | null;
+  payoutNumber: string | null; createdAt: string;
+}
+export interface PayableRow { branchId: string; branchCode: string; technicianId: string; technicianName: string; technicianNameAr?: string | null; count: number; total: number; oldest: string }
+export interface CommissionPayout {
+  id: string; number: string; branchId: string; branchCode: string; technicianId: string; technicianName: string; technicianNameAr?: string | null; method: 'cash' | 'bank' | 'payroll'; total: number;
+  reference: string | null; note: string | null; payoutDate: string; createdBy: string; lines: number;
+}
+export interface CommissionStatement {
+  technician: string; technicianAr?: string | null; from: string; to: string; opening: number; closing: number; accruals: CommissionAccrual[];
+  payouts: { id: string; number: string; method: string; total: number; payoutDate: string; branchCode: string }[];
+}
+export interface PerformanceRow { technicianId: string; technicianName: string; technicianNameAr?: string | null; jobs: number; revenue: number; avgTurnaroundHours: number | null; rework: number; commission: number }
+export interface RuleUsageRow { ruleKey: string; version: number; nameEn: string; nameAr: string; basis: CommissionBasisKind; rate: number | null; amount: number | null; accruals: number; total: number; first: string; last: string }
+export interface RepairCorrectionLine { kind: 'labour' | 'part' | 'extra'; variantId: string; qty: number; unitPrice?: number | null; minutes?: number | null; descriptionEn?: string | null; descriptionAr?: string | null }
+export interface RepairCorrectionInput {
+  id: string; reason: string; refunds: TenderInput[]; lines?: RepairCorrectionLine[] | null; payments?: TenderInput[] | null; expectedCredit?: number | null; correctedId?: string | null;
+}
+export interface RepairCorrectionResult {
+  jobId: string; creditNoteId: string; creditNoteNumber: string; credited: number; refunded?: number; correctedId: string | null; correctedNumber: string | null;
+  correctedGross: number | null; paid?: number | null; change?: number;
+}
+
 export interface RepairApi {
   repairs(f?: { status?: RepairStatus; technicianId?: string; branchId?: string; q?: string; open?: boolean }): Promise<RepairBoardRow[]>;
   repair(id: string): Promise<RepairDetail>;
@@ -193,6 +262,32 @@ export interface RepairApi {
   updateWhatsAppTemplate(id: string, t: { metaName: string; metaLang: string; body: string; buttons: string[]; version: number }): Promise<{ id: string }>;
   testChat(phone?: string | null): Promise<TestChat>;
   testChatAction(a: { phone: string; action: TestChatAction; text?: string | null; button?: number | null; wamid?: string | null }): Promise<unknown>;
+  // Phase 9
+  fitSerialPart(id: string, p: { variantId: string; serial: string; note?: string | null }): Promise<RepairDetail>;
+  addOutsideWork(id: string, w: { vendor: string; amount: number; reference?: string | null; note?: string | null }): Promise<RepairDetail>;
+  reverseOutsideWork(id: string, lineId: string, reason: string): Promise<RepairDetail>;
+  partsNeeded(branchId?: string | null): Promise<PartsNeededRow[]>;
+  fillPartsRequests(): Promise<{ moved: number }>;
+  jobShares(id: string): Promise<JobShare[]>;
+  setJobShares(id: string, shares: { technicianId: string; share: number }[]): Promise<void>;
+  correctRepairInvoice(id: string, c: RepairCorrectionInput): Promise<RepairCorrectionResult>;
+  commissionSettings(): Promise<CommissionSettings>;
+  updateCommissionSettings(s: CommissionSettings): Promise<void>;
+  commissionRules(): Promise<CommissionRule[]>;
+  createCommissionRule(r: CommissionRuleInput): Promise<{ id: string; ruleKey: string; version: number }>;
+  newCommissionRuleVersion(ruleKey: string, r: CommissionRuleInput): Promise<{ id: string; ruleKey: string; version: number }>;
+  endCommissionRule(ruleKey: string, effectiveTo: string): Promise<void>;
+  commissions(f?: { status?: AccrualStatus; technicianId?: string; branchId?: string; jobId?: string; from?: string; to?: string }): Promise<CommissionAccrual[]>;
+  myCommissions(f?: { from?: string; to?: string }): Promise<CommissionAccrual[]>;
+  approveCommissions(ids: string[]): Promise<{ approved: number }>;
+  reverseCommission(id: string, reason: string): Promise<{ reversalId: string }>;
+  generateCommissions(jobId?: string | null): Promise<{ written: number }>;
+  commissionsPayable(f?: { branchId?: string; technicianId?: string }): Promise<PayableRow[]>;
+  payCommissions(p: { branchId: string; technicianId: string; accrualIds: string[]; method: 'cash' | 'bank' | 'payroll'; reference?: string | null; note?: string | null }): Promise<{ id: string; number: string; total: number }>;
+  commissionPayouts(technicianId?: string | null): Promise<CommissionPayout[]>;
+  commissionStatement(technicianId: string, from: string, to: string): Promise<CommissionStatement>;
+  technicianPerformance(from: string, to: string, branchId?: string | null): Promise<PerformanceRow[]>;
+  commissionRuleUsage(from?: string | null, to?: string | null): Promise<RuleUsageRow[]>;
 }
 
 type Http = { get: <T>(p: string) => Promise<T>; post: <T>(p: string, b?: unknown) => Promise<T>; put: <T>(p: string, b: unknown) => Promise<T>; blob: (p: string) => Promise<Blob> };
@@ -247,5 +342,30 @@ export function repairMethods(h: Http): RepairApi {
     updateWhatsAppTemplate: (id, t) => put(`/api/v1/whatsapp/templates/${id}`, t),
     testChat: (phone) => get(`/api/v1/whatsapp/test-chat${qs({ phone })}`),
     testChatAction: (a) => post('/api/v1/whatsapp/test-chat', a),
+    fitSerialPart: (id, p) => post(`${r(id)}/parts`, { variantId: p.variantId, qty: 1, serial: p.serial, note: p.note ?? null }),
+    addOutsideWork: (id, w) => post(`${r(id)}/outside-work`, w),
+    reverseOutsideWork: (id, lineId, reason) => post(`${r(id)}/outside-work/${lineId}/reverse`, { reason }),
+    partsNeeded: (branchId) => get(`/api/v1/repairs/parts-needed${qs({ branchId })}`),
+    fillPartsRequests: () => post('/api/v1/repairs/parts-needed/fill'),
+    jobShares: (id) => get(`${r(id)}/shares`),
+    setJobShares: (id, shares) => put(`${r(id)}/shares`, { shares }),
+    correctRepairInvoice: (id, c) => post(`${r(id)}/correct`, c),
+    commissionSettings: () => get('/api/v1/commissions/settings'),
+    updateCommissionSettings: (s) => put('/api/v1/commissions/settings', s),
+    commissionRules: () => get('/api/v1/commissions/rules'),
+    createCommissionRule: (x) => post('/api/v1/commissions/rules', x),
+    newCommissionRuleVersion: (key, x) => put(`/api/v1/commissions/rules/${key}`, x),
+    endCommissionRule: (key, effectiveTo) => post(`/api/v1/commissions/rules/${key}/end`, { effectiveTo }),
+    commissions: (f) => get(`/api/v1/commissions${qs(f ?? {})}`),
+    myCommissions: (f) => get(`/api/v1/commissions/mine${qs(f ?? {})}`),
+    approveCommissions: (ids) => post('/api/v1/commissions/approve', { ids }),
+    reverseCommission: (id, reason) => post(`/api/v1/commissions/${id}/reverse`, { reason }),
+    generateCommissions: (jobId) => post('/api/v1/commissions/generate', { jobId: jobId ?? null }),
+    commissionsPayable: (f) => get(`/api/v1/commissions/payable${qs(f ?? {})}`),
+    payCommissions: (p) => post('/api/v1/commissions/payouts', p),
+    commissionPayouts: (technicianId) => get(`/api/v1/commissions/payouts${qs({ technicianId })}`),
+    commissionStatement: (technicianId, from, to) => get(`/api/v1/commissions/statement${qs({ technicianId, from, to })}`),
+    technicianPerformance: (from, to, branchId) => get(`/api/v1/commissions/performance${qs({ from, to, branchId })}`),
+    commissionRuleUsage: (from, to) => get(`/api/v1/commissions/rule-usage${qs({ from, to })}`),
   };
 }

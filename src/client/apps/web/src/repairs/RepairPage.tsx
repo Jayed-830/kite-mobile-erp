@@ -9,6 +9,7 @@ import { fmt, qty } from '../money';
 import { Ident } from '../devices/bits';
 import { openPdf } from '../pos/TradeInWizard';
 import { RepairStatusBadge, SignaturePad } from './bits';
+import { InvoiceCard, JobCommissions, OutsideWorkCard, PartsCard, SharesCard } from './RepairExtras';
 
 type Tab = 'overview' | 'estimates' | 'work' | 'money' | 'messages' | 'history';
 
@@ -89,6 +90,7 @@ export function RepairPage() {
                 <option value="">{t('repair.unassigned')}</option>
                 {(techs.data ?? []).map((u) => <option key={u.id} value={u.id}>{pick(u.nameEn, u.nameAr ?? u.nameEn)}</option>)}
               </SelectField>
+              {!j.warrantyOfId && <SharesCard d={d} />}
               <div><strong>{t('repair.intake.condition')}</strong>
                 <ul>{Object.entries(j.condition).map(([k, v]) => <li key={k}>{t(`repair.intake.checks.${k}`)}: {t(`repair.intake.values.${v}`)}</li>)}</ul>
                 {j.conditionNotes && <p dir="auto">{j.conditionNotes}</p>}
@@ -108,6 +110,7 @@ export function RepairPage() {
           </Card>
         </div>
       )}
+      {tab === 'overview' && j.status === 'delivered' && can(me, 'COMM.VIEW') && <JobCommissions jobId={j.id} />}
       {tab === 'estimates' && <Estimates d={d} onDone={keep} onError={setError} />}
       {tab === 'work' && <Work d={d} onDone={keep} onError={setError} />}
       {tab === 'money' && <Money d={d} />}
@@ -313,20 +316,27 @@ function Work({ d, onDone, onError }: { d: RepairDetail; onDone: (d: RepairDetai
   const { t, lang, pick } = useI18n();
   const [part, setPart] = useState<PosItem | null>(null);
   const [partQty, setPartQty] = useState('1');
+  const [serial, setSerial] = useState('');
   const [minutes, setMinutes] = useState('');
   const [writeOff, setWriteOff] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const j = d.job;
   const canWork = can(me, 'REPAIR.WORK') && !j.outcome && j.status !== 'delivered';
+  const fit = () => (part!.tracking === 'serial'
+    ? api.fitSerialPart(j.id, { variantId: part!.variantId, serial: serial.trim() })
+    : api.fitPart(j.id, { variantId: part!.variantId, qty: Number(partQty) })).then((r) => { onDone(r); setPart(null); setPartQty('1'); setSerial(''); }).catch(onError);
   return (
     <div className="stack">
+      <PartsCard d={d} />
       {canWork && (
         <div className="grid-2">
           <Card><div className="stack">
             <strong>{t('repair.work.fit')}</strong>
             {part ? <div className="row"><span className="grow">{pick(part.descriptionEn, part.descriptionAr)}</span><Button size="sm" variant="ghost" onClick={() => setPart(null)}>✕</Button></div> : <ItemSearch branchId={j.branchId} onPick={setPart} />}
-            <TextField label={t('repair.work.qty')} inputMode="decimal" className="ltr num" value={partQty} onChange={(e) => setPartQty(e.target.value)} />
-            <div><Button variant="primary" disabled={!part} onClick={() => api.fitPart(j.id, { variantId: part!.variantId, qty: Number(partQty) }).then((r) => { onDone(r); setPart(null); setPartQty('1'); }).catch(onError)}>{t('repair.work.fit')}</Button></div>
+            {part?.tracking === 'serial'
+              ? <TextField label={t('parts.scanSerial')} help={t('parts.serialPart')} className="ltr mono" value={serial} onChange={(e) => setSerial(e.target.value)} />
+              : <TextField label={t('repair.work.qty')} inputMode="decimal" className="ltr num" value={partQty} onChange={(e) => setPartQty(e.target.value)} />}
+            <div><Button variant="primary" disabled={!part || (part.tracking === 'serial' && !serial.trim())} onClick={() => void fit()}>{t('repair.work.fit')}</Button></div>
           </div></Card>
           <Card><div className="stack">
             <strong>{t('repair.work.labour')}</strong>
@@ -335,9 +345,9 @@ function Work({ d, onDone, onError }: { d: RepairDetail; onDone: (d: RepairDetai
           </div></Card>
         </div>
       )}
-      <DataTable rows={d.work} rowKey={(w) => w.id} empty={t('repair.work.none')}
+      <DataTable rows={d.work.filter((w) => w.kind !== 'external')} rowKey={(w) => w.id} empty={t('repair.work.none')}
         columns={[
-          { key: 'w', header: t('repair.work.part'), render: (w) => w.kind === 'labour' ? <span>{t('repair.work.labourLine', { n: w.minutes ?? 0, name: w.technicianName ?? '' })}</span> : <span>{pick(w.nameEn ?? '', w.nameAr ?? '')} <span className="ltr muted">{w.sku}</span>{w.writtenOff && <Badge tone="danger">{t('repair.work.writtenOff')}</Badge>}</span> },
+          { key: 'w', header: t('repair.work.part'), render: (w) => w.kind === 'labour' ? <span>{t('repair.work.labourLine', { n: w.minutes ?? 0, name: w.technicianName ?? '' })}</span> : <span>{pick(w.nameEn ?? '', w.nameAr ?? '')} <span className="ltr muted">{w.sku}</span>{w.serial && <span className="ltr mono"> · {w.serial}</span>}{w.writtenOff && <Badge tone="danger">{t('repair.work.writtenOff')}</Badge>}</span> },
           { key: 'q', header: t('repair.work.qty'), render: (w) => w.qty == null ? '' : <span className="num">{qty(w.qty)}</span> },
           { key: 'c', header: t('repair.work.cost'), render: (w) => w.cost == null || w.kind === 'labour' ? '' : <span className="num">{fmt(w.cost)}</span> },
           { key: 'l', header: t('repair.work.left'), render: (w) => w.qtyLeft == null ? '' : <span className="num">{qty(w.qtyLeft)} · {fmt(w.costLeft)}</span> },
@@ -348,6 +358,7 @@ function Work({ d, onDone, onError }: { d: RepairDetail; onDone: (d: RepairDetai
               <Button size="sm" variant="ghost" onClick={() => { setReason(''); setWriteOff(w.id); }}>{t('repair.work.writeOff')}</Button>
             </span>) : null },
         ]} />
+      <OutsideWorkCard d={d} onDone={onDone} onError={onError} />
       <div className="muted">{t('repair.work.wip')}: <span className="num">{fmt(d.money.wip)}</span></div>
       <Modal open={writeOff != null} title={t('repair.work.writeOff')} onClose={() => setWriteOff(null)}
         footer={<Button variant="danger" onClick={() => api.writeOffPart(j.id, writeOff!, reason).then((r) => { onDone(r); setWriteOff(null); }).catch(onError)}>{t('repair.work.writeOff')}</Button>}>
@@ -363,6 +374,7 @@ function Money({ d }: { d: RepairDetail }) {
   return (
     <div className="stack">
       <Alert tone="info">{t('repair.money.tillHint')}</Alert>
+      <InvoiceCard d={d} />
       {m.depositVatPoint && <p className="muted">{t('repair.money.vatInDeposit')}</p>}
       <div className="figures-row">
         <div className="fig"><span>{t('repair.money.balance')}</span><strong className="num">{fmt(m.deposit)}</strong></div>

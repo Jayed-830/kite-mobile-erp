@@ -142,3 +142,8 @@ export function formatDate(iso: string | null | undefined, lang: 'en' | 'ar'): s
 
 /** The branch the signed-in user works in here: a branch server's own branch, else the user's default, else the first they can see. */
 export const workBranchId = (me: Me | null | undefined): string => me?.serverBranchId ?? me?.user.defaultBranchId ?? me?.branches[0]?.id ?? '';
+
+/** Today in the business's time zone (Oman), as YYYY-MM-DD: business days (commission dates, invoices) are counted there. */
+export function businessToday(offsetDays = 0): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Muscat' }).format(new Date(Date.now() + offsetDays * 864e5));
+}
