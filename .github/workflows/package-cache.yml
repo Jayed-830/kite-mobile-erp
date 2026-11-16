@@ -1,8 +1,12 @@
-# Restores the .NET solution and publishes the NuGet package folder as an artifact, so a development machine
-# without access to nuget.org can restore offline (dotnet restore --source <folder>). Run by hand.
+# Restores the .NET solution and publishes the NuGet package folder as a DRAFT release asset (not public, never
+# published), so a development machine without access to nuget.org can restore offline:
+#   dotnet restore --source <unpacked folder>
+# Run by hand; the draft release "dev-package-cache" is replaced on each run and deleted when no longer needed.
 name: Package cache
 on:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   nuget:
     runs-on: ubuntu-latest
@@ -18,8 +22,13 @@ jobs:
           dotnet restore Kite.slnx
           for p in poc/questpdf-arabic/*.csproj; do dotnet restore "$p"; done
           du -sh "$NUGET_PACKAGES"; ls "$NUGET_PACKAGES" | wc -l
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nuget-packages
-          path: ${{ runner.temp }}/nuget-packages/
-          retention-days: 7
+          tar -C "$NUGET_PACKAGES" -czf "$RUNNER_TEMP/nuget-packages.tar.gz" .
+          ls -la "$RUNNER_TEMP/nuget-packages.tar.gz"
+      - name: Replace the draft release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev-package-cache --yes --cleanup-tag 2>/dev/null || true
+          gh release create dev-package-cache "$RUNNER_TEMP/nuget-packages.tar.gz" --draft --prerelease \
+            --title "Development package cache (draft, not a release)" \
+            --notes "NuGet packages for offline restore on a development machine. Not a product release; deleted when no longer needed."
