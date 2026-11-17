@@ -53,6 +53,9 @@ builder.Services.AddSingleton<RepairHousekeeping>();
 builder.Services.AddHostedService<PartsWorker>();
 builder.Services.AddHostedService<WhatsAppWorker>();
 builder.Services.AddHttpClient("whatsapp", c => c.Timeout = TimeSpan.FromSeconds(20));
+// Phase 10: customer credit and suppliers between branch servers and head office; holds, reminders and ledger checks.
+builder.Services.AddSingleton<CreditLink>();
+builder.Services.AddHostedService<CreditWorker>();
 
 // Kestrel: the web/API addresses from configuration ("urls"), plus the TLS sync port on which branch servers
 // register and send heartbeats with their client certificates (blueprint 18.1, 18.4).
@@ -127,6 +130,8 @@ RepairEndpoints.Map(app);
 PosEndpoints.MapRepairCorrection(app);
 CommissionEndpoints.Map(app);
 WhatsAppEndpoints.Map(app);
+CreditEndpoints.Map(app);
+SupplierEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>

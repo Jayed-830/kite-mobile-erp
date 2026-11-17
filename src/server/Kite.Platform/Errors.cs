@@ -158,4 +158,14 @@ public static class ErrorCodes
     public const string CommissionState = "COM-002";
     public const string CommissionShares = "COM-003";
     public const string CommissionPayout = "COM-004";
+    public const string CreditNoAccount = "CRD-001";
+    public const string CreditHold = "CRD-002";
+    public const string CreditLimit = "CRD-003";
+    public const string CreditApprovalRequired = "CRD-004";
+    public const string CreditAllocation = "CRD-005";
+    public const string CreditAllowance = "CRD-006";
+    public const string CreditItems = "CRD-007";
+    public const string CreditHeadOffice = "CRD-008";
+    public const string CreditRefund = "CRD-009";
+    public const string SupplierState = "SUP-001";
 }

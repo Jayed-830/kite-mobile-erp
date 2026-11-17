@@ -290,9 +290,9 @@ public static class EmergencyEndpoints
             x.CardTerminal ?? (x.Method == "card" ? "UNKNOWN" : null), x.ApprovalCode ?? (x.Method == "card" ? "EMERGENCY" : null), x.Reference)).ToArray();
         if (tenders.Any(x => !PosMath.Methods.Contains(x.Method) || x.Amount <= 0))
             throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"A payment of {p.Number} is not valid.");
-        // Trade-ins and store credit need the server (their balances are checked under its locks): not in emergency mode.
-        if (tenders.Any(x => x.Method is "trade_in" or "store_credit"))
-            throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"{p.Number} was paid with trade-in or store credit, which emergency mode does not take.");
+        // Trade-ins, store credit and sales on account need the server (their balances are checked under its locks): not in emergency mode.
+        if (tenders.Any(x => x.Method is "trade_in" or "store_credit" or "credit"))
+            throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"{p.Number} was paid with trade-in, store credit or on account, which emergency mode does not take.");
         if (tenders.Sum(x => x.Amount) != gross + p.CashRounding)
             throw new KiteException(ErrorCodes.EmergencyRecordInvalid, $"Payments of {p.Number} do not match its total.");
         // The product type decides the accounts: take it from the catalog, not from the terminal.

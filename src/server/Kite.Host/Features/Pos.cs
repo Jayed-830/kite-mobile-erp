@@ -18,7 +18,7 @@ public sealed record CloseShiftRequest(Dictionary<string, int>? ClosingCount, de
 public sealed record CartLineInput(Guid VariantId, decimal Qty, decimal? UnitPrice = null, decimal? Discount = null, Guid? ApprovalId = null,
     Guid? DeviceUnitId = null, Guid? DamagedApprovalId = null);
 public sealed record CompleteSaleRequest(List<CartLineInput> Lines, List<TenderInput>? Payments, string? DocType = null, Guid? CustomerId = null,
-    decimal? ExpectedTotal = null, string? Note = null, Guid? ApprovalId = null);
+    decimal? ExpectedTotal = null, string? Note = null, Guid? ApprovalId = null, Guid? CreditApprovalId = null, CreditPlanInput? CreditPlan = null);
 public sealed record ReturnLineInput(Guid LineId, decimal Qty, bool Restock = true, string? Code = null);
 public sealed record ReturnRequest(Guid Id, List<ReturnLineInput> Lines, List<TenderInput> Refunds, string? Reason, Guid? ApprovalId = null,
     Guid? ExchangeGroupId = null);
@@ -39,7 +39,8 @@ public sealed record ShiftFigures(
     decimal CashRounding, decimal CashPayments, decimal CardPayments, decimal TransferPayments, decimal PayIns, decimal PayOuts, decimal Drops,
     int NoSales, decimal OpeningFloat, decimal ExpectedCash, IReadOnlyList<CardTerminalTotal> CardByTerminal,
     decimal TradeInCredit = 0m, decimal StoreCreditPayments = 0m, decimal TradeInPayouts = 0m,
-    decimal RepairDeposits = 0m, decimal RepairDepositRefunds = 0m, decimal RepairDepositsApplied = 0m);
+    decimal RepairDeposits = 0m, decimal RepairDepositRefunds = 0m, decimal RepairDepositsApplied = 0m,
+    decimal OnAccountSales = 0m, decimal CreditReceipts = 0m);
 
 public sealed record CardTerminalTotal(string CardTerminal, decimal Total);
 
@@ -52,7 +53,7 @@ public static partial class PosEndpoints
     [
         Permissions.PosDiscountAboveLimit, Permissions.PosPriceOverride, Permissions.PosSaleVoid, Permissions.PosRefund,
         Permissions.PosCashPayOut, Permissions.PosDrawerNoSale, Permissions.PosShiftAcceptVariance, Permissions.DeviceSellDamaged,
-        Permissions.TradeInApprove, Permissions.TradeInStoreCredit, Permissions.TradeInPayout,
+        Permissions.TradeInApprove, Permissions.TradeInStoreCredit, Permissions.TradeInPayout, Permissions.CreditOverride,
     ];
 
     private const string ShiftSelect = """
@@ -367,6 +368,9 @@ public static partial class PosEndpoints
             SELECT coalesce(sum(amount) FILTER (WHERE amount > 0), 0), coalesce(-sum(amount) FILTER (WHERE amount < 0), 0)
               FROM sales.payment WHERE shift_id = @id AND repair_deposit_id IS NOT NULL
             """, new { id = s.Id });
+        // Customer payments for credit accounts taken on this drawer (14.4): tenders with a customer receipt instead of a sale.
+        var creditReceipts = await t.ExecuteScalarAsync<decimal>(
+            "SELECT coalesce(sum(amount), 0) FROM sales.payment WHERE shift_id = @id AND customer_receipt_id IS NOT NULL", new { id = s.Id });
         var cash = pay.GetValueOrDefault("cash");
         // Trade-ins paid out in cash leave the drawer like a pay-out (12.5).
         return new ShiftFigures((int)sale.Count, sale.Gross, sale.Net, sale.Tax, sale.Discount, (int)sale.CnCount, sale.CnGross, sale.Rounding,
@@ -374,7 +378,7 @@ public static partial class PosEndpoints
             ev.TryGetValue("no_sale", out var ns) ? (int)ns.Count : 0, s.OpeningFloat,
             PosMath.ExpectedCash(s.OpeningFloat, cash, E("pay_in"), E("pay_out") + E("tradein_payout"), E("drop")), cards,
             pay.GetValueOrDefault("trade_in"), pay.GetValueOrDefault("store_credit"), E("tradein_payout"),
-            deposits.In, deposits.Out, pay.GetValueOrDefault("deposit"));
+            deposits.In, deposits.Out, pay.GetValueOrDefault("deposit"), pay.GetValueOrDefault("credit"), creditReceipts);
     }
 
     // ------------------------------------------------------------------ approvals
@@ -740,9 +744,21 @@ public static partial class PosEndpoints
             throw new KiteException(ErrorCodes.SaleChanged, $"Prices changed: the total is now {totals.Gross:0.000}, not {shown:0.000}. Check the cart and try again.", 409, "expectedTotal");
         var payments = PosMath.CheckTenders(req.Payments ?? [], totals.Gross, policy.CashRounding);
         await CheckCreditTendersAsync(t, term, req.CustomerId, payments.Tenders, refund: false);
+        // On account (14.3): a named customer with a credit account, decided here, by head office, or offline on a branch server.
+        CreditCheck? credit = null;
+        var onAccount = payments.Tenders.Where(p => p.Method == "credit").Sum(p => p.Amount);
+        if (onAccount > 0)
+        {
+            if (req.CustomerId is null) throw new KiteException(ErrorCodes.CustomerRequired, "A sale on account is charged to a customer: choose the customer.", 400, "customerId");
+            http.User.Demand(Permissions.PosCreditSale, term.BranchId);
+            credit = await CreditCore.CheckSaleAsync(t, http.RequestServices.GetRequiredService<CreditLink>(), term, req.CustomerId.Value, id, onAccount,
+                req.CreditApprovalId, uid, req.CreditPlan, biz.TimeZone, http.User.HasIn(Permissions.CreditOverride, term.BranchId));
+        }
+        else if (req.CreditApprovalId is not null || req.CreditPlan is not null)
+            throw new KiteException(ErrorCodes.Validation, "A credit approval or instalment plan goes with a payment on account.", 400, "creditPlan");
 
         var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(id, shift.Id, uid, req.CustomerId, docType, null, null, null, now,
-            draft, payments, false, Note: string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim(),
+            draft, payments, false, Note: string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim(), Credit: credit,
             Audit: uses.Count == 0 ? null : number => new AuditEntry("pos.sale_with_approval", "sale", id, After: Json.Obj(new { number, approvals = uses.Keys }), BranchId: term.BranchId)));
         return new SaleSummary(id, written.Number, docType, written.Gross, written.CashRounding, payments.Paid,
             payments.Tenders.Sum(x => x.Change ?? 0m), written.StockExceptions);
@@ -780,6 +796,18 @@ public static partial class PosEndpoints
             var balance = await t.ExecuteScalarAsync<decimal>("SELECT crm.store_credit_balance(@customerId)", new { customerId });
             if (credit > balance) throw new KiteException(ErrorCodes.StoreCreditShort, $"The customer has {balance:0.000} of store credit.", 409, "payments");
         }
+    }
+
+    /// <summary>A refund "on account" takes back at most what the original sale charged to the customer's account (14.4).</summary>
+    public static async Task CheckOnAccountRefundAsync(DbTx t, Guid originalId, Guid? customerId, IReadOnlyList<CheckedTender> refunds)
+    {
+        var onAccount = refunds.Where(p => p.Method == "credit").Sum(p => p.Amount);
+        if (onAccount <= 0) return;
+        if (customerId is null) throw new KiteException(ErrorCodes.CustomerRequired, "Only a customer's sale goes back on account.", 400, "refunds");
+        await CreditCore.LockAsync(t, customerId.Value);
+        var left = await CreditCore.RefundableOnAccountAsync(t, originalId);
+        if (onAccount > left)
+            throw new KiteException(ErrorCodes.CreditRefund, left <= 0 ? "Nothing on this sale was charged on account: refund it another way." : $"At most {left:0.000} goes back on account.", 400, "refunds");
     }
 
     private static async Task<(Guid TerminalId, SaleSummary Summary)?> ExistingAsync(DbTx t, Guid id)
@@ -872,6 +900,7 @@ public static partial class PosEndpoints
         var gross = draft.Sum(d => d.Gross);
         var refunds = PosMath.CheckTenders(req.Refunds ?? [], gross, policy.CashRounding, refund: true);
         await CheckCreditTendersAsync(t, term, original.CustomerId, refunds.Tenders, refund: true);
+        await CheckOnAccountRefundAsync(t, original.Id, original.CustomerId, refunds.Tenders);
         foreach (var (p, i) in refunds.Tenders.Select((p, i) => (p, i)))
             if (p.Method == "card" && p.CardTerminal is null)
                 throw new KiteException(ErrorCodes.Validation, "Name the bank terminal the card refund is made on.", 400, $"refunds[{i}].cardTerminal");

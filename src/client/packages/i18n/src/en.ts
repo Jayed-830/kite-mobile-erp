@@ -4,6 +4,7 @@ import { imeiEn } from './en.imei';
 import { tradeinEn } from './en.tradein';
 import { repairEn } from './en.repair';
 import { commEn } from './en.comm';
+import { creditEn } from './en.credit';
 // English strings. Arabic (ar.ts) must have exactly the same keys; a test enforces it.
 export const en = {
   ...posEn,
@@ -12,6 +13,7 @@ export const en = {
   ...tradeinEn,
   ...repairEn,
   ...commEn,
+  ...creditEn,
   app: {
     name: 'KITE MOBILE ERP',
     by: 'by Nextdab',
@@ -64,6 +66,9 @@ export const en = {
     commissions: 'Commissions',
     myCommissions: 'My commissions',
     commissionRules: 'Commission rules',
+    credit: 'Customer credit',
+    creditSettings: 'Credit settings',
+    suppliers: 'Suppliers',
     whatsapp: 'WhatsApp',
     posSettings: 'POS and printers',
     dashboard: 'Dashboard',
@@ -561,6 +566,16 @@ export const en = {
       'COM-002': 'That commission has moved on (approved, paid or reversed). Reload and check its status.',
       'COM-003': 'The technicians’ shares must add up to 100%.',
       'COM-004': 'A payout is for one technician’s approved commissions at one branch, and comes to more than zero.',
+      'CRD-001': 'This customer has no credit account. Head office opens one with a limit.',
+      'CRD-002': 'The customer’s credit account is on hold or closed: no new credit.',
+      'CRD-003': 'That is more over the available credit than a manager may approve.',
+      'CRD-004': 'This credit sale needs a manager’s approval.',
+      'CRD-005': 'That cannot be allocated: check what is still open.',
+      'CRD-006': 'Branch allowances would add up to more than the limit.',
+      'CRD-007': 'A credit sale’s instalments must add up to its amount.',
+      'CRD-008': 'Head office could not be asked about this credit.',
+      'CRD-009': 'Only what the sale charged on account goes back on account.',
+      'SUP-001': 'That supplier was merged or is not in a state for this.',
       'WA-001': 'WhatsApp is not ready for this. Check WhatsApp settings on the main server.',
       'WA-002': 'WhatsApp allows a typed reply only within 24 hours of the customer’s last message. Call the customer instead.',
       'WA-003': 'WhatsApp updates need the customer’s mobile number and agreement.',

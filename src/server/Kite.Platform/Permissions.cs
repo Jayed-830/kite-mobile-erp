@@ -91,6 +91,13 @@ public static class Permissions
     public const string CommRules = "COMM.RULES";
     public const string CommApprove = "COMM.APPROVE";
     public const string CommPay = "COMM.PAY";
+    // Phase 10 (V0019)
+    public const string CreditView = "CREDIT.VIEW";
+    public const string CreditManage = "CREDIT.MANAGE";
+    public const string CreditReceive = "CREDIT.RECEIVE";
+    public const string SupplierView = "SUPPLIER.VIEW";
+    public const string SupplierManage = "SUPPLIER.MANAGE";
+    public const string SupplierApprove = "SUPPLIER.APPROVE";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -129,29 +136,31 @@ public static class RoleTemplates
             Permissions.RepairView, Permissions.RepairIntake, Permissions.RepairWork, Permissions.RepairAssign, Permissions.RepairCancel,
             Permissions.RepairSettings, Permissions.RepairCredentialView, Permissions.NotifSettings, Permissions.NotifReply,
             Permissions.RepairInvoiceCorrect, Permissions.CommView, Permissions.CommOwn, Permissions.CommApprove,
+            Permissions.CreditView, Permissions.CreditReceive, Permissions.SupplierView, Permissions.SupplierManage,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
              Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.CustomersManage, Permissions.PosShiftOpen,
              Permissions.PosCashPayOut, Permissions.DeviceView, Permissions.TradeInCreate, Permissions.TradeInView,
-             Permissions.RepairView, Permissions.RepairIntake, Permissions.NotifReply], 10m, 10.000m),
+             Permissions.RepairView, Permissions.RepairIntake, Permissions.NotifReply, Permissions.CreditReceive], 10m, 10.000m),
         new("cashier", "Cashier", "أمين صندوق",
             [Permissions.PosSell, Permissions.PosReceiptReprint, Permissions.CatalogView, Permissions.CustomersView, Permissions.CustomersManage,
              Permissions.PosShiftOpen, Permissions.TradeInCreate, Permissions.TradeInView, Permissions.RepairView, Permissions.RepairIntake,
-             Permissions.NotifReply], 5m, 2.000m),
+             Permissions.NotifReply, Permissions.CreditReceive], 5m, 2.000m),
         new("technician", "Technician", "فني",
             [Permissions.RepairCredentialView, Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceRefurbish, Permissions.CatalogView, Permissions.InvView,
              Permissions.RepairView, Permissions.RepairWork, Permissions.CommOwn]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
             [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount,
              Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceCount, Permissions.DeviceImeiCorrect]),
-        new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry]),
+        new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry, Permissions.SupplierView, Permissions.SupplierManage]),
         new("accountant", "Accountant", "المحاسب",
         [
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
             Permissions.AcctCoaManage, Permissions.AcctJournalManual, Permissions.AcctPeriodClose, Permissions.CreditWriteOff,
             Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView, Permissions.DeviceView,
             Permissions.TradeInView, Permissions.RepairView, Permissions.CommView, Permissions.CommPay,
+            Permissions.CreditView, Permissions.CreditManage, Permissions.CreditReceive, Permissions.SupplierView, Permissions.SupplierManage, Permissions.SupplierApprove,
         ]),
     ];
 }

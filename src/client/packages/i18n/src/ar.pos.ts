@@ -35,7 +35,7 @@ export const posAr: typeof posEn = {
     actions: {
       POS_DISCOUNT_ABOVE_LIMIT: 'خصم أعلى من الحد', POS_PRICE_OVERRIDE: 'تغيير السعر أو البيع تحت الحد الأدنى', POS_SALE_VOID: 'إلغاء عملية بيع', POS_REFUND: 'استرداد (متأخر أو كبير)',
       POS_CASH_PAY_OUT: 'صرف نقد', POS_DRAWER_NO_SALE: 'فتح الدرج (بدون بيع)', POS_SHIFT_ACCEPT_VARIANCE: 'قبول فرق النقد', DEVICE_SELL_DAMAGED: 'بيع جهاز به ضرر',
-      TRADEIN_APPROVE: 'قيمة استبدال أعلى من الحد أو الدليل', TRADEIN_STORE_CREDIT: 'تسوية الاستبدال كرصيد لدى المتجر', TRADEIN_PAYOUT: 'دفع قيمة الاستبدال نقدًا',
+      TRADEIN_APPROVE: 'قيمة استبدال أعلى من الحد أو الدليل', TRADEIN_STORE_CREDIT: 'تسوية الاستبدال كرصيد لدى المتجر', TRADEIN_PAYOUT: 'دفع قيمة الاستبدال نقدًا', CREDIT_OVERRIDE: 'ائتمان يتجاوز الحد المتاح',
     },
   },
   salesReports: {

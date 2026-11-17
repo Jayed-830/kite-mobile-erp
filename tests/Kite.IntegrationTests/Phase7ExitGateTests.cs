@@ -240,8 +240,8 @@ public sealed class Phase7ExitGateTests(KiteServerFixture fx, ITestOutputHelper 
         foreach (var (account, expected, moved) in table) Assert.True(expected == moved, $"{account}: expected {expected}, moved {moved}");
         // The ledgers agree with the accounts as a whole: clearing is what accepted trade-ins still owe, 2310 is everyone's store credit.
         Assert.Equal(-await Ti.DbAsync<decimal>("SELECT coalesce(sum(tradein.outstanding(id)), 0) FROM tradein.tradein WHERE status = 'accepted'"), await Dev.GlAsync("2320"));
-        Assert.Equal(-await Ti.DbAsync<decimal>("SELECT coalesce(sum(amount), 0) FROM crm.credit_ledger"), await Dev.GlAsync("2310"));
-        Assert.Equal(0L, await Ti.DbAsync<long>("SELECT count(*) FROM (SELECT customer_id FROM crm.credit_ledger GROUP BY 1 HAVING sum(amount) < 0) x"));
+        Assert.Equal(-await Ti.DbAsync<decimal>("SELECT coalesce(sum(amount), 0) FROM crm.credit_ledger WHERE balance_type = 'store_credit'"), await Dev.GlAsync("2310"));
+        Assert.Equal(0L, await Ti.DbAsync<long>("SELECT count(*) FROM (SELECT customer_id FROM crm.credit_ledger WHERE balance_type = 'store_credit' GROUP BY 1 HAVING sum(amount) < 0) x"));
         foreach (var (id, left) in m.Outstanding)
         {
             var d = await TradeInAsync(owner, id);

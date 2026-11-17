@@ -351,7 +351,7 @@ public static class ReceiptEndpoints
 
     private static string MethodName(string m) => m switch
     {
-        "cash" => "Cash / نقداً", "card" => "Card / بطاقة", "trade_in" => "Trade-in / جهاز مستبدل", "store_credit" => "Store credit / رصيد المتجر",
+        "cash" => "Cash / نقداً", "card" => "Card / بطاقة", "trade_in" => "Trade-in / جهاز مستبدل", "store_credit" => "Store credit / رصيد المتجر", "credit" => "On account / على الحساب",
         _ => "Bank transfer / تحويل بنكي",
     };
 }

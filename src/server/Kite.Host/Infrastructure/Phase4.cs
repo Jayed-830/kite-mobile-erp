@@ -127,7 +127,7 @@ public static class Posting
 
     /// <summary>Posts one journal for a document; returns its id, or null when the rule yields no lines.</summary>
     public static async Task<Guid?> PostAsync(DbTx t, Guid businessId, Guid? branchId, string eventType, PostingFacts facts, DateOnly docDate,
-        string sourceDocType, Guid sourceDocId, string description, Guid? partyCustomerId = null)
+        string sourceDocType, Guid sourceDocId, string description, Guid? partyCustomerId = null, Guid? partySupplierId = null)
     {
         var json = await t.ExecuteScalarAsync<string?>("""
             SELECT definition::text FROM acct.posting_rule
@@ -166,12 +166,73 @@ public static class Posting
         {
             no++;
             var isReceivable = partyCustomerId is not null && l.AccountCode == "1300";
+            var isPayable = partySupplierId is not null && l.AccountCode == "2100";
             await t.ExecuteAsync("""
                 INSERT INTO acct.journal_line (id, journal_id, line_no, account_id, branch_id, debit, credit, party_type, party_id, memo)
                 VALUES (@id, @journalId, @no, @account, @branchId, @Debit, @Credit, @partyType, @partyId, @Memo)
                 """, new { id = t.NewId(), journalId, no, account = accounts[l.AccountCode].Id, branchId, l.Debit, l.Credit,
-                           partyType = isReceivable ? "customer" : null, partyId = isReceivable ? partyCustomerId : null, l.Memo });
+                           partyType = isReceivable ? "customer" : isPayable ? "supplier" : null,
+                           partyId = isReceivable ? partyCustomerId : isPayable ? partySupplierId : null, l.Memo });
         }
+        return journalId;
+    }
+
+    /// <summary>
+    /// One journal whose parts belong to different branches (14.4, 14.6): an interbranch settlement, a write-off of invoices at
+    /// several branches. It is numbered at the branch doing the work, so a transaction takes one branch's journal numbers only
+    /// (ADR 54); each part's lines are at its own branch and balance there.
+    /// </summary>
+    public static async Task<Guid?> PostManyAsync(DbTx t, Guid businessId, Guid ownerBranchId, string postingKind,
+        IReadOnlyList<(string EventType, Guid BranchId, PostingFacts Facts)> parts, DateOnly docDate, string sourceDocType, Guid sourceDocId, string description,
+        Guid? partyCustomerId = null)
+    {
+        var period = await FiscalPeriods.ForPostingAsync(t, businessId, docDate);
+        var journalDate = period.StartsOn > docDate ? period.StartsOn : docDate;
+        var lines = new List<(JournalLineDraft Line, Guid BranchId)>();
+        foreach (var (eventType, branchId, facts) in parts)
+        {
+            var json = await t.ExecuteScalarAsync<string?>("""
+                SELECT definition::text FROM acct.posting_rule
+                 WHERE business_id = @businessId AND event_type = @eventType AND effective_from <= @d
+                 ORDER BY effective_from DESC, rule_version DESC LIMIT 1
+                """, new { businessId, eventType, d = docDate.ToDateTime(TimeOnly.MinValue) })
+                ?? throw new KiteException(ErrorCodes.Internal, $"No posting rule for {eventType}.", 500);
+            var draft = PostingEngine.Build(PostingRuleDefinition.Parse(json), facts, journalDate, sourceDocType, sourceDocId, eventType, Currency.OMR, branchId);
+            if (draft is not null) lines.AddRange(draft.Lines.Select(l => (l, branchId)));
+        }
+        if (lines.Count == 0) return null;
+        var codes = lines.Select(l => l.Line.AccountCode).Distinct().ToArray();
+        var accounts = (await t.QueryAsync<(string Code, Guid Id, bool IsPostable)>(
+            "SELECT code, id, is_postable FROM acct.account WHERE business_id = @businessId AND code = ANY(@codes) AND status = 'active'",
+            new { businessId, codes })).ToDictionary(a => a.Code, StringComparer.Ordinal);
+        foreach (var c in codes)
+            if (!accounts.TryGetValue(c, out var a) || !a.IsPostable)
+                throw new KiteException(ErrorCodes.Validation, $"Posting {postingKind} uses account {c}, which does not exist, is inactive or is a heading.");
+        var number = await DocNumbers.NextAsync(t, businessId, ownerBranchId, "journal", period.FiscalYear, "JV");
+        var journalId = t.NewId();
+        var desc = journalDate == docDate ? description : $"{description} (document date {docDate:yyyy-MM-dd}, period was closed)";
+        await t.WithAllBranchesAsync(async () =>
+        {
+            await t.ExecuteAsync("""
+                INSERT INTO acct.journal (id, business_id, branch_id, number, journal_date, fiscal_period_id, source_doc_type, source_doc_id,
+                                          posting_kind, description, posted_by, origin_server_id, origin_device_id)
+                VALUES (@journalId, @businessId, @ownerBranchId, @number, @jd::date, @periodId, @sourceDocType, @sourceDocId, @postingKind, @desc,
+                        @by, (SELECT id FROM core.server WHERE is_self), @device)
+                """, new { journalId, businessId, ownerBranchId, number, jd = journalDate.ToDateTime(TimeOnly.MinValue), periodId = period.Id,
+                           sourceDocType, sourceDocId, postingKind, desc, by = t.Actor.UserId, device = t.Actor.TerminalId });
+            short no = 0;
+            foreach (var (l, branchId) in lines)
+            {
+                no++;
+                var isReceivable = partyCustomerId is not null && l.AccountCode == "1300";
+                await t.ExecuteAsync("""
+                    INSERT INTO acct.journal_line (id, journal_id, line_no, account_id, branch_id, debit, credit, party_type, party_id, memo)
+                    VALUES (@id, @journalId, @no, @account, @branchId, @Debit, @Credit, @partyType, @partyId, @Memo)
+                    """, new { id = t.NewId(), journalId, no, account = accounts[l.AccountCode].Id, branchId, l.Debit, l.Credit,
+                               partyType = isReceivable ? "customer" : null, partyId = isReceivable ? partyCustomerId : null, l.Memo });
+            }
+            return 0;
+        });
         return journalId;
     }
 }

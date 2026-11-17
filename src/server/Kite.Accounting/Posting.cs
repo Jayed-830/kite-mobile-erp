@@ -178,6 +178,12 @@ public static class PostingRuleTemplates
     public const string RepairOutsideWork = "repair.outside_work";
     public const string CommissionAccrual = "comm.accrual";
     public const string CommissionPayout = "comm.payout";
+    public const string CreditPayment = "credit.payment";
+    public const string CreditWriteOff = "credit.write_off";
+    public const string CreditInterbranchOut = "credit.interbranch_out";
+    public const string CreditInterbranchIn = "credit.interbranch_in";
+    public const string CreditOpening = "credit.opening";
+    public const string SupplierOpening = "supplier.opening";
 
     /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
     public static string ClassOf(string productType, string? condition) =>
@@ -194,8 +200,10 @@ public static class PostingRuleTemplates
     { ["device"] = "1400", ["device_used"] = "1410", ["accessory"] = "1420", ["consumable"] = "1420", ["spare_part"] = "1430" };
     // Trade-in credit takes trade-in clearing back out; store credit reduces what the business owes the customer (12.5, 14.6).
     // A repair deposit applied to its invoice takes customer deposits back out (13.7).
+    // A sale "on account" is owed by the customer: accounts receivable, with the customer as the party (14.6).
     private static readonly IReadOnlyDictionary<string, string> Tenders = new Dictionary<string, string>
-    { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200", ["trade_in"] = "2320", ["store_credit"] = "2310", ["deposit"] = "2300" };
+    { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200", ["trade_in"] = "2320", ["store_credit"] = "2310", ["deposit"] = "2300", ["credit"] = "1300" };
+    private static readonly IReadOnlyDictionary<string, string> Phase9Tenders = Tenders.Where(x => x.Key != "credit").ToDictionary();
     private static readonly IReadOnlyDictionary<string, string> Phase7Tenders = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200", ["trade_in"] = "2320", ["store_credit"] = "2310" };
     private static readonly IReadOnlyDictionary<string, string> Phase4Tenders = new Dictionary<string, string>
@@ -204,6 +212,9 @@ public static class PostingRuleTemplates
     // Commissions are paid in cash, to the bank, or through payroll (15.4). Declared before the rule sets that use it: static fields initialise in order.
     private static readonly IReadOnlyDictionary<string, string> PayoutMethods = new Dictionary<string, string>
     { ["cash"] = "1100", ["bank"] = "1200", ["payroll"] = "2410" };
+    // Customer payments come in cash, by card or by transfer (14.4).
+    private static readonly IReadOnlyDictionary<string, string> ReceiptMethods = new Dictionary<string, string>
+    { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200" };
 
     /// <summary>The inventory account of a posting class (for the valuation check).</summary>
     public static string InventoryAccount(string postingClass) => Inventory.TryGetValue(postingClass, out var c) ? c : "1420";
@@ -217,6 +228,7 @@ public static class PostingRuleTemplates
     private static readonly string[] SincePhase7 = [TradeInAccept, TradeInStoreCredit, TradeInPayout];
     private static readonly string[] SincePhase8 = [RepairDeposit, RepairDepositRefund, RepairParts, RepairCost];
     private static readonly string[] SincePhase9 = [RepairOutsideWork, CommissionAccrual, CommissionPayout];
+    private static readonly string[] SincePhase10 = [CreditPayment, CreditWriteOff, CreditInterbranchOut, CreditInterbranchIn, CreditOpening, SupplierOpening];
 
     /// <summary>
     /// The Phase 4 defaults (version 1), before used devices had their own accounts. A business whose stored rule is
@@ -225,18 +237,22 @@ public static class PostingRuleTemplates
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
         Phase7Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
         Inventory.Where(x => x.Key != "device_used").ToDictionary(), Phase4Tenders)
-        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 5 and 6 defaults (version 2), before trade-in credit and store credit were tenders.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version2 = Build(Phase7Revenue, Cost, Inventory, Phase4Tenders)
-        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 7 defaults (version 3), before repair parts income, repair deposits as a tender and deposit VAT.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version3 = Build(Phase7Revenue, Cost, Inventory, Phase7Tenders)
-        .Where(r => !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)).ToArray();
+
+    /// <summary>The Phase 8 and 9 defaults (version 4), before a sale could be charged to the customer's credit account.</summary>
+    public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version4 = Build(Revenue, Cost, Inventory, Phase9Tenders, phase8: true)
+        .Where(r => !SincePhase10.Contains(r.EventType)).ToArray();
 
     /// <summary>Every earlier default, oldest first.</summary>
-    public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2, Version3];
+    public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2, Version3, Version4];
 
     private static IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Build(IReadOnlyDictionary<string, string> revenue,
         IReadOnlyDictionary<string, string> cost, IReadOnlyDictionary<string, string> inventory, IReadOnlyDictionary<string, string> tenders, bool phase8 = false) =>
@@ -348,6 +364,30 @@ public static class PostingRuleTemplates
         (CommissionPayout, new("Commissions paid out: commissions payable against cash, bank or payroll clearing", [
             new("debit", Code("2400"), "paid_by_method"),
             new("credit", By("method", PayoutMethods), "paid_by_method"),
+        ])),
+        (CreditPayment, new("Customer payment: cash, card or bank against accounts receivable at the branch that took it", [
+            new("debit", By("method", ReceiptMethods), "received_by_method"),
+            new("credit", Code("1300"), "received_by_method"),
+        ])),
+        (CreditWriteOff, new("Customer debt written off: bad debts against accounts receivable", [
+            new("debit", Code("6500"), "amount"),
+            new("credit", Code("1300"), "amount"),
+        ])),
+        (CreditInterbranchOut, new("A payment taken here settled another branch's invoice: the receivable it reduced here is owed to that branch", [
+            new("debit", Code("1300"), "amount"),
+            new("credit", Code("2500"), "amount"),
+        ])),
+        (CreditInterbranchIn, new("Another branch took the payment for this branch's invoice: the receivable here becomes due from that branch", [
+            new("debit", Code("1310"), "amount"),
+            new("credit", Code("1300"), "amount"),
+        ])),
+        (CreditOpening, new("Customer opening balance: accounts receivable against opening balance equity (a credit balance posts the other way)", [
+            new("debit", Code("1300"), "amount"),
+            new("credit", Code("3900"), "amount"),
+        ])),
+        (SupplierOpening, new("Supplier opening balance: opening balance equity against supplier payables (an advance posts the other way)", [
+            new("debit", Code("3900"), "amount"),
+            new("credit", Code("2100"), "amount"),
         ])),
     ];
 }

@@ -71,11 +71,15 @@ export interface ShiftFigures {
   tradeInCredit?: number; storeCreditPayments?: number; tradeInPayouts?: number;
   /** Phase 8: repair deposits taken and refunded through the drawer, and deposits applied to repair invoices. */
   repairDeposits?: number; repairDepositRefunds?: number; repairDepositsApplied?: number;
+  /** Phase 10: sales on account (less returns on account) and customer payments taken on the drawer. */
+  onAccountSales?: number; creditReceipts?: number;
 }
 export interface ShiftReport { shift: Shift; report: 'X' | 'Z'; figures: ShiftFigures; cardSettlements: { cardTerminal: string; batchTotal: number; recordedTotal: number; difference: number; reason: string | null }[]; cashEvents: { kind: string; amount: number; reason: string; createdAt: string }[] }
 export interface CartLineInput { variantId: string; qty: number; unitPrice?: number | null; discount?: number | null; approvalId?: string | null; deviceUnitId?: string | null; damagedApprovalId?: string | null }
-export interface TenderInput { method: 'cash' | 'card' | 'bank_transfer' | 'trade_in' | 'store_credit'; amount: number; tendered?: number | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null; tradeInId?: string | null }
-export interface SaleInput { lines: CartLineInput[]; payments?: TenderInput[]; docType?: 'simplified_invoice' | 'tax_invoice'; customerId?: string | null; expectedTotal?: number; note?: string; approvalId?: string | null }
+export interface TenderInput { method: 'cash' | 'card' | 'bank_transfer' | 'trade_in' | 'store_credit' | 'credit'; amount: number; tendered?: number | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null; tradeInId?: string | null }
+export interface SaleInput { lines: CartLineInput[]; payments?: TenderInput[]; docType?: 'simplified_invoice' | 'tax_invoice'; customerId?: string | null; expectedTotal?: number; note?: string; approvalId?: string | null;
+  /** Phase 10: a manager's CREDIT.OVERRIDE approval, and the instalments, for a payment on account. */
+  creditApprovalId?: string | null; creditPlan?: { instalments: number; intervalDays?: number | null } | null }
 export interface Quote {
   lines: { lineNo: number; variantId: string; sku: string; descriptionEn: string; descriptionAr: string; qty: number; listPrice: number; unitPrice: number; discount: number; net: number; tax: number; gross: number; taxRate: number; needsPriceOverride: boolean; needsDiscountApproval: boolean }[];
   totals: { net: number; discount: number; tax: number; gross: number }; cashDue: number;
@@ -98,7 +102,7 @@ export interface SaleListRow { id: string; number: string; docType: string; cred
 export interface ReturnInput { id: string; lines: { lineId: string; qty: number; restock: boolean; code?: string | null }[]; refunds: TenderInput[]; reason: string; approvalId?: string | null }
 export interface ParkedCart { id: string; label: string | null; parkedAt: string; parkedBy: string; terminalCode: string; cart: string }
 export type ApprovalAction = 'POS.DISCOUNT.ABOVE_LIMIT' | 'POS.PRICE.OVERRIDE' | 'POS.SALE.VOID' | 'POS.REFUND' | 'POS.CASH.PAY_OUT' | 'POS.DRAWER.NO_SALE' | 'POS.SHIFT.ACCEPT_VARIANCE' | 'DEVICE.SELL_DAMAGED'
-  | 'TRADEIN.APPROVE' | 'TRADEIN.STORE_CREDIT' | 'TRADEIN.PAYOUT';
+  | 'TRADEIN.APPROVE' | 'TRADEIN.STORE_CREDIT' | 'TRADEIN.PAYOUT' | 'CREDIT.OVERRIDE';
 export interface ApprovalRow { id: string; branchId: string; branchCode: string; actionCode: ApprovalAction; method: string; status: string; reason: string | null; context: string; requesterName: string; terminalCode: string | null; createdAt: string; expiresAt: string }
 export interface Printer { id: string; branchId: string; name: string; host: string; port: number; paperWidthMm: number; hasDrawer: boolean; status: 'active' | 'inactive'; lastResult: string | null; lastUsedAt: string | null; version: number }
 export interface PrinterInput { branchId: string; name: string; host: string; port?: number; paperWidthMm?: 58 | 80; hasDrawer?: boolean; status?: 'active' | 'inactive'; version?: number }

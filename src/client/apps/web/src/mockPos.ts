@@ -1,15 +1,18 @@
 // In-memory Phase 4 server for tests, `npm run dev:mock` and design review: catalog, stock, customers, shifts, sales,
 // returns, approvals, printers. Prices and totals use the same arithmetic as the real server (@kite/pos), but the real
 // server is the source of truth and checks everything again.
-import { ApiError, type RepairApi, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
+import { ApiError, type CreditApi, type RepairApi, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
   type SaleDetail, type SaleLine, type SaleListRow, type Shift, type ShiftFigures, type TenderInput, type Terminal, type Tokens, type User } from '@kite/api';
 import { createMockDevices } from './mockDevices';
 import { createMockTradeIn } from './mockTradeIn';
 import { createMockRepairs } from './mockRepairs';
+import { createMockCredit } from './mockCredit';
 import { apportionReturn, checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
 
 export interface MockPosContext {
   need: (perm?: string) => User;
+  /** Phase 10: the business's branches (credit allowances and interbranch payments). */
+  branches?: () => import('@kite/api').Branch[];
   current: () => User | null;
   setCurrent: (u: User) => void;
   permsOf: (u: User) => string[];
@@ -34,7 +37,7 @@ const n = (b: bigint) => toNumber(b);
 interface StockRow { qty: bigint; value: bigint }
 interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null; tradeInId: string | null }[] }
 
-export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi & RepairApi {
+export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi & RepairApi & CreditApi {
   const products: ProductView[] = [];
   const stock = new Map<string, StockRow>();
   const customers: Customer[] = [];
@@ -131,9 +134,10 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       salesDiscount: n(g(sold, 'discountTotal')), creditNotesCount: credit.length, creditNotesGross: n(g(credit, 'grossTotal')), cashRounding: n(g(sold, 'cashRounding') - g(credit, 'cashRounding')),
       cashPayments: n(cash), cardPayments: n(sumOf('card')), transferPayments: n(sumOf('bank_transfer')), payIns: n(ev('pay_in')), payOuts: n(ev('pay_out')), drops: n(ev('drop')),
       noSales: cashEvents.filter((e) => e.shiftId === s.id && e.kind === 'no_sale').length, openingFloat: s.openingFloat,
-      expectedCash: n(toBaisa(s.openingFloat) + cash + ev('pay_in') - ev('pay_out') - ev('drop') - payouts + rep('repair_deposit', 'cash') - rep('repair_refund', 'cash')), cardByTerminal: [...cards].map(([cardTerminal, total]) => ({ cardTerminal, total: n(total) })),
+      expectedCash: n(toBaisa(s.openingFloat) + cash + ev('pay_in') - ev('pay_out') - ev('drop') - payouts + rep('repair_deposit', 'cash') - rep('repair_refund', 'cash') + rep('credit_receipt', 'cash')), cardByTerminal: [...cards].map(([cardTerminal, total]) => ({ cardTerminal, total: n(total) })),
       tradeInCredit: n(sumOf('trade_in')), storeCreditPayments: n(sumOf('store_credit')), tradeInPayouts: n(payouts),
       repairDeposits: n(rep('repair_deposit')), repairDepositRefunds: n(rep('repair_refund')), repairDepositsApplied: n(rep('repair_applied')),
+      onAccountSales: n(sumOf('credit')), creditReceipts: n(rep('credit_receipt')),
     };
   };
   const useApproval = (aid: string | null | undefined, action: ApprovalAction, requester: string) => {
@@ -231,6 +235,12 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       return { id: d.sale.id, number: d.sale.number };
     },
   });
+  // Phase 10: customer credit and suppliers; payments taken at the till go on the drawer.
+  const cr = createMockCredit({
+    need: ctx.need, can: (p) => can(ctx.need(), p), next, customers: () => customers, branches: () => ctx.branches?.() ?? [], branchId: ctx.branchId,
+    useApproval: (aid, action, requester) => { useApproval(aid, action, requester); return undefined; },
+    drawer: (method, amount) => cashEvents.push({ shiftId: myShift().s.id, kind: 'credit_receipt', amount: toBaisa(amount), reason: method, createdAt: now() }),
+  });
   // A walk-in customer for trade-ins (design review).
   customers.push({ id: id(), number: 'C-000002', kind: 'individual', nameEn: 'Maryam Al Hinai', nameAr: 'مريم الهنائية', phoneE164: '+96899112233', email: null, vatNumber: null, crNumber: null, addressEn: null, addressAr: null, status: 'active', version: 1 });
   rp.seed();
@@ -240,6 +250,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     ...dev.identity,
     ...ti.api,
     ...rp.api,
+    ...cr.api,
     async brands() { ctx.need('CATALOG.VIEW'); return delay([]); },
     async createBrand(b) { ctx.need('CATALOG.MANAGE'); return delay({ id: id(), ...b, status: 'active', version: 1 }); },
     async categories() { ctx.need('CATALOG.VIEW'); return delay([]); },
@@ -428,6 +439,8 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       const tenders = toTenders(req.payments);
       const paid = wrap(() => checkTenders(tenders, tt.gross, policy.cashRounding));
       ti.checkPayments(tenders, req.customerId ?? null, false);
+      const onAccount = tenders.filter((p) => p.method === 'credit').reduce((x, p) => x + p.amount, 0n);
+      const credit = onAccount > 0n ? cr.checkSale(req.customerId, n(onAccount), req.creditApprovalId, req.creditPlan ?? null, u) : null;
       const unitOf = (l: { lineNo: number }) => req.lines[l.lineNo - 1]!.deviceUnitId ?? null;
       for (const l of lines) {
         const uid = unitOf(l);
@@ -448,6 +461,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
           marginPurchasePrice: l.item.taxKind === 'margin' && l.item.marginCost != null ? Number(l.item.marginCost) : null })),
         tenders, false, s.id, t);
       ti.applyPayments(tenders, cust?.id ?? null, saleId, d.sale.number, false, u.displayNameEn);
+      if (credit) cr.charge(credit, saleId, d.sale.number, t.branchId);
       for (const l of lines) { const uid = unitOf(l); if (uid) dev.sold(uid, saleId, d.sale.number, l.net, l.gross, l.tax); }
       return delay(summary(d, paid.paid, tenders.reduce((a, p) => a + (p.tendered == null ? 0n : p.tendered - p.amount), 0n)));
     },
@@ -468,12 +482,16 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       const tenders = toTenders(r.refunds);
       const paid = wrap(() => checkTenders(tenders, gross, policy.cashRefundCap ? policy.cashRounding : 0, true));
       ti.checkPayments(tenders, o.detail.sale.customerId, true);
+      const backOnAccount = n(tenders.filter((p) => p.method === 'credit').reduce((x, p) => x + p.amount, 0n));
+      if (backOnAccount > 0 && backOnAccount > cr.refundable(originalId))
+        throw problem(400, 'CRD-009', cr.refundable(originalId) <= 0 ? 'Nothing on this sale was charged on account: refund it another way.' : `At most ${cr.refundable(originalId).toFixed(3)} goes back on account.`);
       const cash = tenders.filter((x) => x.method === 'cash').reduce((a, x) => a + x.amount, 0n);
       if (cash > toBaisa(policy.cashRefundCap) && !can(u, 'POS.REFUND')) { if (!r.approvalId) throw problem(403, 'POS-012', 'This return needs a manager\'s approval.'); useApproval(r.approvalId, 'POS.REFUND', u.id); }
       const tax = lines.reduce((a, l) => a + toBaisa(l.tax), 0n);
       const d = write({ ...o.detail.sale, id: r.id, number: next('cn', 'CN'), docType: 'credit_note', creditReason: 'return', originalSaleId: originalId, originalNumber: o.detail.sale.number, completedAt: now(), netTotal: n(gross - tax), discountTotal: 0, taxTotal: n(tax), grossTotal: n(gross), cashRounding: n(paid.rounding), note: r.reason, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id }, lines, tenders, true, s.id, t);
       o.detail.creditNotes.push({ id: d.sale.id, number: d.sale.number, creditReason: 'return', grossTotal: d.sale.grossTotal });
       ti.applyPayments(tenders, o.detail.sale.customerId, d.sale.id, d.sale.number, true, u.displayNameEn);
+      if (backOnAccount > 0) cr.creditNote(o.detail.sale.customerId!, backOnAccount, d.sale.id, originalId, d.sale.number, t.branchId);
       return delay(summary(d, paid.paid, 0n));
     },
     async voidSale(originalId, v) {

@@ -6,11 +6,13 @@ import { deviceMethods, type DeviceApi } from './devices';
 import { deviceIdentityMethods, type DeviceIdentityApi } from './deviceIdentity';
 import { tradeInMethods, type TradeInApi } from './tradein';
 import { repairMethods, type RepairApi } from './repairs';
+import { creditMethods, type CreditApi } from './credit';
 export * from './pos';
 export * from './devices';
 export * from './deviceIdentity';
 export * from './tradein';
 export * from './repairs';
+export * from './credit';
 
 export interface Problem {
   title: string;
@@ -151,7 +153,7 @@ export interface BackupStatus {
 export interface JoinRequest { mainUrl: string; setupCode: string; token: string; confirmedFingerprint: string; serverName?: string }
 
 /** Everything the web app calls. The real client and the in-memory mock both implement it. */
-export interface KiteApi extends PosApi, DeviceApi, DeviceIdentityApi, TradeInApi, RepairApi {
+export interface KiteApi extends PosApi, DeviceApi, DeviceIdentityApi, TradeInApi, RepairApi, CreditApi {
   setupStatus(): Promise<{ configured: boolean; role: string | null }>;
   setup(req: SetupRequest): Promise<{ businessId: string; branchId: string; ownerUserId: string }>;
   login(username: string, password: string): Promise<Tokens>;
@@ -337,6 +339,7 @@ export function createHttpApi(baseUrl = ''): KiteApi {
     ...deviceIdentityMethods({ get, post, put, del }),
     ...tradeInMethods({ get, post, put, blob }),
     ...repairMethods({ get, post, put, blob }),
+    ...creditMethods({ get, post, put, blob }),
   });
   return api;
 }

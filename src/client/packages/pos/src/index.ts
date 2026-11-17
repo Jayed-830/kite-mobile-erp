@@ -5,3 +5,4 @@ export * from './devices';
 export * from './tradein';
 export * from './repair';
 export * from './commission';
+export * from './credit';

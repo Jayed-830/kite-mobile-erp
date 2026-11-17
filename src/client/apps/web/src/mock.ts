@@ -75,6 +75,15 @@ const PERMISSIONS: Permission[] = [
   ['COMM.RULES', 'comm', 'Manage commission rules and settings', 'إدارة قواعد العمولة وإعداداتها'],
   ['COMM.APPROVE', 'comm', 'Approve and reverse commissions', 'اعتماد العمولات وعكسها'],
   ['COMM.PAY', 'comm', 'Pay commissions out', 'دفع العمولات'],
+  ['POS.CREDIT_SALE', 'sales', 'Make credit sales within the customer limit', 'البيع الآجل ضمن حد العميل'],
+  ['CREDIT.OVERRIDE', 'crm', 'Approve credit above the available limit', 'اعتماد ائتمان يتجاوز الحد المتاح'],
+  ['CREDIT.WRITE_OFF', 'crm', 'Write off customer debts', 'شطب ديون العملاء'],
+  ['CREDIT.VIEW', 'credit', 'View credit accounts, statements and credit reports', 'عرض حسابات الائتمان والكشوف وتقارير الائتمان'],
+  ['CREDIT.MANAGE', 'credit', 'Set credit limits, terms, branch allowances and holds', 'تحديد حدود الائتمان والمدد ومخصصات الفروع والإيقاف'],
+  ['CREDIT.RECEIVE', 'credit', 'Take payments from credit customers', 'استلام دفعات عملاء الائتمان'],
+  ['SUPPLIER.VIEW', 'purch', 'View suppliers, their balances and statements', 'عرض الموردين وأرصدتهم وكشوفهم'],
+  ['SUPPLIER.MANAGE', 'purch', 'Add and edit suppliers and their opening balances', 'إضافة الموردين وتعديلهم وأرصدتهم الافتتاحية'],
+  ['SUPPLIER.APPROVE', 'purch', 'Approve or merge suppliers added by branches', 'اعتماد الموردين المضافين من الفروع أو دمجهم'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -117,9 +126,9 @@ export function createMockApi(opts: MockOptions): KiteApi {
       'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT',
       'TRADEIN.CREATE', 'TRADEIN.APPROVE', 'TRADEIN.STORE_CREDIT', 'TRADEIN.PAYOUT', 'TRADEIN.VIEW', 'TRADEIN.SETTINGS',
       'REPAIR.VIEW', 'REPAIR.INTAKE', 'REPAIR.WORK', 'REPAIR.ASSIGN', 'REPAIR.CANCEL', 'REPAIR.SETTINGS', 'REPAIR.CREDENTIAL.VIEW', 'NOTIF.SETTINGS', 'NOTIF.REPLY',
-      'REPAIR.INVOICE.CORRECT', 'COMM.VIEW', 'COMM.OWN', 'COMM.APPROVE'] },
+      'REPAIR.INVOICE.CORRECT', 'COMM.VIEW', 'COMM.OWN', 'COMM.APPROVE', 'POS.CREDIT_SALE', 'CREDIT.OVERRIDE', 'CREDIT.VIEW', 'CREDIT.RECEIVE', 'SUPPLIER.VIEW', 'SUPPLIER.MANAGE'] },
     { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE', 'TRADEIN.CREATE', 'TRADEIN.VIEW', 'REPAIR.VIEW', 'REPAIR.INTAKE', 'NOTIF.REPLY'] },
-    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW', 'COMM.VIEW', 'COMM.PAY'] },
+    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW', 'COMM.VIEW', 'COMM.PAY', 'CREDIT.VIEW', 'CREDIT.MANAGE', 'CREDIT.RECEIVE', 'CREDIT.WRITE_OFF', 'SUPPLIER.VIEW', 'SUPPLIER.MANAGE', 'SUPPLIER.APPROVE'] },
     { id: id(), code: 'technician', nameEn: 'Technician', nameAr: 'فني', isSystem: true, version: 1, permissions: ['REPAIR.VIEW', 'REPAIR.WORK', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'COMM.OWN'] },
   ];
   const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!'], ['manager', 'Manager-Pass-2026'], ['cashier', 'Cashier-Pass-2026']]);
@@ -203,6 +212,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
   };
   const delay = <T>(v: T): Promise<T> => new Promise((r) => setTimeout(() => r(v), 30));
   const pos = createMockPos({
+    branches: () => branches,
     need, current: () => current, setCurrent: (u) => { current = u; mfaPending = false; }, permsOf, users, passwords, pins, terminals, branchId: branch.id,
     taxCodeId: taxCodes[0]!.id, business: () => business, tokens,
     setMarginCode: (active) => { taxCodes.find((c) => c.kind === 'margin')!.status = active ? 'active' : 'inactive'; },

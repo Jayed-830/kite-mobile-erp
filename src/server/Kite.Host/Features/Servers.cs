@@ -31,9 +31,10 @@ public sealed record RegisterBranchRequest(string Token, string CsrPem, string S
 public sealed record RegisterBranchResponse(Guid ServerId, Guid BranchId, Guid BusinessId, Guid MainServerId, string CertPem, string CaPem, JsonObject Snapshot);
 public sealed record HeartbeatRequest(string AppVersion, int SchemaVersion, DateTimeOffset Time, long OutboxLastSeq, long OutboxPending,
     DateTimeOffset? LastBackupOkAt, string? BackupStatus, string? LicenceId, long CrlNumber, long SuspendSeq, long ModulesSeq,
-    long ImeiInstructionSeq = 0, long BlockedSeq = 0);
+    long ImeiInstructionSeq = 0, long BlockedSeq = 0, long CreditSeq = 0, long SupplierSeq = 0);
 public sealed record HeartbeatResponse(DateTimeOffset ServerTime, string? LicenceFile, JsonArray Control, long CrlNumber, string? CrlPem,
-    List<CentralInstructionDto>? ImeiInstructions = null, List<BlockedDto>? Blocked = null);
+    List<CentralInstructionDto>? ImeiInstructions = null, List<BlockedDto>? Blocked = null, CreditPolicy? CreditPolicy = null,
+    List<CreditSnapshot>? Credit = null, List<SupplierSnapshot>? Suppliers = null);
 public sealed record CaInfo(string CaPem, string FingerprintCode, string Fingerprint, string BusinessName, Guid MainServerId);
 
 public sealed record CreateBranchRequest(string Code, string NameEn, string NameAr, string? AddressEn, string? AddressAr, string? Phone);
@@ -543,6 +544,11 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
         try { await central.PushAsync(null, ct); }
         catch (Exception e) when (e is not OperationCanceledException) { log.LogWarning("Pushing devices to head office failed: {Error}", e.Message); }
         var (imeiSeq, blockedSeq) = await central.SeqsAsync(ct);
+        // Credit sales, payments and suppliers written here go up too (14.5, 16.1); head office answers with the accounts they touched.
+        var creditLink = services.GetRequiredService<CreditLink>();
+        try { await creditLink.PushAsync(ct); await creditLink.PushSuppliersAsync(ct); }
+        catch (Exception e) when (e is not OperationCanceledException) { log.LogWarning("Pushing credit and suppliers to head office failed: {Error}", e.Message); }
+        var (creditSeq, supplierSeq) = await creditLink.SeqsAsync(ct);
 
         var state = await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.QuerySingleOrDefaultAsync<(long LastSeq, long Pending, string? LicenceId, long Crl, long SuspendSeq, long ModulesSeq)>("""
             SELECT (SELECT coalesce(max(origin_seq), 0) FROM sync.outbox WHERE origin_server_id = @s),
@@ -559,7 +565,7 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
         using var http = PinnedClient(ca, link.MainServerId, cert);
         var res = await http.PostAsJsonAsync(link.SyncUrl + "/sync/v1/heartbeat", new HeartbeatRequest(AppInfo.Version, schema, clock.UtcNow,
             state.LastSeq, state.Pending, backup.At is null ? null : new DateTimeOffset(DateTime.SpecifyKind(backup.At.Value, DateTimeKind.Utc)), backup.Status,
-            state.LicenceId, state.Crl, state.SuspendSeq, state.ModulesSeq, imeiSeq, blockedSeq), ct);
+            state.LicenceId, state.Crl, state.SuspendSeq, state.ModulesSeq, imeiSeq, blockedSeq, creditSeq, supplierSeq), ct);
         if (res.StatusCode == HttpStatusCode.Forbidden)
         {
             var p = await res.Content.ReadFromJsonAsync<JsonObject>(ct);
@@ -579,6 +585,8 @@ public sealed class BranchLinkService(KiteDb db, ServerContext server, KeyStore 
         var hb = await res.Content.ReadFromJsonAsync<HeartbeatResponse>(ct) ?? throw new InvalidOperationException("Empty heartbeat answer.");
         if (hb.LicenceFile is not null) await licence.ImportAsync(hb.LicenceFile, "head_office", ActorContext.System, ct);
         await central.ApplyFromHeadOfficeAsync(hb.ImeiInstructions ?? [], hb.Blocked ?? [], ct);
+        await creditLink.ApplyHeartbeatAsync(hb.CreditPolicy, hb.Credit, ct);
+        await creditLink.ApplySuppliersAsync(hb.Suppliers, ct);
         foreach (var c in hb.Control.OfType<JsonObject>()) await licence.ApplyControlFromHeadOfficeAsync(c, ct);
         if (hb.CrlPem is not null && hb.CrlNumber > state.Crl)
             await db.InTransactionAsync(AccessScope.System, ActorContext.System, t => t.ExecuteAsync("""
@@ -637,11 +645,15 @@ public static class ServerEndpoints
             var control = await licence.ControlCommandsForBranchAsync(req.SuspendSeq, req.ModulesSeq, ct);
             var (instructions, blocked) = await db.InTransactionAsync(AccessScope.System, ActorContext.System, async t =>
                 (await CentralSync.InstructionsForAsync(t, who.ServerId, req.ImeiInstructionSeq), await CentralSync.BlockedSinceAsync(t, req.BlockedSeq)), ct);
+            // Credit accounts, holds and allowances changed since the branch's stream number, and suppliers (14.1, 16.1).
+            var (policy, credit, suppliers) = await db.InTransactionAsync(AccessScope.System, ActorContext.System, async t =>
+                (await CreditCore.PolicyAsync(t), await CreditCore.SnapshotsAsync(t, req.CreditSeq, who.BranchId), await SupplierCore.SnapshotsAsync(t, req.SupplierSeq)), ct);
             return Results.Ok(new HeartbeatResponse(DateTimeOffset.UtcNow,
                 info.LicenceId is not null && info.LicenceId != req.LicenceId ? info.LicenceFile : null,
-                control, info.Crl, info.Crl > req.CrlNumber ? info.CrlPem : null, instructions, blocked));
+                control, info.Crl, info.Crl > req.CrlNumber ? info.CrlPem : null, instructions, blocked, policy, credit, suppliers));
         }).AllowEveryone(); // authenticated by the client certificate, not a session
         CentralSync.Map(sync);   // devices: online IMEI check, registration of units, look-up (Phase 6)
+        CreditEndpoints.MapSync(sync);   // credit: online authorisation, release, receivable rows and suppliers from branch servers (Phase 10)
 
         // ---- branch setup: join an existing business ----
         app.MapPost("/api/v1/setup/join/inspect", async (JoinInspectRequest req, ServerContext server, SetupCodeStore codes, BranchLinkService link, CancellationToken ct) =>

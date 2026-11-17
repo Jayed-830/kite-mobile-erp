@@ -527,6 +527,19 @@ public static class Phase8Seed
         ("repair_uncollected", "ar", "kme_repair_uncollected_ar",
             "مرحبًا {{1}}، جهازك (الطلب {{2}}) جاهز منذ {{3}} يومًا. يرجى استلامه قريبًا.",
             ["name", "job", "days"], []),
+        // Phase 10 (14.5): credit reminders, only to customers who agreed to WhatsApp messages.
+        ("credit_due", "en", "kme_credit_due_en",
+            "Hello {{1}}, a payment of {{2}} on invoice {{4}} is due on {{3}}. Thank you. Reply STOP to stop these messages.",
+            ["name", "amount", "due", "invoice"], []),
+        ("credit_due", "ar", "kme_credit_due_ar",
+            "مرحبًا {{1}}، يستحق دفع {{2}} عن الفاتورة {{4}} بتاريخ {{3}}. شكرًا لكم. أرسل STOP لإيقاف هذه الرسائل.",
+            ["name", "amount", "due", "invoice"], []),
+        ("credit_overdue", "en", "kme_credit_overdue_en",
+            "Hello {{1}}, a payment of {{2}} on invoice {{4}} is {{3}} days overdue. Please pay at any of our branches. Reply STOP to stop these messages.",
+            ["name", "amount", "days", "invoice"], []),
+        ("credit_overdue", "ar", "kme_credit_overdue_ar",
+            "مرحبًا {{1}}، دفعة بمبلغ {{2}} عن الفاتورة {{4}} متأخرة {{3}} يومًا. يرجى الدفع في أي من فروعنا. أرسل STOP لإيقاف هذه الرسائل.",
+            ["name", "amount", "days", "invoice"], []),
     ];
 
     public static async Task EnsureAsync(DbTx t, Guid businessId)
@@ -573,5 +586,19 @@ public static class Phase8Seed
                 INSERT INTO notif.template (id, business_id, code, lang, meta_name, meta_lang, body, params, buttons)
                 VALUES (@id, @businessId, @Code, @Lang, @Name, @Lang, @Body, @Params, @Buttons) ON CONFLICT DO NOTHING
                 """, new { id = t.NewId(), businessId, tp.Code, tp.Lang, tp.Name, tp.Body, tp.Params, tp.Buttons });
+        await Phase10Seed.EnsureAsync(t, businessId);
+    }
+}
+
+/// <summary>Customer credit and supplier defaults for a new business (14, 16.1): the credit policy and the supplier number series.</summary>
+public static class Phase10Seed
+{
+    public static async Task EnsureAsync(DbTx t, Guid businessId)
+    {
+        await t.ExecuteAsync("INSERT INTO crm.credit_policy (business_id) VALUES (@businessId) ON CONFLICT DO NOTHING", new { businessId });
+        await t.WithAllBranchesAsync(() => t.ExecuteAsync("""
+            INSERT INTO core.number_series (id, business_id, branch_id, doc_type, prefix, fiscal_year, padding)
+            VALUES (@id, @businessId, NULL, 'supplier', 'S-', 2000, 5) ON CONFLICT DO NOTHING
+            """, new { id = t.NewId(), businessId }));
     }
 }

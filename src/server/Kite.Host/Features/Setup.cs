@@ -33,6 +33,7 @@ public static class SetupEndpoints
         ("trade_in", "TI"), ("purchase_order", "PO"), ("goods_receipt", "GR"), ("customer_receipt", "RC"),
         ("shift", "SH"), ("stock_adjustment", "ADJ"), ("stock_count", "CNT"), ("device_inspection", "INS"), ("refurb_order", "RF"), ("device_count", "DC"),
         ("margin_self_invoice", "SI"), ("store_credit", "SC"), ("repair_deposit", "DEP"), ("comm_payout", "COM"),
+        ("credit_write_off", "WO"), ("opening_balance", "OB"), ("supplier_provisional", "SP"),
     ];
 
     public static void Map(WebApplication app)

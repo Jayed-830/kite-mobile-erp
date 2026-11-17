@@ -49,7 +49,7 @@ public sealed record ReturnAmounts(decimal Net, decimal Tax, decimal Gross, deci
 
 public static class PosMath
 {
-    public static readonly string[] Methods = ["cash", "card", "bank_transfer", "trade_in", "store_credit"];
+    public static readonly string[] Methods = ["cash", "card", "bank_transfer", "trade_in", "store_credit", "credit"];
     private static readonly Currency Omr = Currency.OMR;
 
     /// <summary>Prices one cart line (10.2): list price unless overridden, discount checked against the cashier's limit,
@@ -140,7 +140,7 @@ public static class PosMath
         {
             var t = tenders[i];
             var f = $"payments[{i}]";
-            if (!Methods.Contains(t.Method)) throw new KiteException(ErrorCodes.Validation, "Payment method must be cash, card, bank_transfer, trade_in or store_credit.", 400, f + ".method");
+            if (!Methods.Contains(t.Method)) throw new KiteException(ErrorCodes.Validation, "Payment method must be cash, card, bank_transfer, trade_in, store_credit or credit (on account).", 400, f + ".method");
             if (t.Method == "trade_in" && refund) throw new KiteException(ErrorCodes.RefundMethod, "A refund cannot go back as trade-in credit; refund in cash, to the card, by transfer or as store credit.", 400, f + ".method");
             if (t.Method == "trade_in" && t.TradeInId is null) throw new KiteException(ErrorCodes.Validation, "Trade-in credit names its trade-in.", 400, f + ".tradeInId");
             if (t.Method != "trade_in" && t.TradeInId is not null) throw new KiteException(ErrorCodes.Validation, "Only trade-in credit names a trade-in.", 400, f + ".tradeInId");

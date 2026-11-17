@@ -186,7 +186,7 @@ public sealed record SaleDraft(
     Guid Id, Guid ShiftId, Guid CashierId, Guid? CustomerId, string DocType, string? CreditReason, Guid? OriginalSaleId,
     Guid? ExchangeGroupId, DateTimeOffset CompletedAt, IReadOnlyList<DraftLine> Lines, CheckedPayments Payments, bool Refund,
     bool IsEmergency = false, string? EmergencyNumber = null, string? Note = null, Func<string, AuditEntry>? Audit = null,
-    Guid? RepairJobId = null, decimal DepositTax = 0m, string? Number = null);
+    Guid? RepairJobId = null, decimal DepositTax = 0m, string? Number = null, CreditCheck? Credit = null);
 
 public sealed record WrittenSale(Guid Id, string Number, decimal Gross, decimal CashRounding, int StockExceptions);
 
@@ -202,6 +202,13 @@ public static class SaleWriter
         var isCredit = d.DocType == "credit_note";
         await TradeInCore.LockForPaymentAsync(t, d.Payments.Tenders.Where(p => p.TradeInId is not null).Select(p => p.TradeInId!.Value),
             d.Payments.Tenders.Any(p => p.Method == "store_credit") ? d.CustomerId : null);
+        var onAccount = d.Payments.Tenders.Any(p => p.Method == "credit");
+        if (onAccount)
+        {
+            if (d.CustomerId is null) throw new KiteException(ErrorCodes.CustomerRequired, "A sale on account is charged to a customer: choose the customer.", 400, "customerId");
+            await CreditCore.LockAsync(t, d.CustomerId.Value);
+            if (!d.Refund && d.Credit is null) throw new KiteException(ErrorCodes.Internal, "A sale on account needs its credit decision.", 500);
+        }
         // A document numbered by the caller (one that writes two documents takes both numbers before any journal: ADR 54).
         var number = d.Number ?? (d.IsEmergency
             ? d.EmergencyNumber!
@@ -339,6 +346,11 @@ public static class SaleWriter
                         """, new { id = t.NewId(), businessId = biz.Id, branchId = term.BranchId, job = d.RepairJobId, amount = p.Amount, tax = d.DepositTax,
                                    saleId = d.Id, creditEntry, by = d.CashierId });
             }
+            // On account (14.3, 14.4): a sale is charged to the customer's credit account with its instalments; a credit note takes it back off.
+            if (p.Method == "credit")
+                creditEntry = d.Refund
+                    ? await CreditCore.WriteCreditNoteAsync(t, biz.Id, term.BranchId, d.CustomerId!.Value, d.Id, number, date, p.Amount, d.CashierId)
+                    : await CreditCore.WriteChargeAsync(t, biz.Id, term.BranchId, d.Id, number, date, d.Credit! with { Amount = p.Amount }, d.CashierId);
             await t.ExecuteAsync("""
                 INSERT INTO sales.payment (id, business_id, branch_id, sale_id, shift_id, method, amount, tendered, change_given,
                                            card_terminal, approval_code, reference, created_at, tradein_id, credit_entry_id)
@@ -366,6 +378,9 @@ public static class SaleWriter
             facts, date, "sale", d.Id, description, d.CustomerId);
         await Posting.PostAsync(t, biz.Id, term.BranchId, isCredit ? PostingRuleTemplates.CreditNoteCost : PostingRuleTemplates.SaleCost,
             costFacts, date, "sale", d.Id, description + " (cost)");
+        // Head office settles open items at once: a credit note the original sale's instalments first; a new charge an advance (14.4).
+        if (onAccount)
+            await CreditCore.AllocateAsync(t, biz.Id, d.CustomerId!.Value, term.BranchId, date, "sale", d.Id, preferSaleId: d.OriginalSaleId);
 
         // Audit before the sync event: every transaction takes the audit-chain lock before the outbox lock, so two never wait on each other.
         if (d.Audit is not null) await t.AuditAsync(d.Audit(number));

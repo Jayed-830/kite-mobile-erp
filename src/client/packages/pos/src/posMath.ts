@@ -74,7 +74,7 @@ export function roundCash(amount: Baisa, step: number | string): Baisa {
   return mulDiv(amount, 1n, s) * s;
 }
 
-export type TenderMethod = 'cash' | 'card' | 'bank_transfer' | 'trade_in' | 'store_credit';
+export type TenderMethod = 'cash' | 'card' | 'bank_transfer' | 'trade_in' | 'store_credit' | 'credit';
 export interface Tender { method: TenderMethod; amount: Baisa; tendered?: Baisa | null; cardTerminal?: string | null; approvalCode?: string | null; reference?: string | null; tradeInId?: string | null }
 
 /** Cash due after card/transfer, with the rounding it carries. */

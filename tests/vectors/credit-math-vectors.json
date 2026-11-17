@@ -1,0 +1,8624 @@
+{
+ "online": [
+  {
+   "limit": "450.455",
+   "exposure": "102.721",
+   "unsynced": "30.706",
+   "expect": "317.028"
+  },
+  {
+   "limit": "243.812",
+   "exposure": "13.740",
+   "unsynced": "97.674",
+   "expect": "132.398"
+  },
+  {
+   "limit": "483.241",
+   "exposure": "484.093",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "282.126",
+   "exposure": "564.336",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "86.714",
+   "exposure": "561.123",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "40.500",
+   "exposure": "41.739",
+   "unsynced": "66.448",
+   "expect": "0.000"
+  },
+  {
+   "limit": "375.394",
+   "exposure": "530.176",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "183.520",
+   "exposure": "312.991",
+   "unsynced": "63.788",
+   "expect": "0.000"
+  },
+  {
+   "limit": "314.934",
+   "exposure": "487.248",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "7.616",
+   "exposure": "352.631",
+   "unsynced": "99.225",
+   "expect": "0.000"
+  },
+  {
+   "limit": "235.686",
+   "exposure": "-46.867",
+   "unsynced": "36.927",
+   "expect": "245.626"
+  },
+  {
+   "limit": "449.644",
+   "exposure": "482.459",
+   "unsynced": "76.630",
+   "expect": "0.000"
+  },
+  {
+   "limit": "48.303",
+   "exposure": "297.727",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "493.449",
+   "exposure": "488.459",
+   "unsynced": "55.016",
+   "expect": "0.000"
+  },
+  {
+   "limit": "113.129",
+   "exposure": "469.063",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "419.644",
+   "exposure": "194.014",
+   "unsynced": "0.000",
+   "expect": "225.630"
+  },
+  {
+   "limit": "235.334",
+   "exposure": "518.472",
+   "unsynced": "97.072",
+   "expect": "0.000"
+  },
+  {
+   "limit": "348.815",
+   "exposure": "157.949",
+   "unsynced": "0.000",
+   "expect": "190.866"
+  },
+  {
+   "limit": "447.193",
+   "exposure": "435.793",
+   "unsynced": "0.000",
+   "expect": "11.400"
+  },
+  {
+   "limit": "197.519",
+   "exposure": "424.807",
+   "unsynced": "63.624",
+   "expect": "0.000"
+  },
+  {
+   "limit": "103.972",
+   "exposure": "538.869",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "132.376",
+   "exposure": "128.605",
+   "unsynced": "0.000",
+   "expect": "3.771"
+  },
+  {
+   "limit": "11.703",
+   "exposure": "219.266",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "41.852",
+   "exposure": "563.575",
+   "unsynced": "64.125",
+   "expect": "0.000"
+  },
+  {
+   "limit": "170.479",
+   "exposure": "218.321",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "418.931",
+   "exposure": "245.156",
+   "unsynced": "42.557",
+   "expect": "131.218"
+  },
+  {
+   "limit": "301.934",
+   "exposure": "490.365",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "30.156",
+   "exposure": "-3.659",
+   "unsynced": "0.000",
+   "expect": "33.815"
+  },
+  {
+   "limit": "102.007",
+   "exposure": "469.581",
+   "unsynced": "34.422",
+   "expect": "0.000"
+  },
+  {
+   "limit": "174.317",
+   "exposure": "508.123",
+   "unsynced": "97.719",
+   "expect": "0.000"
+  },
+  {
+   "limit": "251.292",
+   "exposure": "242.366",
+   "unsynced": "58.900",
+   "expect": "0.000"
+  },
+  {
+   "limit": "236.105",
+   "exposure": "280.300",
+   "unsynced": "66.428",
+   "expect": "0.000"
+  },
+  {
+   "limit": "4.320",
+   "exposure": "395.309",
+   "unsynced": "95.570",
+   "expect": "0.000"
+  },
+  {
+   "limit": "365.599",
+   "exposure": "402.222",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "277.137",
+   "exposure": "58.512",
+   "unsynced": "66.503",
+   "expect": "152.122"
+  },
+  {
+   "limit": "327.411",
+   "exposure": "213.054",
+   "unsynced": "0.000",
+   "expect": "114.357"
+  },
+  {
+   "limit": "423.306",
+   "exposure": "204.975",
+   "unsynced": "0.000",
+   "expect": "218.331"
+  },
+  {
+   "limit": "139.856",
+   "exposure": "512.373",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "341.945",
+   "exposure": "-18.817",
+   "unsynced": "73.481",
+   "expect": "287.281"
+  },
+  {
+   "limit": "312.199",
+   "exposure": "415.461",
+   "unsynced": "47.800",
+   "expect": "0.000"
+  },
+  {
+   "limit": "231.277",
+   "exposure": "-46.060",
+   "unsynced": "58.728",
+   "expect": "218.609"
+  },
+  {
+   "limit": "149.679",
+   "exposure": "459.792",
+   "unsynced": "33.314",
+   "expect": "0.000"
+  },
+  {
+   "limit": "340.545",
+   "exposure": "596.923",
+   "unsynced": "61.290",
+   "expect": "0.000"
+  },
+  {
+   "limit": "139.719",
+   "exposure": "28.966",
+   "unsynced": "63.219",
+   "expect": "47.534"
+  },
+  {
+   "limit": "203.703",
+   "exposure": "468.017",
+   "unsynced": "88.987",
+   "expect": "0.000"
+  },
+  {
+   "limit": "229.184",
+   "exposure": "467.782",
+   "unsynced": "43.416",
+   "expect": "0.000"
+  },
+  {
+   "limit": "492.298",
+   "exposure": "376.470",
+   "unsynced": "90.340",
+   "expect": "25.488"
+  },
+  {
+   "limit": "92.697",
+   "exposure": "333.246",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "496.548",
+   "exposure": "48.086",
+   "unsynced": "67.458",
+   "expect": "381.004"
+  },
+  {
+   "limit": "395.799",
+   "exposure": "78.403",
+   "unsynced": "93.658",
+   "expect": "223.738"
+  },
+  {
+   "limit": "134.877",
+   "exposure": "536.880",
+   "unsynced": "84.084",
+   "expect": "0.000"
+  },
+  {
+   "limit": "238.806",
+   "exposure": "296.758",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "438.397",
+   "exposure": "89.623",
+   "unsynced": "0.000",
+   "expect": "348.774"
+  },
+  {
+   "limit": "459.070",
+   "exposure": "507.084",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "463.658",
+   "exposure": "486.921",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "253.987",
+   "exposure": "546.449",
+   "unsynced": "18.039",
+   "expect": "0.000"
+  },
+  {
+   "limit": "109.935",
+   "exposure": "492.772",
+   "unsynced": "96.180",
+   "expect": "0.000"
+  },
+  {
+   "limit": "198.875",
+   "exposure": "443.482",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "46.621",
+   "exposure": "346.268",
+   "unsynced": "43.612",
+   "expect": "0.000"
+  },
+  {
+   "limit": "477.440",
+   "exposure": "378.630",
+   "unsynced": "0.000",
+   "expect": "98.810"
+  },
+  {
+   "limit": "389.056",
+   "exposure": "566.181",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "211.850",
+   "exposure": "576.117",
+   "unsynced": "67.957",
+   "expect": "0.000"
+  },
+  {
+   "limit": "305.077",
+   "exposure": "278.129",
+   "unsynced": "0.000",
+   "expect": "26.948"
+  },
+  {
+   "limit": "13.307",
+   "exposure": "303.434",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "123.300",
+   "exposure": "342.289",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "458.327",
+   "exposure": "352.163",
+   "unsynced": "27.538",
+   "expect": "78.626"
+  },
+  {
+   "limit": "393.119",
+   "exposure": "188.967",
+   "unsynced": "84.351",
+   "expect": "119.801"
+  },
+  {
+   "limit": "279.842",
+   "exposure": "143.455",
+   "unsynced": "34.794",
+   "expect": "101.593"
+  },
+  {
+   "limit": "484.911",
+   "exposure": "433.829",
+   "unsynced": "0.000",
+   "expect": "51.082"
+  },
+  {
+   "limit": "131.574",
+   "exposure": "563.304",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "157.878",
+   "exposure": "209.737",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "94.804",
+   "exposure": "179.499",
+   "unsynced": "18.138",
+   "expect": "0.000"
+  },
+  {
+   "limit": "121.548",
+   "exposure": "401.257",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "279.228",
+   "exposure": "397.854",
+   "unsynced": "16.587",
+   "expect": "0.000"
+  },
+  {
+   "limit": "393.444",
+   "exposure": "12.425",
+   "unsynced": "68.339",
+   "expect": "312.680"
+  },
+  {
+   "limit": "184.766",
+   "exposure": "329.625",
+   "unsynced": "0.000",
+   "expect": "0.000"
+  },
+  {
+   "limit": "176.424",
+   "exposure": "514.879",
+   "unsynced": "27.239",
+   "expect": "0.000"
+  },
+  {
+   "limit": "467.824",
+   "exposure": "-18.627",
+   "unsynced": "34.879",
+   "expect": "451.572"
+  },
+  {
+   "limit": "314.973",
+   "exposure": "245.125",
+   "unsynced": "6.231",
+   "expect": "63.617"
+  },
+  {
+   "limit": "209.726",
+   "exposure": "219.887",
+   "unsynced": "50.402",
+   "expect": "0.000"
+  }
+ ],
+ "offline": [
+  {
+   "allowance": "300.000",
+   "limit": "500.000",
+   "lastExposure": "100.000",
+   "sinceSync": "0.000",
+   "cap": "1000.000",
+   "expect": "300.000"
+  },
+  {
+   "allowance": "200.000",
+   "limit": "500.000",
+   "lastExposure": "100.000",
+   "sinceSync": "150.000",
+   "cap": "100.000",
+   "expect": "50.000"
+  },
+  {
+   "allowance": "106.063",
+   "limit": "450.455",
+   "lastExposure": "92.724",
+   "sinceSync": "56.753",
+   "cap": "90.360",
+   "expect": "49.310"
+  },
+  {
+   "allowance": "185.392",
+   "limit": "243.812",
+   "lastExposure": "133.776",
+   "sinceSync": "185.277",
+   "cap": "31.026",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "246.919",
+   "limit": "483.241",
+   "lastExposure": "70.418",
+   "sinceSync": "172.188",
+   "cap": "174.178",
+   "expect": "74.731"
+  },
+  {
+   "allowance": "284.139",
+   "limit": "282.126",
+   "lastExposure": "457.579",
+   "sinceSync": "61.660",
+   "cap": "146.274",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "101.710",
+   "limit": "86.714",
+   "lastExposure": "260.202",
+   "sinceSync": "18.448",
+   "cap": "161.266",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "92.139",
+   "limit": "40.500",
+   "lastExposure": "493.833",
+   "sinceSync": "147.682",
+   "cap": "77.504",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "158.691",
+   "limit": "375.394",
+   "lastExposure": "152.092",
+   "sinceSync": "148.886",
+   "cap": "43.555",
+   "expect": "9.805"
+  },
+  {
+   "allowance": "200.705",
+   "limit": "183.520",
+   "lastExposure": "39.583",
+   "sinceSync": "0.000",
+   "cap": "103.180",
+   "expect": "103.180"
+  },
+  {
+   "allowance": "255.846",
+   "limit": "314.934",
+   "lastExposure": "87.432",
+   "sinceSync": "144.535",
+   "cap": "148.559",
+   "expect": "82.967"
+  },
+  {
+   "allowance": "228.453",
+   "limit": "7.616",
+   "lastExposure": "166.115",
+   "sinceSync": "0.000",
+   "cap": "111.068",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "135.639",
+   "limit": "235.686",
+   "lastExposure": "348.342",
+   "sinceSync": "0.000",
+   "cap": "147.558",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "63.563",
+   "limit": "449.644",
+   "lastExposure": "246.306",
+   "sinceSync": "47.026",
+   "cap": "76.058",
+   "expect": "16.537"
+  },
+  {
+   "allowance": "27.398",
+   "limit": "48.303",
+   "lastExposure": "79.233",
+   "sinceSync": "93.111",
+   "cap": "74.563",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "196.381",
+   "limit": "493.449",
+   "lastExposure": "448.818",
+   "sinceSync": "181.796",
+   "cap": "161.626",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "257.840",
+   "limit": "113.129",
+   "lastExposure": "25.471",
+   "sinceSync": "49.745",
+   "cap": "37.673",
+   "expect": "37.673"
+  },
+  {
+   "allowance": "248.666",
+   "limit": "419.644",
+   "lastExposure": "149.729",
+   "sinceSync": "0.000",
+   "cap": "116.474",
+   "expect": "116.474"
+  },
+  {
+   "allowance": "16.510",
+   "limit": "235.334",
+   "lastExposure": "103.662",
+   "sinceSync": "102.738",
+   "cap": "183.263",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "58.686",
+   "limit": "348.815",
+   "lastExposure": "54.073",
+   "sinceSync": "37.806",
+   "cap": "81.489",
+   "expect": "20.880"
+  },
+  {
+   "allowance": "11.253",
+   "limit": "447.193",
+   "lastExposure": "200.619",
+   "sinceSync": "165.443",
+   "cap": "107.892",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "222.636",
+   "limit": "197.519",
+   "lastExposure": "7.016",
+   "sinceSync": "0.000",
+   "cap": "199.295",
+   "expect": "190.503"
+  },
+  {
+   "allowance": "58.874",
+   "limit": "103.972",
+   "lastExposure": "3.440",
+   "sinceSync": "149.396",
+   "cap": "47.806",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "299.659",
+   "limit": "132.376",
+   "lastExposure": "243.708",
+   "sinceSync": "157.781",
+   "cap": "8.009",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "211.573",
+   "limit": "11.703",
+   "lastExposure": "198.212",
+   "sinceSync": "181.449",
+   "cap": "129.140",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "159.467",
+   "limit": "41.852",
+   "lastExposure": "402.747",
+   "sinceSync": "40.976",
+   "cap": "52.489",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "190.806",
+   "limit": "170.479",
+   "lastExposure": "484.930",
+   "sinceSync": "46.382",
+   "cap": "67.738",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "110.944",
+   "limit": "418.931",
+   "lastExposure": "337.348",
+   "sinceSync": "0.000",
+   "cap": "149.284",
+   "expect": "81.583"
+  },
+  {
+   "allowance": "45.672",
+   "limit": "301.934",
+   "lastExposure": "41.636",
+   "sinceSync": "161.835",
+   "cap": "104.120",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "54.674",
+   "limit": "30.156",
+   "lastExposure": "203.710",
+   "sinceSync": "108.442",
+   "cap": "60.678",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "177.645",
+   "limit": "102.007",
+   "lastExposure": "138.109",
+   "sinceSync": "66.679",
+   "cap": "157.693",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "255.737",
+   "limit": "174.317",
+   "lastExposure": "385.235",
+   "sinceSync": "61.742",
+   "cap": "83.165",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "175.580",
+   "limit": "251.292",
+   "lastExposure": "393.274",
+   "sinceSync": "0.000",
+   "cap": "98.691",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "61.336",
+   "limit": "236.105",
+   "lastExposure": "74.410",
+   "sinceSync": "154.164",
+   "cap": "87.234",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "114.684",
+   "limit": "4.320",
+   "lastExposure": "32.975",
+   "sinceSync": "0.000",
+   "cap": "61.378",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "257.816",
+   "limit": "365.599",
+   "lastExposure": "447.262",
+   "sinceSync": "0.000",
+   "cap": "36.522",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "207.043",
+   "limit": "277.137",
+   "lastExposure": "22.851",
+   "sinceSync": "0.000",
+   "cap": "95.884",
+   "expect": "95.884"
+  },
+  {
+   "allowance": "173.894",
+   "limit": "327.411",
+   "lastExposure": "266.059",
+   "sinceSync": "0.000",
+   "cap": "191.090",
+   "expect": "61.352"
+  },
+  {
+   "allowance": "277.760",
+   "limit": "423.306",
+   "lastExposure": "42.411",
+   "sinceSync": "0.000",
+   "cap": "1.781",
+   "expect": "1.781"
+  },
+  {
+   "allowance": "133.903",
+   "limit": "139.856",
+   "lastExposure": "51.766",
+   "sinceSync": "0.000",
+   "cap": "42.073",
+   "expect": "42.073"
+  },
+  {
+   "allowance": "71.606",
+   "limit": "341.945",
+   "lastExposure": "92.347",
+   "sinceSync": "51.410",
+   "cap": "75.454",
+   "expect": "20.196"
+  },
+  {
+   "allowance": "144.184",
+   "limit": "312.199",
+   "lastExposure": "60.092",
+   "sinceSync": "20.809",
+   "cap": "174.632",
+   "expect": "123.375"
+  },
+  {
+   "allowance": "264.467",
+   "limit": "231.277",
+   "lastExposure": "159.643",
+   "sinceSync": "64.570",
+   "cap": "69.543",
+   "expect": "7.064"
+  },
+  {
+   "allowance": "106.622",
+   "limit": "149.679",
+   "lastExposure": "376.098",
+   "sinceSync": "0.000",
+   "cap": "169.299",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "211.768",
+   "limit": "340.545",
+   "lastExposure": "239.363",
+   "sinceSync": "190.228",
+   "cap": "23.943",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "137.560",
+   "limit": "139.719",
+   "lastExposure": "246.120",
+   "sinceSync": "53.993",
+   "cap": "111.382",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "28.271",
+   "limit": "203.703",
+   "lastExposure": "212.049",
+   "sinceSync": "0.000",
+   "cap": "15.204",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "262.985",
+   "limit": "229.184",
+   "lastExposure": "470.832",
+   "sinceSync": "161.035",
+   "cap": "109.385",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "262.250",
+   "limit": "492.298",
+   "lastExposure": "14.389",
+   "sinceSync": "0.000",
+   "cap": "15.925",
+   "expect": "15.925"
+  },
+  {
+   "allowance": "198.789",
+   "limit": "92.697",
+   "lastExposure": "130.090",
+   "sinceSync": "69.141",
+   "cap": "103.644",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "38.391",
+   "limit": "496.548",
+   "lastExposure": "233.618",
+   "sinceSync": "0.000",
+   "cap": "41.677",
+   "expect": "38.391"
+  },
+  {
+   "allowance": "92.456",
+   "limit": "395.799",
+   "lastExposure": "212.421",
+   "sinceSync": "36.672",
+   "cap": "14.724",
+   "expect": "14.724"
+  },
+  {
+   "allowance": "156.015",
+   "limit": "134.877",
+   "lastExposure": "283.443",
+   "sinceSync": "149.701",
+   "cap": "26.758",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "287.353",
+   "limit": "238.806",
+   "lastExposure": "-10.918",
+   "sinceSync": "0.000",
+   "cap": "14.116",
+   "expect": "14.116"
+  },
+  {
+   "allowance": "136.197",
+   "limit": "438.397",
+   "lastExposure": "20.480",
+   "sinceSync": "70.617",
+   "cap": "113.527",
+   "expect": "65.580"
+  },
+  {
+   "allowance": "160.358",
+   "limit": "459.070",
+   "lastExposure": "383.073",
+   "sinceSync": "26.561",
+   "cap": "2.537",
+   "expect": "2.537"
+  },
+  {
+   "allowance": "11.138",
+   "limit": "463.658",
+   "lastExposure": "471.790",
+   "sinceSync": "0.000",
+   "cap": "190.909",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "51.843",
+   "limit": "253.987",
+   "lastExposure": "320.210",
+   "sinceSync": "0.000",
+   "cap": "178.055",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "155.590",
+   "limit": "109.935",
+   "lastExposure": "443.693",
+   "sinceSync": "35.356",
+   "cap": "141.074",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "162.405",
+   "limit": "198.875",
+   "lastExposure": "12.406",
+   "sinceSync": "91.841",
+   "cap": "7.617",
+   "expect": "7.617"
+  },
+  {
+   "allowance": "224.953",
+   "limit": "46.621",
+   "lastExposure": "13.191",
+   "sinceSync": "0.000",
+   "cap": "93.375",
+   "expect": "33.430"
+  },
+  {
+   "allowance": "42.756",
+   "limit": "477.440",
+   "lastExposure": "409.745",
+   "sinceSync": "97.519",
+   "cap": "8.841",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "218.413",
+   "limit": "389.056",
+   "lastExposure": "65.673",
+   "sinceSync": "193.959",
+   "cap": "97.949",
+   "expect": "24.454"
+  },
+  {
+   "allowance": "227.627",
+   "limit": "211.850",
+   "lastExposure": "248.086",
+   "sinceSync": "0.000",
+   "cap": "176.997",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "219.341",
+   "limit": "305.077",
+   "lastExposure": "404.348",
+   "sinceSync": "75.264",
+   "cap": "163.759",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "281.635",
+   "limit": "13.307",
+   "lastExposure": "217.444",
+   "sinceSync": "0.000",
+   "cap": "118.930",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "299.104",
+   "limit": "123.300",
+   "lastExposure": "332.087",
+   "sinceSync": "180.851",
+   "cap": "144.655",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "101.029",
+   "limit": "458.327",
+   "lastExposure": "421.604",
+   "sinceSync": "0.000",
+   "cap": "7.518",
+   "expect": "7.518"
+  },
+  {
+   "allowance": "22.776",
+   "limit": "393.119",
+   "lastExposure": "92.809",
+   "sinceSync": "0.000",
+   "cap": "197.075",
+   "expect": "22.776"
+  },
+  {
+   "allowance": "187.933",
+   "limit": "279.842",
+   "lastExposure": "337.004",
+   "sinceSync": "0.960",
+   "cap": "148.695",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "167.885",
+   "limit": "484.911",
+   "lastExposure": "221.199",
+   "sinceSync": "106.755",
+   "cap": "116.135",
+   "expect": "61.130"
+  },
+  {
+   "allowance": "60.429",
+   "limit": "131.574",
+   "lastExposure": "288.074",
+   "sinceSync": "0.000",
+   "cap": "184.958",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "47.798",
+   "limit": "157.878",
+   "lastExposure": "12.931",
+   "sinceSync": "70.739",
+   "cap": "145.806",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "173.607",
+   "limit": "94.804",
+   "lastExposure": "115.787",
+   "sinceSync": "0.000",
+   "cap": "163.854",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "21.493",
+   "limit": "121.548",
+   "lastExposure": "90.667",
+   "sinceSync": "0.000",
+   "cap": "6.287",
+   "expect": "6.287"
+  },
+  {
+   "allowance": "193.378",
+   "limit": "279.228",
+   "lastExposure": "43.224",
+   "sinceSync": "0.000",
+   "cap": "134.514",
+   "expect": "134.514"
+  },
+  {
+   "allowance": "275.487",
+   "limit": "393.444",
+   "lastExposure": "28.647",
+   "sinceSync": "11.665",
+   "cap": "59.871",
+   "expect": "59.871"
+  },
+  {
+   "allowance": "240.038",
+   "limit": "184.766",
+   "lastExposure": "412.302",
+   "sinceSync": "102.740",
+   "cap": "145.258",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "185.229",
+   "limit": "176.424",
+   "lastExposure": "110.560",
+   "sinceSync": "171.938",
+   "cap": "116.101",
+   "expect": "0.000"
+  },
+  {
+   "allowance": "194.090",
+   "limit": "467.824",
+   "lastExposure": "36.425",
+   "sinceSync": "55.191",
+   "cap": "48.770",
+   "expect": "48.770"
+  },
+  {
+   "allowance": "38.762",
+   "limit": "314.973",
+   "lastExposure": "-0.433",
+   "sinceSync": "0.000",
+   "cap": "197.301",
+   "expect": "38.762"
+  },
+  {
+   "allowance": "0.947",
+   "limit": "209.726",
+   "lastExposure": "316.325",
+   "sinceSync": "0.000",
+   "cap": "175.043",
+   "expect": "0.000"
+  }
+ ],
+ "decide": [
+  {
+   "amount": "296.914",
+   "available": "118.452",
+   "overrideCap": "49.602",
+   "overdueDays": 0,
+   "blockDays": 60,
+   "status": "closed",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "98.570",
+   "available": "47.486",
+   "overrideCap": "14.527",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "51.084"
+   }
+  },
+  {
+   "amount": "21.966",
+   "available": "197.861",
+   "overrideCap": "35.788",
+   "overdueDays": 120,
+   "blockDays": 60,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "39.501",
+   "available": "250.990",
+   "overrideCap": "73.349",
+   "overdueDays": 29,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "122.908",
+   "available": "264.616",
+   "overrideCap": "29.091",
+   "overdueDays": 45,
+   "blockDays": 60,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "163.506",
+   "available": "174.576",
+   "overrideCap": "37.276",
+   "overdueDays": 45,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "229.175",
+   "available": "87.778",
+   "overrideCap": "1.741",
+   "overdueDays": 120,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "141.397"
+   }
+  },
+  {
+   "amount": "129.351",
+   "available": "163.828",
+   "overrideCap": "39.895",
+   "overdueDays": 5,
+   "blockDays": 60,
+   "status": "closed",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "216.288",
+   "available": "204.239",
+   "overrideCap": "69.441",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "12.049"
+   }
+  },
+  {
+   "amount": "142.844",
+   "available": "183.291",
+   "overrideCap": "65.413",
+   "overdueDays": 30,
+   "blockDays": 60,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "32.454",
+   "available": "14.630",
+   "overrideCap": "69.574",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "17.824"
+   }
+  },
+  {
+   "amount": "111.176",
+   "available": "209.181",
+   "overrideCap": "13.649",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "252.642",
+   "available": "184.056",
+   "overrideCap": "65.297",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "68.586"
+   }
+  },
+  {
+   "amount": "20.395",
+   "available": "42.410",
+   "overrideCap": "34.852",
+   "overdueDays": 61,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "38.099",
+   "available": "125.494",
+   "overrideCap": "14.868",
+   "overdueDays": 30,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "215.872",
+   "available": "14.805",
+   "overrideCap": "22.726",
+   "overdueDays": 61,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "201.067"
+   }
+  },
+  {
+   "amount": "169.429",
+   "available": "240.619",
+   "overrideCap": "24.492",
+   "overdueDays": 29,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "132.029",
+   "available": "74.772",
+   "overrideCap": "75.100",
+   "overdueDays": 45,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "57.257"
+   }
+  },
+  {
+   "amount": "192.358",
+   "available": "295.375",
+   "overrideCap": "37.404",
+   "overdueDays": 29,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "87.508",
+   "available": "27.164",
+   "overrideCap": "71.742",
+   "overdueDays": 5,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "60.344"
+   }
+  },
+  {
+   "amount": "27.232",
+   "available": "21.206",
+   "overrideCap": "2.305",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "6.026"
+   }
+  },
+  {
+   "amount": "79.451",
+   "available": "200.133",
+   "overrideCap": "14.859",
+   "overdueDays": 61,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "173.242",
+   "available": "160.103",
+   "overrideCap": "9.020",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "70.616",
+   "available": "133.954",
+   "overrideCap": "77.100",
+   "overdueDays": 30,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "121.495",
+   "available": "81.672",
+   "overrideCap": "43.573",
+   "overdueDays": 31,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "39.823"
+   }
+  },
+  {
+   "amount": "278.784",
+   "available": "18.468",
+   "overrideCap": "33.596",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "260.316"
+   }
+  },
+  {
+   "amount": "234.669",
+   "available": "80.737",
+   "overrideCap": "17.482",
+   "overdueDays": 31,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "153.932"
+   }
+  },
+  {
+   "amount": "107.569",
+   "available": "44.444",
+   "overrideCap": "56.312",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "102.208",
+   "available": "144.538",
+   "overrideCap": "28.401",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "128.019",
+   "available": "195.448",
+   "overrideCap": "41.357",
+   "overdueDays": 29,
+   "blockDays": 0,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "147.295",
+   "available": "67.726",
+   "overrideCap": "23.721",
+   "overdueDays": 61,
+   "blockDays": 60,
+   "status": "closed",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "213.810",
+   "available": "238.081",
+   "overrideCap": "63.725",
+   "overdueDays": 5,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "266.218",
+   "available": "170.190",
+   "overrideCap": "53.035",
+   "overdueDays": 45,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "96.028"
+   }
+  },
+  {
+   "amount": "99.332",
+   "available": "172.854",
+   "overrideCap": "3.888",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "183.310",
+   "available": "155.389",
+   "overrideCap": "34.992",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "27.921"
+   }
+  },
+  {
+   "amount": "7.643",
+   "available": "25.955",
+   "overrideCap": "51.605",
+   "overdueDays": 45,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "37.733",
+   "available": "95.763",
+   "overrideCap": "74.298",
+   "overdueDays": 5,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "136.545",
+   "available": "198.715",
+   "overrideCap": "50.917",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "220.960",
+   "available": "253.828",
+   "overrideCap": "75.524",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "23.711",
+   "available": "147.274",
+   "overrideCap": "33.772",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "279.365",
+   "available": "182.202",
+   "overrideCap": "42.465",
+   "overdueDays": 45,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "97.163"
+   }
+  },
+  {
+   "amount": "100.171",
+   "available": "141.113",
+   "overrideCap": "23.813",
+   "overdueDays": 120,
+   "blockDays": 0,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "123.156",
+   "available": "175.769",
+   "overrideCap": "18.475",
+   "overdueDays": 29,
+   "blockDays": 60,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "82.565",
+   "available": "138.475",
+   "overrideCap": "14.573",
+   "overdueDays": 45,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "26.273",
+   "available": "104.756",
+   "overrideCap": "78.809",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "57.119",
+   "available": "271.861",
+   "overrideCap": "42.439",
+   "overdueDays": 5,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "273.070",
+   "available": "94.520",
+   "overrideCap": "43.743",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "47.709",
+   "available": "279.288",
+   "overrideCap": "18.117",
+   "overdueDays": 29,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "236.466",
+   "available": "207.817",
+   "overrideCap": "11.287",
+   "overdueDays": 120,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "28.649"
+   }
+  },
+  {
+   "amount": "235.757",
+   "available": "87.795",
+   "overrideCap": "17.174",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "147.962"
+   }
+  },
+  {
+   "amount": "236.429",
+   "available": "294.523",
+   "overrideCap": "78.130",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "195.812",
+   "available": "39.424",
+   "overrideCap": "76.365",
+   "overdueDays": 29,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "156.388"
+   }
+  },
+  {
+   "amount": "161.998",
+   "available": "234.257",
+   "overrideCap": "3.046",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "83.156",
+   "available": "121.089",
+   "overrideCap": "79.380",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "69.697",
+   "available": "126.687",
+   "overrideCap": "37.442",
+   "overdueDays": 31,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "9.849",
+   "available": "157.979",
+   "overrideCap": "27.553",
+   "overdueDays": 5,
+   "blockDays": 0,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "49.398",
+   "available": "293.377",
+   "overrideCap": "54.019",
+   "overdueDays": 61,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "202.088",
+   "available": "244.013",
+   "overrideCap": "47.396",
+   "overdueDays": 61,
+   "blockDays": 60,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "108.095",
+   "available": "2.579",
+   "overrideCap": "43.193",
+   "overdueDays": 31,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "105.516"
+   }
+  },
+  {
+   "amount": "84.079",
+   "available": "107.250",
+   "overrideCap": "30.589",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "136.665",
+   "available": "193.989",
+   "overrideCap": "65.106",
+   "overdueDays": 5,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "55.887",
+   "available": "291.613",
+   "overrideCap": "1.951",
+   "overdueDays": 45,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "51.481",
+   "available": "97.800",
+   "overrideCap": "21.276",
+   "overdueDays": 120,
+   "blockDays": 30,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "52.333",
+   "available": "151.692",
+   "overrideCap": "37.523",
+   "overdueDays": 30,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "223.418",
+   "available": "144.005",
+   "overrideCap": "56.920",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "79.413"
+   }
+  },
+  {
+   "amount": "258.309",
+   "available": "7.810",
+   "overrideCap": "78.928",
+   "overdueDays": 120,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "250.499"
+   }
+  },
+  {
+   "amount": "93.787",
+   "available": "148.156",
+   "overrideCap": "47.057",
+   "overdueDays": 30,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "98.793",
+   "available": "89.205",
+   "overrideCap": "64.117",
+   "overdueDays": 31,
+   "blockDays": 60,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "124.905",
+   "available": "191.850",
+   "overrideCap": "27.842",
+   "overdueDays": 31,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "17.215",
+   "available": "282.885",
+   "overrideCap": "62.806",
+   "overdueDays": 45,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "59.805",
+   "available": "39.505",
+   "overrideCap": "74.320",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "20.300"
+   }
+  },
+  {
+   "amount": "33.835",
+   "available": "13.293",
+   "overrideCap": "77.784",
+   "overdueDays": 29,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "20.542"
+   }
+  },
+  {
+   "amount": "243.591",
+   "available": "53.589",
+   "overrideCap": "37.294",
+   "overdueDays": 30,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "190.002"
+   }
+  },
+  {
+   "amount": "73.524",
+   "available": "41.374",
+   "overrideCap": "44.825",
+   "overdueDays": 29,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "32.150"
+   }
+  },
+  {
+   "amount": "225.769",
+   "available": "123.037",
+   "overrideCap": "22.823",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "36.814",
+   "available": "195.865",
+   "overrideCap": "16.796",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "259.738",
+   "available": "5.826",
+   "overrideCap": "4.087",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "39.768",
+   "available": "148.193",
+   "overrideCap": "49.010",
+   "overdueDays": 31,
+   "blockDays": 0,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "24.829",
+   "available": "298.414",
+   "overrideCap": "21.333",
+   "overdueDays": 31,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "270.896",
+   "available": "257.003",
+   "overrideCap": "59.037",
+   "overdueDays": 29,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "13.893"
+   }
+  },
+  {
+   "amount": "155.191",
+   "available": "96.526",
+   "overrideCap": "21.859",
+   "overdueDays": 29,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "58.665"
+   }
+  },
+  {
+   "amount": "258.777",
+   "available": "277.993",
+   "overrideCap": "76.232",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "259.012",
+   "available": "58.964",
+   "overrideCap": "71.284",
+   "overdueDays": 5,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "200.048"
+   }
+  },
+  {
+   "amount": "98.357",
+   "available": "193.894",
+   "overrideCap": "47.232",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "102.711",
+   "available": "172.919",
+   "overrideCap": "58.205",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "35.281",
+   "available": "117.188",
+   "overrideCap": "4.895",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "15.194",
+   "available": "119.874",
+   "overrideCap": "31.996",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "hold",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "121.788",
+   "available": "259.890",
+   "overrideCap": "9.480",
+   "overdueDays": 0,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "238.410",
+   "available": "243.790",
+   "overrideCap": "29.300",
+   "overdueDays": 120,
+   "blockDays": 60,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "needs_approval",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "194.475",
+   "available": "46.208",
+   "overrideCap": "17.465",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "148.267"
+   }
+  },
+  {
+   "amount": "58.681",
+   "available": "101.880",
+   "overrideCap": "70.784",
+   "overdueDays": 45,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "122.187",
+   "available": "243.717",
+   "overrideCap": "68.481",
+   "overdueDays": 5,
+   "blockDays": 30,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "238.534",
+   "available": "290.953",
+   "overrideCap": "36.207",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "10.034",
+   "available": "88.819",
+   "overrideCap": "67.796",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "123.971",
+   "available": "272.871",
+   "overrideCap": "10.843",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "46.089",
+   "available": "178.697",
+   "overrideCap": "30.180",
+   "overdueDays": 61,
+   "blockDays": 30,
+   "status": "hold",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "hold",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "92.978",
+   "available": "162.856",
+   "overrideCap": "5.907",
+   "overdueDays": 29,
+   "blockDays": 30,
+   "status": "closed",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "closed",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "20.729",
+   "available": "50.995",
+   "overrideCap": "75.443",
+   "overdueDays": 31,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": true,
+   "expect": {
+    "outcome": "approved",
+    "overBy": "0.000"
+   }
+  },
+  {
+   "amount": "135.671",
+   "available": "36.175",
+   "overrideCap": "45.565",
+   "overdueDays": 30,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "over_cap",
+    "overBy": "99.496"
+   }
+  },
+  {
+   "amount": "64.858",
+   "available": "124.316",
+   "overrideCap": "37.476",
+   "overdueDays": 0,
+   "blockDays": 0,
+   "status": "active",
+   "hasApproval": false,
+   "expect": {
+    "outcome": "ok",
+    "overBy": "0.000"
+   }
+  }
+ ],
+ "instalments": [
+  {
+   "total": "382.245",
+   "count": 4,
+   "saleDate": "2026-08-09",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-08-16",
+     "amount": "95.562"
+    },
+    {
+     "seq": 2,
+     "due": "2026-08-23",
+     "amount": "95.561"
+    },
+    {
+     "seq": 3,
+     "due": "2026-08-30",
+     "amount": "95.561"
+    },
+    {
+     "seq": 4,
+     "due": "2026-09-06",
+     "amount": "95.561"
+    }
+   ]
+  },
+  {
+   "total": "689.489",
+   "count": 3,
+   "saleDate": "2026-05-25",
+   "terms": 0,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-05-25",
+     "amount": "229.830"
+    },
+    {
+     "seq": 2,
+     "due": "2026-06-01",
+     "amount": "229.830"
+    },
+    {
+     "seq": 3,
+     "due": "2026-06-08",
+     "amount": "229.829"
+    }
+   ]
+  },
+  {
+   "total": "860.762",
+   "count": 3,
+   "saleDate": "2027-07-25",
+   "terms": 30,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-08-24",
+     "amount": "286.921"
+    },
+    {
+     "seq": 2,
+     "due": "2027-09-23",
+     "amount": "286.921"
+    },
+    {
+     "seq": 3,
+     "due": "2027-10-23",
+     "amount": "286.920"
+    }
+   ]
+  },
+  {
+   "total": "51.996",
+   "count": 1,
+   "saleDate": "2027-08-07",
+   "terms": 60,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-10-06",
+     "amount": "51.996"
+    }
+   ]
+  },
+  {
+   "total": "86.576",
+   "count": 1,
+   "saleDate": "2027-09-28",
+   "terms": 45,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-11-12",
+     "amount": "86.576"
+    }
+   ]
+  },
+  {
+   "total": "877.895",
+   "count": 4,
+   "saleDate": "2027-04-20",
+   "terms": 14,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-05-04",
+     "amount": "219.474"
+    },
+    {
+     "seq": 2,
+     "due": "2027-06-03",
+     "amount": "219.474"
+    },
+    {
+     "seq": 3,
+     "due": "2027-07-03",
+     "amount": "219.474"
+    },
+    {
+     "seq": 4,
+     "due": "2027-08-02",
+     "amount": "219.473"
+    }
+   ]
+  },
+  {
+   "total": "226.244",
+   "count": 7,
+   "saleDate": "2027-10-05",
+   "terms": 45,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-11-19",
+     "amount": "32.321"
+    },
+    {
+     "seq": 2,
+     "due": "2027-12-19",
+     "amount": "32.321"
+    },
+    {
+     "seq": 3,
+     "due": "2028-01-18",
+     "amount": "32.321"
+    },
+    {
+     "seq": 4,
+     "due": "2028-02-17",
+     "amount": "32.321"
+    },
+    {
+     "seq": 5,
+     "due": "2028-03-18",
+     "amount": "32.320"
+    },
+    {
+     "seq": 6,
+     "due": "2028-04-17",
+     "amount": "32.320"
+    },
+    {
+     "seq": 7,
+     "due": "2028-05-17",
+     "amount": "32.320"
+    }
+   ]
+  },
+  {
+   "total": "35.490",
+   "count": 4,
+   "saleDate": "2026-02-24",
+   "terms": 45,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-10",
+     "amount": "8.873"
+    },
+    {
+     "seq": 2,
+     "due": "2026-04-17",
+     "amount": "8.873"
+    },
+    {
+     "seq": 3,
+     "due": "2026-04-24",
+     "amount": "8.872"
+    },
+    {
+     "seq": 4,
+     "due": "2026-05-01",
+     "amount": "8.872"
+    }
+   ]
+  },
+  {
+   "total": "753.734",
+   "count": 12,
+   "saleDate": "2027-07-03",
+   "terms": 0,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-07-03",
+     "amount": "62.812"
+    },
+    {
+     "seq": 2,
+     "due": "2027-08-03",
+     "amount": "62.812"
+    },
+    {
+     "seq": 3,
+     "due": "2027-09-03",
+     "amount": "62.811"
+    },
+    {
+     "seq": 4,
+     "due": "2027-10-04",
+     "amount": "62.811"
+    },
+    {
+     "seq": 5,
+     "due": "2027-11-04",
+     "amount": "62.811"
+    },
+    {
+     "seq": 6,
+     "due": "2027-12-05",
+     "amount": "62.811"
+    },
+    {
+     "seq": 7,
+     "due": "2028-01-05",
+     "amount": "62.811"
+    },
+    {
+     "seq": 8,
+     "due": "2028-02-05",
+     "amount": "62.811"
+    },
+    {
+     "seq": 9,
+     "due": "2028-03-07",
+     "amount": "62.811"
+    },
+    {
+     "seq": 10,
+     "due": "2028-04-07",
+     "amount": "62.811"
+    },
+    {
+     "seq": 11,
+     "due": "2028-05-08",
+     "amount": "62.811"
+    },
+    {
+     "seq": 12,
+     "due": "2028-06-08",
+     "amount": "62.811"
+    }
+   ]
+  },
+  {
+   "total": "584.315",
+   "count": 3,
+   "saleDate": "2026-02-22",
+   "terms": 60,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-23",
+     "amount": "194.772"
+    },
+    {
+     "seq": 2,
+     "due": "2026-05-07",
+     "amount": "194.772"
+    },
+    {
+     "seq": 3,
+     "due": "2026-05-21",
+     "amount": "194.771"
+    }
+   ]
+  },
+  {
+   "total": "581.612",
+   "count": 2,
+   "saleDate": "2027-05-09",
+   "terms": 0,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-05-09",
+     "amount": "290.806"
+    },
+    {
+     "seq": 2,
+     "due": "2027-06-08",
+     "amount": "290.806"
+    }
+   ]
+  },
+  {
+   "total": "9.934",
+   "count": 1,
+   "saleDate": "2026-02-21",
+   "terms": 14,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-03-07",
+     "amount": "9.934"
+    }
+   ]
+  },
+  {
+   "total": "144.017",
+   "count": 4,
+   "saleDate": "2027-01-01",
+   "terms": 60,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-03-02",
+     "amount": "36.005"
+    },
+    {
+     "seq": 2,
+     "due": "2027-03-09",
+     "amount": "36.004"
+    },
+    {
+     "seq": 3,
+     "due": "2027-03-16",
+     "amount": "36.004"
+    },
+    {
+     "seq": 4,
+     "due": "2027-03-23",
+     "amount": "36.004"
+    }
+   ]
+  },
+  {
+   "total": "688.959",
+   "count": 12,
+   "saleDate": "2026-05-13",
+   "terms": 60,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-07-12",
+     "amount": "57.414"
+    },
+    {
+     "seq": 2,
+     "due": "2026-07-19",
+     "amount": "57.414"
+    },
+    {
+     "seq": 3,
+     "due": "2026-07-26",
+     "amount": "57.414"
+    },
+    {
+     "seq": 4,
+     "due": "2026-08-02",
+     "amount": "57.413"
+    },
+    {
+     "seq": 5,
+     "due": "2026-08-09",
+     "amount": "57.413"
+    },
+    {
+     "seq": 6,
+     "due": "2026-08-16",
+     "amount": "57.413"
+    },
+    {
+     "seq": 7,
+     "due": "2026-08-23",
+     "amount": "57.413"
+    },
+    {
+     "seq": 8,
+     "due": "2026-08-30",
+     "amount": "57.413"
+    },
+    {
+     "seq": 9,
+     "due": "2026-09-06",
+     "amount": "57.413"
+    },
+    {
+     "seq": 10,
+     "due": "2026-09-13",
+     "amount": "57.413"
+    },
+    {
+     "seq": 11,
+     "due": "2026-09-20",
+     "amount": "57.413"
+    },
+    {
+     "seq": 12,
+     "due": "2026-09-27",
+     "amount": "57.413"
+    }
+   ]
+  },
+  {
+   "total": "448.577",
+   "count": 3,
+   "saleDate": "2026-01-30",
+   "terms": 7,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-02-06",
+     "amount": "149.526"
+    },
+    {
+     "seq": 2,
+     "due": "2026-03-08",
+     "amount": "149.526"
+    },
+    {
+     "seq": 3,
+     "due": "2026-04-07",
+     "amount": "149.525"
+    }
+   ]
+  },
+  {
+   "total": "618.876",
+   "count": 12,
+   "saleDate": "2026-05-01",
+   "terms": 45,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-06-15",
+     "amount": "51.573"
+    },
+    {
+     "seq": 2,
+     "due": "2026-06-22",
+     "amount": "51.573"
+    },
+    {
+     "seq": 3,
+     "due": "2026-06-29",
+     "amount": "51.573"
+    },
+    {
+     "seq": 4,
+     "due": "2026-07-06",
+     "amount": "51.573"
+    },
+    {
+     "seq": 5,
+     "due": "2026-07-13",
+     "amount": "51.573"
+    },
+    {
+     "seq": 6,
+     "due": "2026-07-20",
+     "amount": "51.573"
+    },
+    {
+     "seq": 7,
+     "due": "2026-07-27",
+     "amount": "51.573"
+    },
+    {
+     "seq": 8,
+     "due": "2026-08-03",
+     "amount": "51.573"
+    },
+    {
+     "seq": 9,
+     "due": "2026-08-10",
+     "amount": "51.573"
+    },
+    {
+     "seq": 10,
+     "due": "2026-08-17",
+     "amount": "51.573"
+    },
+    {
+     "seq": 11,
+     "due": "2026-08-24",
+     "amount": "51.573"
+    },
+    {
+     "seq": 12,
+     "due": "2026-08-31",
+     "amount": "51.573"
+    }
+   ]
+  },
+  {
+   "total": "589.119",
+   "count": 12,
+   "saleDate": "2027-10-14",
+   "terms": 14,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-10-28",
+     "amount": "49.094"
+    },
+    {
+     "seq": 2,
+     "due": "2027-11-11",
+     "amount": "49.094"
+    },
+    {
+     "seq": 3,
+     "due": "2027-11-25",
+     "amount": "49.094"
+    },
+    {
+     "seq": 4,
+     "due": "2027-12-09",
+     "amount": "49.093"
+    },
+    {
+     "seq": 5,
+     "due": "2027-12-23",
+     "amount": "49.093"
+    },
+    {
+     "seq": 6,
+     "due": "2028-01-06",
+     "amount": "49.093"
+    },
+    {
+     "seq": 7,
+     "due": "2028-01-20",
+     "amount": "49.093"
+    },
+    {
+     "seq": 8,
+     "due": "2028-02-03",
+     "amount": "49.093"
+    },
+    {
+     "seq": 9,
+     "due": "2028-02-17",
+     "amount": "49.093"
+    },
+    {
+     "seq": 10,
+     "due": "2028-03-02",
+     "amount": "49.093"
+    },
+    {
+     "seq": 11,
+     "due": "2028-03-16",
+     "amount": "49.093"
+    },
+    {
+     "seq": 12,
+     "due": "2028-03-30",
+     "amount": "49.093"
+    }
+   ]
+  },
+  {
+   "total": "657.241",
+   "count": 6,
+   "saleDate": "2027-04-22",
+   "terms": 30,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-05-22",
+     "amount": "109.541"
+    },
+    {
+     "seq": 2,
+     "due": "2027-05-29",
+     "amount": "109.540"
+    },
+    {
+     "seq": 3,
+     "due": "2027-06-05",
+     "amount": "109.540"
+    },
+    {
+     "seq": 4,
+     "due": "2027-06-12",
+     "amount": "109.540"
+    },
+    {
+     "seq": 5,
+     "due": "2027-06-19",
+     "amount": "109.540"
+    },
+    {
+     "seq": 6,
+     "due": "2027-06-26",
+     "amount": "109.540"
+    }
+   ]
+  },
+  {
+   "total": "157.532",
+   "count": 7,
+   "saleDate": "2026-01-25",
+   "terms": 14,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-02-08",
+     "amount": "22.505"
+    },
+    {
+     "seq": 2,
+     "due": "2026-02-22",
+     "amount": "22.505"
+    },
+    {
+     "seq": 3,
+     "due": "2026-03-08",
+     "amount": "22.505"
+    },
+    {
+     "seq": 4,
+     "due": "2026-03-22",
+     "amount": "22.505"
+    },
+    {
+     "seq": 5,
+     "due": "2026-04-05",
+     "amount": "22.504"
+    },
+    {
+     "seq": 6,
+     "due": "2026-04-19",
+     "amount": "22.504"
+    },
+    {
+     "seq": 7,
+     "due": "2026-05-03",
+     "amount": "22.504"
+    }
+   ]
+  },
+  {
+   "total": "103.895",
+   "count": 1,
+   "saleDate": "2027-09-06",
+   "terms": 7,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-09-13",
+     "amount": "103.895"
+    }
+   ]
+  },
+  {
+   "total": "195.058",
+   "count": 1,
+   "saleDate": "2026-04-06",
+   "terms": 30,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-05-06",
+     "amount": "195.058"
+    }
+   ]
+  },
+  {
+   "total": "115.120",
+   "count": 1,
+   "saleDate": "2027-09-02",
+   "terms": 45,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-10-17",
+     "amount": "115.120"
+    }
+   ]
+  },
+  {
+   "total": "248.868",
+   "count": 6,
+   "saleDate": "2027-05-31",
+   "terms": 30,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-06-30",
+     "amount": "41.478"
+    },
+    {
+     "seq": 2,
+     "due": "2027-07-31",
+     "amount": "41.478"
+    },
+    {
+     "seq": 3,
+     "due": "2027-08-31",
+     "amount": "41.478"
+    },
+    {
+     "seq": 4,
+     "due": "2027-10-01",
+     "amount": "41.478"
+    },
+    {
+     "seq": 5,
+     "due": "2027-11-01",
+     "amount": "41.478"
+    },
+    {
+     "seq": 6,
+     "due": "2027-12-02",
+     "amount": "41.478"
+    }
+   ]
+  },
+  {
+   "total": "841.032",
+   "count": 6,
+   "saleDate": "2026-07-29",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-08-05",
+     "amount": "140.172"
+    },
+    {
+     "seq": 2,
+     "due": "2026-08-12",
+     "amount": "140.172"
+    },
+    {
+     "seq": 3,
+     "due": "2026-08-19",
+     "amount": "140.172"
+    },
+    {
+     "seq": 4,
+     "due": "2026-08-26",
+     "amount": "140.172"
+    },
+    {
+     "seq": 5,
+     "due": "2026-09-02",
+     "amount": "140.172"
+    },
+    {
+     "seq": 6,
+     "due": "2026-09-09",
+     "amount": "140.172"
+    }
+   ]
+  },
+  {
+   "total": "99.241",
+   "count": 12,
+   "saleDate": "2026-10-13",
+   "terms": 0,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-10-13",
+     "amount": "8.271"
+    },
+    {
+     "seq": 2,
+     "due": "2026-10-27",
+     "amount": "8.270"
+    },
+    {
+     "seq": 3,
+     "due": "2026-11-10",
+     "amount": "8.270"
+    },
+    {
+     "seq": 4,
+     "due": "2026-11-24",
+     "amount": "8.270"
+    },
+    {
+     "seq": 5,
+     "due": "2026-12-08",
+     "amount": "8.270"
+    },
+    {
+     "seq": 6,
+     "due": "2026-12-22",
+     "amount": "8.270"
+    },
+    {
+     "seq": 7,
+     "due": "2027-01-05",
+     "amount": "8.270"
+    },
+    {
+     "seq": 8,
+     "due": "2027-01-19",
+     "amount": "8.270"
+    },
+    {
+     "seq": 9,
+     "due": "2027-02-02",
+     "amount": "8.270"
+    },
+    {
+     "seq": 10,
+     "due": "2027-02-16",
+     "amount": "8.270"
+    },
+    {
+     "seq": 11,
+     "due": "2027-03-02",
+     "amount": "8.270"
+    },
+    {
+     "seq": 12,
+     "due": "2027-03-16",
+     "amount": "8.270"
+    }
+   ]
+  },
+  {
+   "total": "50.544",
+   "count": 3,
+   "saleDate": "2027-10-20",
+   "terms": 0,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-10-20",
+     "amount": "16.848"
+    },
+    {
+     "seq": 2,
+     "due": "2027-11-20",
+     "amount": "16.848"
+    },
+    {
+     "seq": 3,
+     "due": "2027-12-21",
+     "amount": "16.848"
+    }
+   ]
+  },
+  {
+   "total": "838.292",
+   "count": 7,
+   "saleDate": "2027-08-26",
+   "terms": 0,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-08-26",
+     "amount": "119.756"
+    },
+    {
+     "seq": 2,
+     "due": "2027-09-02",
+     "amount": "119.756"
+    },
+    {
+     "seq": 3,
+     "due": "2027-09-09",
+     "amount": "119.756"
+    },
+    {
+     "seq": 4,
+     "due": "2027-09-16",
+     "amount": "119.756"
+    },
+    {
+     "seq": 5,
+     "due": "2027-09-23",
+     "amount": "119.756"
+    },
+    {
+     "seq": 6,
+     "due": "2027-09-30",
+     "amount": "119.756"
+    },
+    {
+     "seq": 7,
+     "due": "2027-10-07",
+     "amount": "119.756"
+    }
+   ]
+  },
+  {
+   "total": "563.250",
+   "count": 4,
+   "saleDate": "2027-05-02",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-05-09",
+     "amount": "140.813"
+    },
+    {
+     "seq": 2,
+     "due": "2027-05-16",
+     "amount": "140.813"
+    },
+    {
+     "seq": 3,
+     "due": "2027-05-23",
+     "amount": "140.812"
+    },
+    {
+     "seq": 4,
+     "due": "2027-05-30",
+     "amount": "140.812"
+    }
+   ]
+  },
+  {
+   "total": "404.738",
+   "count": 3,
+   "saleDate": "2026-06-25",
+   "terms": 7,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-07-02",
+     "amount": "134.913"
+    },
+    {
+     "seq": 2,
+     "due": "2026-07-16",
+     "amount": "134.913"
+    },
+    {
+     "seq": 3,
+     "due": "2026-07-30",
+     "amount": "134.912"
+    }
+   ]
+  },
+  {
+   "total": "657.353",
+   "count": 1,
+   "saleDate": "2027-06-11",
+   "terms": 0,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-06-11",
+     "amount": "657.353"
+    }
+   ]
+  },
+  {
+   "total": "656.101",
+   "count": 1,
+   "saleDate": "2026-09-26",
+   "terms": 60,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-11-25",
+     "amount": "656.101"
+    }
+   ]
+  },
+  {
+   "total": "168.929",
+   "count": 3,
+   "saleDate": "2027-04-12",
+   "terms": 14,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-04-26",
+     "amount": "56.310"
+    },
+    {
+     "seq": 2,
+     "due": "2027-05-27",
+     "amount": "56.310"
+    },
+    {
+     "seq": 3,
+     "due": "2027-06-27",
+     "amount": "56.309"
+    }
+   ]
+  },
+  {
+   "total": "856.054",
+   "count": 2,
+   "saleDate": "2026-05-28",
+   "terms": 30,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-06-27",
+     "amount": "428.027"
+    },
+    {
+     "seq": 2,
+     "due": "2026-07-11",
+     "amount": "428.027"
+    }
+   ]
+  },
+  {
+   "total": "519.988",
+   "count": 6,
+   "saleDate": "2027-01-26",
+   "terms": 30,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-02-25",
+     "amount": "86.665"
+    },
+    {
+     "seq": 2,
+     "due": "2027-03-28",
+     "amount": "86.665"
+    },
+    {
+     "seq": 3,
+     "due": "2027-04-28",
+     "amount": "86.665"
+    },
+    {
+     "seq": 4,
+     "due": "2027-05-29",
+     "amount": "86.665"
+    },
+    {
+     "seq": 5,
+     "due": "2027-06-29",
+     "amount": "86.664"
+    },
+    {
+     "seq": 6,
+     "due": "2027-07-30",
+     "amount": "86.664"
+    }
+   ]
+  },
+  {
+   "total": "184.839",
+   "count": 2,
+   "saleDate": "2026-03-28",
+   "terms": 7,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-04",
+     "amount": "92.420"
+    },
+    {
+     "seq": 2,
+     "due": "2026-04-18",
+     "amount": "92.419"
+    }
+   ]
+  },
+  {
+   "total": "71.744",
+   "count": 12,
+   "saleDate": "2026-11-18",
+   "terms": 14,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-12-02",
+     "amount": "5.979"
+    },
+    {
+     "seq": 2,
+     "due": "2026-12-09",
+     "amount": "5.979"
+    },
+    {
+     "seq": 3,
+     "due": "2026-12-16",
+     "amount": "5.979"
+    },
+    {
+     "seq": 4,
+     "due": "2026-12-23",
+     "amount": "5.979"
+    },
+    {
+     "seq": 5,
+     "due": "2026-12-30",
+     "amount": "5.979"
+    },
+    {
+     "seq": 6,
+     "due": "2027-01-06",
+     "amount": "5.979"
+    },
+    {
+     "seq": 7,
+     "due": "2027-01-13",
+     "amount": "5.979"
+    },
+    {
+     "seq": 8,
+     "due": "2027-01-20",
+     "amount": "5.979"
+    },
+    {
+     "seq": 9,
+     "due": "2027-01-27",
+     "amount": "5.978"
+    },
+    {
+     "seq": 10,
+     "due": "2027-02-03",
+     "amount": "5.978"
+    },
+    {
+     "seq": 11,
+     "due": "2027-02-10",
+     "amount": "5.978"
+    },
+    {
+     "seq": 12,
+     "due": "2027-02-17",
+     "amount": "5.978"
+    }
+   ]
+  },
+  {
+   "total": "203.279",
+   "count": 12,
+   "saleDate": "2026-02-02",
+   "terms": 0,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-02-02",
+     "amount": "16.940"
+    },
+    {
+     "seq": 2,
+     "due": "2026-03-05",
+     "amount": "16.940"
+    },
+    {
+     "seq": 3,
+     "due": "2026-04-05",
+     "amount": "16.940"
+    },
+    {
+     "seq": 4,
+     "due": "2026-05-06",
+     "amount": "16.940"
+    },
+    {
+     "seq": 5,
+     "due": "2026-06-06",
+     "amount": "16.940"
+    },
+    {
+     "seq": 6,
+     "due": "2026-07-07",
+     "amount": "16.940"
+    },
+    {
+     "seq": 7,
+     "due": "2026-08-07",
+     "amount": "16.940"
+    },
+    {
+     "seq": 8,
+     "due": "2026-09-07",
+     "amount": "16.940"
+    },
+    {
+     "seq": 9,
+     "due": "2026-10-08",
+     "amount": "16.940"
+    },
+    {
+     "seq": 10,
+     "due": "2026-11-08",
+     "amount": "16.940"
+    },
+    {
+     "seq": 11,
+     "due": "2026-12-09",
+     "amount": "16.940"
+    },
+    {
+     "seq": 12,
+     "due": "2027-01-09",
+     "amount": "16.939"
+    }
+   ]
+  },
+  {
+   "total": "597.171",
+   "count": 6,
+   "saleDate": "2027-04-24",
+   "terms": 0,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-04-24",
+     "amount": "99.529"
+    },
+    {
+     "seq": 2,
+     "due": "2027-05-01",
+     "amount": "99.529"
+    },
+    {
+     "seq": 3,
+     "due": "2027-05-08",
+     "amount": "99.529"
+    },
+    {
+     "seq": 4,
+     "due": "2027-05-15",
+     "amount": "99.528"
+    },
+    {
+     "seq": 5,
+     "due": "2027-05-22",
+     "amount": "99.528"
+    },
+    {
+     "seq": 6,
+     "due": "2027-05-29",
+     "amount": "99.528"
+    }
+   ]
+  },
+  {
+   "total": "186.302",
+   "count": 7,
+   "saleDate": "2027-01-01",
+   "terms": 45,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-02-15",
+     "amount": "26.615"
+    },
+    {
+     "seq": 2,
+     "due": "2027-03-01",
+     "amount": "26.615"
+    },
+    {
+     "seq": 3,
+     "due": "2027-03-15",
+     "amount": "26.615"
+    },
+    {
+     "seq": 4,
+     "due": "2027-03-29",
+     "amount": "26.615"
+    },
+    {
+     "seq": 5,
+     "due": "2027-04-12",
+     "amount": "26.614"
+    },
+    {
+     "seq": 6,
+     "due": "2027-04-26",
+     "amount": "26.614"
+    },
+    {
+     "seq": 7,
+     "due": "2027-05-10",
+     "amount": "26.614"
+    }
+   ]
+  },
+  {
+   "total": "635.211",
+   "count": 7,
+   "saleDate": "2027-10-01",
+   "terms": 14,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-10-15",
+     "amount": "90.745"
+    },
+    {
+     "seq": 2,
+     "due": "2027-10-29",
+     "amount": "90.745"
+    },
+    {
+     "seq": 3,
+     "due": "2027-11-12",
+     "amount": "90.745"
+    },
+    {
+     "seq": 4,
+     "due": "2027-11-26",
+     "amount": "90.744"
+    },
+    {
+     "seq": 5,
+     "due": "2027-12-10",
+     "amount": "90.744"
+    },
+    {
+     "seq": 6,
+     "due": "2027-12-24",
+     "amount": "90.744"
+    },
+    {
+     "seq": 7,
+     "due": "2028-01-07",
+     "amount": "90.744"
+    }
+   ]
+  },
+  {
+   "total": "768.276",
+   "count": 1,
+   "saleDate": "2026-09-17",
+   "terms": 45,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-11-01",
+     "amount": "768.276"
+    }
+   ]
+  },
+  {
+   "total": "52.664",
+   "count": 4,
+   "saleDate": "2026-09-16",
+   "terms": 60,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-11-15",
+     "amount": "13.166"
+    },
+    {
+     "seq": 2,
+     "due": "2026-11-22",
+     "amount": "13.166"
+    },
+    {
+     "seq": 3,
+     "due": "2026-11-29",
+     "amount": "13.166"
+    },
+    {
+     "seq": 4,
+     "due": "2026-12-06",
+     "amount": "13.166"
+    }
+   ]
+  },
+  {
+   "total": "391.608",
+   "count": 12,
+   "saleDate": "2026-07-13",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-07-20",
+     "amount": "32.634"
+    },
+    {
+     "seq": 2,
+     "due": "2026-07-27",
+     "amount": "32.634"
+    },
+    {
+     "seq": 3,
+     "due": "2026-08-03",
+     "amount": "32.634"
+    },
+    {
+     "seq": 4,
+     "due": "2026-08-10",
+     "amount": "32.634"
+    },
+    {
+     "seq": 5,
+     "due": "2026-08-17",
+     "amount": "32.634"
+    },
+    {
+     "seq": 6,
+     "due": "2026-08-24",
+     "amount": "32.634"
+    },
+    {
+     "seq": 7,
+     "due": "2026-08-31",
+     "amount": "32.634"
+    },
+    {
+     "seq": 8,
+     "due": "2026-09-07",
+     "amount": "32.634"
+    },
+    {
+     "seq": 9,
+     "due": "2026-09-14",
+     "amount": "32.634"
+    },
+    {
+     "seq": 10,
+     "due": "2026-09-21",
+     "amount": "32.634"
+    },
+    {
+     "seq": 11,
+     "due": "2026-09-28",
+     "amount": "32.634"
+    },
+    {
+     "seq": 12,
+     "due": "2026-10-05",
+     "amount": "32.634"
+    }
+   ]
+  },
+  {
+   "total": "868.681",
+   "count": 6,
+   "saleDate": "2026-11-11",
+   "terms": 30,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-12-11",
+     "amount": "144.781"
+    },
+    {
+     "seq": 2,
+     "due": "2027-01-10",
+     "amount": "144.780"
+    },
+    {
+     "seq": 3,
+     "due": "2027-02-09",
+     "amount": "144.780"
+    },
+    {
+     "seq": 4,
+     "due": "2027-03-11",
+     "amount": "144.780"
+    },
+    {
+     "seq": 5,
+     "due": "2027-04-10",
+     "amount": "144.780"
+    },
+    {
+     "seq": 6,
+     "due": "2027-05-10",
+     "amount": "144.780"
+    }
+   ]
+  },
+  {
+   "total": "834.527",
+   "count": 2,
+   "saleDate": "2026-03-16",
+   "terms": 30,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-15",
+     "amount": "417.264"
+    },
+    {
+     "seq": 2,
+     "due": "2026-04-29",
+     "amount": "417.263"
+    }
+   ]
+  },
+  {
+   "total": "479.417",
+   "count": 4,
+   "saleDate": "2027-06-17",
+   "terms": 30,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-07-17",
+     "amount": "119.855"
+    },
+    {
+     "seq": 2,
+     "due": "2027-08-17",
+     "amount": "119.854"
+    },
+    {
+     "seq": 3,
+     "due": "2027-09-17",
+     "amount": "119.854"
+    },
+    {
+     "seq": 4,
+     "due": "2027-10-18",
+     "amount": "119.854"
+    }
+   ]
+  },
+  {
+   "total": "618.008",
+   "count": 4,
+   "saleDate": "2026-07-04",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-07-11",
+     "amount": "154.502"
+    },
+    {
+     "seq": 2,
+     "due": "2026-07-18",
+     "amount": "154.502"
+    },
+    {
+     "seq": 3,
+     "due": "2026-07-25",
+     "amount": "154.502"
+    },
+    {
+     "seq": 4,
+     "due": "2026-08-01",
+     "amount": "154.502"
+    }
+   ]
+  },
+  {
+   "total": "531.105",
+   "count": 1,
+   "saleDate": "2026-09-25",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-10-02",
+     "amount": "531.105"
+    }
+   ]
+  },
+  {
+   "total": "262.671",
+   "count": 12,
+   "saleDate": "2026-08-14",
+   "terms": 14,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-08-28",
+     "amount": "21.890"
+    },
+    {
+     "seq": 2,
+     "due": "2026-09-11",
+     "amount": "21.890"
+    },
+    {
+     "seq": 3,
+     "due": "2026-09-25",
+     "amount": "21.890"
+    },
+    {
+     "seq": 4,
+     "due": "2026-10-09",
+     "amount": "21.889"
+    },
+    {
+     "seq": 5,
+     "due": "2026-10-23",
+     "amount": "21.889"
+    },
+    {
+     "seq": 6,
+     "due": "2026-11-06",
+     "amount": "21.889"
+    },
+    {
+     "seq": 7,
+     "due": "2026-11-20",
+     "amount": "21.889"
+    },
+    {
+     "seq": 8,
+     "due": "2026-12-04",
+     "amount": "21.889"
+    },
+    {
+     "seq": 9,
+     "due": "2026-12-18",
+     "amount": "21.889"
+    },
+    {
+     "seq": 10,
+     "due": "2027-01-01",
+     "amount": "21.889"
+    },
+    {
+     "seq": 11,
+     "due": "2027-01-15",
+     "amount": "21.889"
+    },
+    {
+     "seq": 12,
+     "due": "2027-01-29",
+     "amount": "21.889"
+    }
+   ]
+  },
+  {
+   "total": "148.439",
+   "count": 2,
+   "saleDate": "2027-09-30",
+   "terms": 14,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-10-14",
+     "amount": "74.220"
+    },
+    {
+     "seq": 2,
+     "due": "2027-11-14",
+     "amount": "74.219"
+    }
+   ]
+  },
+  {
+   "total": "351.478",
+   "count": 12,
+   "saleDate": "2026-01-19",
+   "terms": 30,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-02-18",
+     "amount": "29.290"
+    },
+    {
+     "seq": 2,
+     "due": "2026-03-20",
+     "amount": "29.290"
+    },
+    {
+     "seq": 3,
+     "due": "2026-04-19",
+     "amount": "29.290"
+    },
+    {
+     "seq": 4,
+     "due": "2026-05-19",
+     "amount": "29.290"
+    },
+    {
+     "seq": 5,
+     "due": "2026-06-18",
+     "amount": "29.290"
+    },
+    {
+     "seq": 6,
+     "due": "2026-07-18",
+     "amount": "29.290"
+    },
+    {
+     "seq": 7,
+     "due": "2026-08-17",
+     "amount": "29.290"
+    },
+    {
+     "seq": 8,
+     "due": "2026-09-16",
+     "amount": "29.290"
+    },
+    {
+     "seq": 9,
+     "due": "2026-10-16",
+     "amount": "29.290"
+    },
+    {
+     "seq": 10,
+     "due": "2026-11-15",
+     "amount": "29.290"
+    },
+    {
+     "seq": 11,
+     "due": "2026-12-15",
+     "amount": "29.289"
+    },
+    {
+     "seq": 12,
+     "due": "2027-01-14",
+     "amount": "29.289"
+    }
+   ]
+  },
+  {
+   "total": "48.807",
+   "count": 2,
+   "saleDate": "2026-02-24",
+   "terms": 7,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-03-03",
+     "amount": "24.404"
+    },
+    {
+     "seq": 2,
+     "due": "2026-03-10",
+     "amount": "24.403"
+    }
+   ]
+  },
+  {
+   "total": "366.848",
+   "count": 7,
+   "saleDate": "2026-03-13",
+   "terms": 30,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-12",
+     "amount": "52.407"
+    },
+    {
+     "seq": 2,
+     "due": "2026-04-19",
+     "amount": "52.407"
+    },
+    {
+     "seq": 3,
+     "due": "2026-04-26",
+     "amount": "52.407"
+    },
+    {
+     "seq": 4,
+     "due": "2026-05-03",
+     "amount": "52.407"
+    },
+    {
+     "seq": 5,
+     "due": "2026-05-10",
+     "amount": "52.407"
+    },
+    {
+     "seq": 6,
+     "due": "2026-05-17",
+     "amount": "52.407"
+    },
+    {
+     "seq": 7,
+     "due": "2026-05-24",
+     "amount": "52.406"
+    }
+   ]
+  },
+  {
+   "total": "565.697",
+   "count": 7,
+   "saleDate": "2027-08-01",
+   "terms": 0,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-08-01",
+     "amount": "80.814"
+    },
+    {
+     "seq": 2,
+     "due": "2027-08-31",
+     "amount": "80.814"
+    },
+    {
+     "seq": 3,
+     "due": "2027-09-30",
+     "amount": "80.814"
+    },
+    {
+     "seq": 4,
+     "due": "2027-10-30",
+     "amount": "80.814"
+    },
+    {
+     "seq": 5,
+     "due": "2027-11-29",
+     "amount": "80.814"
+    },
+    {
+     "seq": 6,
+     "due": "2027-12-29",
+     "amount": "80.814"
+    },
+    {
+     "seq": 7,
+     "due": "2028-01-28",
+     "amount": "80.813"
+    }
+   ]
+  },
+  {
+   "total": "134.822",
+   "count": 4,
+   "saleDate": "2026-03-10",
+   "terms": 30,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-09",
+     "amount": "33.706"
+    },
+    {
+     "seq": 2,
+     "due": "2026-04-16",
+     "amount": "33.706"
+    },
+    {
+     "seq": 3,
+     "due": "2026-04-23",
+     "amount": "33.705"
+    },
+    {
+     "seq": 4,
+     "due": "2026-04-30",
+     "amount": "33.705"
+    }
+   ]
+  },
+  {
+   "total": "853.406",
+   "count": 6,
+   "saleDate": "2026-10-31",
+   "terms": 60,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-12-30",
+     "amount": "142.235"
+    },
+    {
+     "seq": 2,
+     "due": "2027-01-06",
+     "amount": "142.235"
+    },
+    {
+     "seq": 3,
+     "due": "2027-01-13",
+     "amount": "142.234"
+    },
+    {
+     "seq": 4,
+     "due": "2027-01-20",
+     "amount": "142.234"
+    },
+    {
+     "seq": 5,
+     "due": "2027-01-27",
+     "amount": "142.234"
+    },
+    {
+     "seq": 6,
+     "due": "2027-02-03",
+     "amount": "142.234"
+    }
+   ]
+  },
+  {
+   "total": "702.974",
+   "count": 12,
+   "saleDate": "2026-06-08",
+   "terms": 30,
+   "interval": 7,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-07-08",
+     "amount": "58.582"
+    },
+    {
+     "seq": 2,
+     "due": "2026-07-15",
+     "amount": "58.582"
+    },
+    {
+     "seq": 3,
+     "due": "2026-07-22",
+     "amount": "58.581"
+    },
+    {
+     "seq": 4,
+     "due": "2026-07-29",
+     "amount": "58.581"
+    },
+    {
+     "seq": 5,
+     "due": "2026-08-05",
+     "amount": "58.581"
+    },
+    {
+     "seq": 6,
+     "due": "2026-08-12",
+     "amount": "58.581"
+    },
+    {
+     "seq": 7,
+     "due": "2026-08-19",
+     "amount": "58.581"
+    },
+    {
+     "seq": 8,
+     "due": "2026-08-26",
+     "amount": "58.581"
+    },
+    {
+     "seq": 9,
+     "due": "2026-09-02",
+     "amount": "58.581"
+    },
+    {
+     "seq": 10,
+     "due": "2026-09-09",
+     "amount": "58.581"
+    },
+    {
+     "seq": 11,
+     "due": "2026-09-16",
+     "amount": "58.581"
+    },
+    {
+     "seq": 12,
+     "due": "2026-09-23",
+     "amount": "58.581"
+    }
+   ]
+  },
+  {
+   "total": "100.293",
+   "count": 12,
+   "saleDate": "2027-03-04",
+   "terms": 30,
+   "interval": 31,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2027-04-03",
+     "amount": "8.358"
+    },
+    {
+     "seq": 2,
+     "due": "2027-05-04",
+     "amount": "8.358"
+    },
+    {
+     "seq": 3,
+     "due": "2027-06-04",
+     "amount": "8.358"
+    },
+    {
+     "seq": 4,
+     "due": "2027-07-05",
+     "amount": "8.358"
+    },
+    {
+     "seq": 5,
+     "due": "2027-08-05",
+     "amount": "8.358"
+    },
+    {
+     "seq": 6,
+     "due": "2027-09-05",
+     "amount": "8.358"
+    },
+    {
+     "seq": 7,
+     "due": "2027-10-06",
+     "amount": "8.358"
+    },
+    {
+     "seq": 8,
+     "due": "2027-11-06",
+     "amount": "8.358"
+    },
+    {
+     "seq": 9,
+     "due": "2027-12-07",
+     "amount": "8.358"
+    },
+    {
+     "seq": 10,
+     "due": "2028-01-07",
+     "amount": "8.357"
+    },
+    {
+     "seq": 11,
+     "due": "2028-02-07",
+     "amount": "8.357"
+    },
+    {
+     "seq": 12,
+     "due": "2028-03-09",
+     "amount": "8.357"
+    }
+   ]
+  },
+  {
+   "total": "774.364",
+   "count": 1,
+   "saleDate": "2026-02-11",
+   "terms": 60,
+   "interval": 14,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-04-12",
+     "amount": "774.364"
+    }
+   ]
+  },
+  {
+   "total": "585.141",
+   "count": 2,
+   "saleDate": "2026-07-16",
+   "terms": 60,
+   "interval": 30,
+   "expect": [
+    {
+     "seq": 1,
+     "due": "2026-09-14",
+     "amount": "292.571"
+    },
+    {
+     "seq": 2,
+     "due": "2026-10-14",
+     "amount": "292.570"
+    }
+   ]
+  }
+ ],
+ "allocate": [
+  {
+   "items": [
+    {
+     "id": "i0-0",
+     "due": "2026-03-25",
+     "open": "93.430"
+    },
+    {
+     "id": "i0-1",
+     "due": "2026-02-02",
+     "open": "121.837"
+    },
+    {
+     "id": "i0-2",
+     "due": "2026-06-06",
+     "open": "54.232"
+    },
+    {
+     "id": "i0-3",
+     "due": "2026-02-28",
+     "open": "72.682"
+    }
+   ],
+   "amount": "264.149",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i0-1",
+      "amount": "121.837"
+     },
+     {
+      "id": "i0-3",
+      "amount": "72.682"
+     },
+     {
+      "id": "i0-0",
+      "amount": "69.630"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i1-0",
+     "due": "2026-07-15",
+     "open": "89.411"
+    },
+    {
+     "id": "i1-1",
+     "due": "2026-06-16",
+     "open": "7.274"
+    },
+    {
+     "id": "i1-2",
+     "due": "2026-06-28",
+     "open": "112.260"
+    },
+    {
+     "id": "i1-3",
+     "due": "2026-03-23",
+     "open": "60.369"
+    }
+   ],
+   "amount": "457.817",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i1-3",
+      "amount": "60.369"
+     },
+     {
+      "id": "i1-1",
+      "amount": "7.274"
+     },
+     {
+      "id": "i1-2",
+      "amount": "112.260"
+     },
+     {
+      "id": "i1-0",
+      "amount": "89.411"
+     }
+    ],
+    "left": "188.503"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i2-0",
+     "due": "2026-06-25",
+     "open": "142.493"
+    },
+    {
+     "id": "i2-1",
+     "due": "2026-06-25",
+     "open": "94.872"
+    },
+    {
+     "id": "i2-2",
+     "due": "2026-02-05",
+     "open": "5.003"
+    },
+    {
+     "id": "i2-3",
+     "due": "2026-06-29",
+     "open": "77.880"
+    },
+    {
+     "id": "i2-4",
+     "due": "2026-06-06",
+     "open": "117.821"
+    }
+   ],
+   "amount": "41.348",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i2-2",
+      "amount": "5.003"
+     },
+     {
+      "id": "i2-4",
+      "amount": "36.345"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i3-0",
+     "due": "2026-04-17",
+     "open": "66.365"
+    },
+    {
+     "id": "i3-1",
+     "due": "2026-07-08",
+     "open": "75.921"
+    },
+    {
+     "id": "i3-2",
+     "due": "2026-02-12",
+     "open": "112.597"
+    },
+    {
+     "id": "i3-3",
+     "due": "2026-06-02",
+     "open": "87.342"
+    }
+   ],
+   "amount": "188.755",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i3-2",
+      "amount": "112.597"
+     },
+     {
+      "id": "i3-0",
+      "amount": "66.365"
+     },
+     {
+      "id": "i3-3",
+      "amount": "9.793"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i4-0",
+     "due": "2026-05-08",
+     "open": "38.473"
+    },
+    {
+     "id": "i4-1",
+     "due": "2026-06-12",
+     "open": "137.335"
+    }
+   ],
+   "amount": "22.049",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i4-0",
+      "amount": "22.049"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i5-0",
+     "due": "2026-06-18",
+     "open": "83.247"
+    },
+    {
+     "id": "i5-1",
+     "due": "2026-05-14",
+     "open": "15.380"
+    }
+   ],
+   "amount": "197.725",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i5-1",
+      "amount": "15.380"
+     },
+     {
+      "id": "i5-0",
+      "amount": "83.247"
+     }
+    ],
+    "left": "99.098"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i6-0",
+     "due": "2026-03-23",
+     "open": "107.892"
+    },
+    {
+     "id": "i6-1",
+     "due": "2026-02-08",
+     "open": "134.927"
+    },
+    {
+     "id": "i6-2",
+     "due": "2026-03-07",
+     "open": "4.133"
+    }
+   ],
+   "amount": "9.021",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i6-1",
+      "amount": "9.021"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i7-0",
+     "due": "2026-05-02",
+     "open": "109.312"
+    },
+    {
+     "id": "i7-1",
+     "due": "2026-05-02",
+     "open": "77.953"
+    },
+    {
+     "id": "i7-2",
+     "due": "2026-05-31",
+     "open": "5.107"
+    },
+    {
+     "id": "i7-3",
+     "due": "2026-01-25",
+     "open": "0.931"
+    }
+   ],
+   "amount": "57.620",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i7-3",
+      "amount": "0.931"
+     },
+     {
+      "id": "i7-0",
+      "amount": "56.689"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i8-0",
+     "due": "2026-01-28",
+     "open": "81.138"
+    },
+    {
+     "id": "i8-1",
+     "due": "2026-01-28",
+     "open": "110.485"
+    },
+    {
+     "id": "i8-2",
+     "due": "2026-06-18",
+     "open": "108.958"
+    }
+   ],
+   "amount": "46.497",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i8-0",
+      "amount": "46.497"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i9-0",
+     "due": "2026-01-28",
+     "open": "37.022"
+    }
+   ],
+   "amount": "165.079",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i9-0",
+      "amount": "37.022"
+     }
+    ],
+    "left": "128.057"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i10-0",
+     "due": "2026-04-05",
+     "open": "124.310"
+    },
+    {
+     "id": "i10-1",
+     "due": "2026-02-06",
+     "open": "110.803"
+    },
+    {
+     "id": "i10-2",
+     "due": "2026-02-11",
+     "open": "106.896"
+    }
+   ],
+   "amount": "498.464",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i10-1",
+      "amount": "110.803"
+     },
+     {
+      "id": "i10-2",
+      "amount": "106.896"
+     },
+     {
+      "id": "i10-0",
+      "amount": "124.310"
+     }
+    ],
+    "left": "156.455"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i11-0",
+     "due": "2026-05-18",
+     "open": "76.624"
+    },
+    {
+     "id": "i11-1",
+     "due": "2026-05-18",
+     "open": "93.822"
+    }
+   ],
+   "amount": "375.037",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i11-0",
+      "amount": "76.624"
+     },
+     {
+      "id": "i11-1",
+      "amount": "93.822"
+     }
+    ],
+    "left": "204.591"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i12-0",
+     "due": "2026-04-01",
+     "open": "142.050"
+    }
+   ],
+   "amount": "261.317",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i12-0",
+      "amount": "142.050"
+     }
+    ],
+    "left": "119.267"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i13-0",
+     "due": "2026-04-01",
+     "open": "26.647"
+    },
+    {
+     "id": "i13-1",
+     "due": "2026-04-01",
+     "open": "55.096"
+    },
+    {
+     "id": "i13-2",
+     "due": "2026-02-26",
+     "open": "41.659"
+    },
+    {
+     "id": "i13-3",
+     "due": "2026-06-14",
+     "open": "61.985"
+    },
+    {
+     "id": "i13-4",
+     "due": "2026-04-22",
+     "open": "62.549"
+    },
+    {
+     "id": "i13-5",
+     "due": "2026-04-21",
+     "open": "84.298"
+    }
+   ],
+   "amount": "63.669",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i13-2",
+      "amount": "41.659"
+     },
+     {
+      "id": "i13-0",
+      "amount": "22.010"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i14-0",
+     "due": "2026-02-02",
+     "open": "6.932"
+    },
+    {
+     "id": "i14-1",
+     "due": "2026-05-06",
+     "open": "43.774"
+    },
+    {
+     "id": "i14-2",
+     "due": "2026-01-01",
+     "open": "91.311"
+    },
+    {
+     "id": "i14-3",
+     "due": "2026-03-28",
+     "open": "66.642"
+    },
+    {
+     "id": "i14-4",
+     "due": "2026-04-14",
+     "open": "97.124"
+    },
+    {
+     "id": "i14-5",
+     "due": "2026-05-30",
+     "open": "138.588"
+    }
+   ],
+   "amount": "339.785",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i14-2",
+      "amount": "91.311"
+     },
+     {
+      "id": "i14-0",
+      "amount": "6.932"
+     },
+     {
+      "id": "i14-3",
+      "amount": "66.642"
+     },
+     {
+      "id": "i14-4",
+      "amount": "97.124"
+     },
+     {
+      "id": "i14-1",
+      "amount": "43.774"
+     },
+     {
+      "id": "i14-5",
+      "amount": "34.002"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i15-0",
+     "due": "2026-01-10",
+     "open": "101.292"
+    },
+    {
+     "id": "i15-1",
+     "due": "2026-05-13",
+     "open": "107.401"
+    },
+    {
+     "id": "i15-2",
+     "due": "2026-02-26",
+     "open": "121.016"
+    },
+    {
+     "id": "i15-3",
+     "due": "2026-06-08",
+     "open": "139.987"
+    },
+    {
+     "id": "i15-4",
+     "due": "2026-06-11",
+     "open": "54.075"
+    }
+   ],
+   "amount": "229.425",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i15-0",
+      "amount": "101.292"
+     },
+     {
+      "id": "i15-2",
+      "amount": "121.016"
+     },
+     {
+      "id": "i15-1",
+      "amount": "7.117"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i16-0",
+     "due": "2026-07-16",
+     "open": "116.865"
+    },
+    {
+     "id": "i16-1",
+     "due": "2026-07-04",
+     "open": "119.096"
+    }
+   ],
+   "amount": "427.268",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i16-1",
+      "amount": "119.096"
+     },
+     {
+      "id": "i16-0",
+      "amount": "116.865"
+     }
+    ],
+    "left": "191.307"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i17-0",
+     "due": "2026-06-10",
+     "open": "106.452"
+    },
+    {
+     "id": "i17-1",
+     "due": "2026-07-02",
+     "open": "53.289"
+    }
+   ],
+   "amount": "298.077",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i17-0",
+      "amount": "106.452"
+     },
+     {
+      "id": "i17-1",
+      "amount": "53.289"
+     }
+    ],
+    "left": "138.336"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i18-0",
+     "due": "2026-05-18",
+     "open": "125.283"
+    },
+    {
+     "id": "i18-1",
+     "due": "2026-06-27",
+     "open": "94.531"
+    },
+    {
+     "id": "i18-2",
+     "due": "2026-05-05",
+     "open": "143.843"
+    }
+   ],
+   "amount": "249.951",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i18-2",
+      "amount": "143.843"
+     },
+     {
+      "id": "i18-0",
+      "amount": "106.108"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i19-0",
+     "due": "2026-06-19",
+     "open": "19.740"
+    },
+    {
+     "id": "i19-1",
+     "due": "2026-02-15",
+     "open": "137.893"
+    },
+    {
+     "id": "i19-2",
+     "due": "2026-06-22",
+     "open": "142.346"
+    },
+    {
+     "id": "i19-3",
+     "due": "2026-03-19",
+     "open": "59.118"
+    }
+   ],
+   "amount": "3.782",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i19-1",
+      "amount": "3.782"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i20-0",
+     "due": "2026-01-05",
+     "open": "119.796"
+    },
+    {
+     "id": "i20-1",
+     "due": "2026-04-15",
+     "open": "0.815"
+    },
+    {
+     "id": "i20-2",
+     "due": "2026-05-12",
+     "open": "126.416"
+    },
+    {
+     "id": "i20-3",
+     "due": "2026-04-06",
+     "open": "131.438"
+    },
+    {
+     "id": "i20-4",
+     "due": "2026-01-26",
+     "open": "55.588"
+    },
+    {
+     "id": "i20-5",
+     "due": "2026-01-19",
+     "open": "148.528"
+    }
+   ],
+   "amount": "91.799",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i20-0",
+      "amount": "91.799"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i21-0",
+     "due": "2026-03-18",
+     "open": "29.450"
+    },
+    {
+     "id": "i21-1",
+     "due": "2026-03-18",
+     "open": "32.600"
+    },
+    {
+     "id": "i21-2",
+     "due": "2026-07-01",
+     "open": "74.757"
+    }
+   ],
+   "amount": "498.710",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i21-0",
+      "amount": "29.450"
+     },
+     {
+      "id": "i21-1",
+      "amount": "32.600"
+     },
+     {
+      "id": "i21-2",
+      "amount": "74.757"
+     }
+    ],
+    "left": "361.903"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i22-0",
+     "due": "2026-05-14",
+     "open": "148.968"
+    },
+    {
+     "id": "i22-1",
+     "due": "2026-05-14",
+     "open": "28.931"
+    }
+   ],
+   "amount": "77.285",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i22-0",
+      "amount": "77.285"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i23-0",
+     "due": "2026-03-12",
+     "open": "77.327"
+    },
+    {
+     "id": "i23-1",
+     "due": "2026-07-03",
+     "open": "44.487"
+    },
+    {
+     "id": "i23-2",
+     "due": "2026-02-07",
+     "open": "85.518"
+    },
+    {
+     "id": "i23-3",
+     "due": "2026-01-17",
+     "open": "59.066"
+    },
+    {
+     "id": "i23-4",
+     "due": "2026-04-15",
+     "open": "138.213"
+    },
+    {
+     "id": "i23-5",
+     "due": "2026-03-10",
+     "open": "86.990"
+    }
+   ],
+   "amount": "98.287",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i23-3",
+      "amount": "59.066"
+     },
+     {
+      "id": "i23-2",
+      "amount": "39.221"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i24-0",
+     "due": "2026-01-03",
+     "open": "118.513"
+    },
+    {
+     "id": "i24-1",
+     "due": "2026-01-03",
+     "open": "62.057"
+    }
+   ],
+   "amount": "143.791",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i24-0",
+      "amount": "118.513"
+     },
+     {
+      "id": "i24-1",
+      "amount": "25.278"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i25-0",
+     "due": "2026-02-08",
+     "open": "28.381"
+    }
+   ],
+   "amount": "318.105",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i25-0",
+      "amount": "28.381"
+     }
+    ],
+    "left": "289.724"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i26-0",
+     "due": "2026-06-05",
+     "open": "100.519"
+    },
+    {
+     "id": "i26-1",
+     "due": "2026-01-12",
+     "open": "4.280"
+    }
+   ],
+   "amount": "303.736",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i26-1",
+      "amount": "4.280"
+     },
+     {
+      "id": "i26-0",
+      "amount": "100.519"
+     }
+    ],
+    "left": "198.937"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i27-0",
+     "due": "2026-02-22",
+     "open": "122.402"
+    },
+    {
+     "id": "i27-1",
+     "due": "2026-02-23",
+     "open": "3.352"
+    },
+    {
+     "id": "i27-2",
+     "due": "2026-02-10",
+     "open": "2.675"
+    },
+    {
+     "id": "i27-3",
+     "due": "2026-04-18",
+     "open": "87.907"
+    },
+    {
+     "id": "i27-4",
+     "due": "2026-07-15",
+     "open": "115.669"
+    },
+    {
+     "id": "i27-5",
+     "due": "2026-05-25",
+     "open": "68.920"
+    }
+   ],
+   "amount": "95.138",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i27-2",
+      "amount": "2.675"
+     },
+     {
+      "id": "i27-0",
+      "amount": "92.463"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i28-0",
+     "due": "2026-03-31",
+     "open": "89.649"
+    },
+    {
+     "id": "i28-1",
+     "due": "2026-06-28",
+     "open": "125.800"
+    },
+    {
+     "id": "i28-2",
+     "due": "2026-05-02",
+     "open": "122.421"
+    },
+    {
+     "id": "i28-3",
+     "due": "2026-03-09",
+     "open": "99.043"
+    },
+    {
+     "id": "i28-4",
+     "due": "2026-01-16",
+     "open": "107.223"
+    },
+    {
+     "id": "i28-5",
+     "due": "2026-02-26",
+     "open": "53.427"
+    }
+   ],
+   "amount": "71.465",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i28-4",
+      "amount": "71.465"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i29-0",
+     "due": "2026-06-29",
+     "open": "121.364"
+    }
+   ],
+   "amount": "308.002",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i29-0",
+      "amount": "121.364"
+     }
+    ],
+    "left": "186.638"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i30-0",
+     "due": "2026-05-30",
+     "open": "54.671"
+    },
+    {
+     "id": "i30-1",
+     "due": "2026-05-30",
+     "open": "70.439"
+    },
+    {
+     "id": "i30-2",
+     "due": "2026-05-13",
+     "open": "102.935"
+    }
+   ],
+   "amount": "335.497",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i30-2",
+      "amount": "102.935"
+     },
+     {
+      "id": "i30-0",
+      "amount": "54.671"
+     },
+     {
+      "id": "i30-1",
+      "amount": "70.439"
+     }
+    ],
+    "left": "107.452"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i31-0",
+     "due": "2026-07-01",
+     "open": "4.542"
+    },
+    {
+     "id": "i31-1",
+     "due": "2026-05-09",
+     "open": "148.190"
+    },
+    {
+     "id": "i31-2",
+     "due": "2026-04-28",
+     "open": "136.680"
+    },
+    {
+     "id": "i31-3",
+     "due": "2026-06-18",
+     "open": "51.995"
+    },
+    {
+     "id": "i31-4",
+     "due": "2026-01-27",
+     "open": "105.414"
+    }
+   ],
+   "amount": "366.457",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i31-4",
+      "amount": "105.414"
+     },
+     {
+      "id": "i31-2",
+      "amount": "136.680"
+     },
+     {
+      "id": "i31-1",
+      "amount": "124.363"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i32-0",
+     "due": "2026-01-13",
+     "open": "41.138"
+    },
+    {
+     "id": "i32-1",
+     "due": "2026-03-09",
+     "open": "4.617"
+    },
+    {
+     "id": "i32-2",
+     "due": "2026-03-22",
+     "open": "108.856"
+    },
+    {
+     "id": "i32-3",
+     "due": "2026-04-19",
+     "open": "117.868"
+    },
+    {
+     "id": "i32-4",
+     "due": "2026-05-28",
+     "open": "132.024"
+    },
+    {
+     "id": "i32-5",
+     "due": "2026-03-27",
+     "open": "72.009"
+    }
+   ],
+   "amount": "8.129",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i32-0",
+      "amount": "8.129"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i33-0",
+     "due": "2026-03-08",
+     "open": "82.358"
+    },
+    {
+     "id": "i33-1",
+     "due": "2026-03-08",
+     "open": "109.892"
+    },
+    {
+     "id": "i33-2",
+     "due": "2026-05-21",
+     "open": "105.833"
+    },
+    {
+     "id": "i33-3",
+     "due": "2026-01-21",
+     "open": "79.449"
+    },
+    {
+     "id": "i33-4",
+     "due": "2026-01-20",
+     "open": "40.531"
+    },
+    {
+     "id": "i33-5",
+     "due": "2026-02-17",
+     "open": "124.341"
+    }
+   ],
+   "amount": "283.425",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i33-4",
+      "amount": "40.531"
+     },
+     {
+      "id": "i33-3",
+      "amount": "79.449"
+     },
+     {
+      "id": "i33-5",
+      "amount": "124.341"
+     },
+     {
+      "id": "i33-0",
+      "amount": "39.104"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i34-0",
+     "due": "2026-06-19",
+     "open": "124.520"
+    },
+    {
+     "id": "i34-1",
+     "due": "2026-03-27",
+     "open": "131.533"
+    },
+    {
+     "id": "i34-2",
+     "due": "2026-05-01",
+     "open": "141.732"
+    },
+    {
+     "id": "i34-3",
+     "due": "2026-06-11",
+     "open": "65.182"
+    }
+   ],
+   "amount": "232.080",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i34-1",
+      "amount": "131.533"
+     },
+     {
+      "id": "i34-2",
+      "amount": "100.547"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i35-0",
+     "due": "2026-05-03",
+     "open": "133.095"
+    },
+    {
+     "id": "i35-1",
+     "due": "2026-05-03",
+     "open": "101.444"
+    },
+    {
+     "id": "i35-2",
+     "due": "2026-05-10",
+     "open": "5.850"
+    },
+    {
+     "id": "i35-3",
+     "due": "2026-06-22",
+     "open": "135.429"
+    }
+   ],
+   "amount": "27.492",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i35-0",
+      "amount": "27.492"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i36-0",
+     "due": "2026-02-11",
+     "open": "4.583"
+    },
+    {
+     "id": "i36-1",
+     "due": "2026-05-22",
+     "open": "105.237"
+    },
+    {
+     "id": "i36-2",
+     "due": "2026-02-08",
+     "open": "68.210"
+    },
+    {
+     "id": "i36-3",
+     "due": "2026-07-13",
+     "open": "126.705"
+    },
+    {
+     "id": "i36-4",
+     "due": "2026-04-19",
+     "open": "0.217"
+    }
+   ],
+   "amount": "313.886",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i36-2",
+      "amount": "68.210"
+     },
+     {
+      "id": "i36-0",
+      "amount": "4.583"
+     },
+     {
+      "id": "i36-4",
+      "amount": "0.217"
+     },
+     {
+      "id": "i36-1",
+      "amount": "105.237"
+     },
+     {
+      "id": "i36-3",
+      "amount": "126.705"
+     }
+    ],
+    "left": "8.934"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i37-0",
+     "due": "2026-03-27",
+     "open": "113.173"
+    },
+    {
+     "id": "i37-1",
+     "due": "2026-03-09",
+     "open": "61.121"
+    },
+    {
+     "id": "i37-2",
+     "due": "2026-04-07",
+     "open": "68.950"
+    },
+    {
+     "id": "i37-3",
+     "due": "2026-07-10",
+     "open": "103.291"
+    }
+   ],
+   "amount": "412.874",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i37-1",
+      "amount": "61.121"
+     },
+     {
+      "id": "i37-0",
+      "amount": "113.173"
+     },
+     {
+      "id": "i37-2",
+      "amount": "68.950"
+     },
+     {
+      "id": "i37-3",
+      "amount": "103.291"
+     }
+    ],
+    "left": "66.339"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i38-0",
+     "due": "2026-03-23",
+     "open": "44.654"
+    },
+    {
+     "id": "i38-1",
+     "due": "2026-05-21",
+     "open": "137.405"
+    },
+    {
+     "id": "i38-2",
+     "due": "2026-07-08",
+     "open": "102.199"
+    },
+    {
+     "id": "i38-3",
+     "due": "2026-06-30",
+     "open": "123.652"
+    },
+    {
+     "id": "i38-4",
+     "due": "2026-02-24",
+     "open": "125.858"
+    },
+    {
+     "id": "i38-5",
+     "due": "2026-03-17",
+     "open": "18.078"
+    }
+   ],
+   "amount": "215.202",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i38-4",
+      "amount": "125.858"
+     },
+     {
+      "id": "i38-5",
+      "amount": "18.078"
+     },
+     {
+      "id": "i38-0",
+      "amount": "44.654"
+     },
+     {
+      "id": "i38-1",
+      "amount": "26.612"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i39-0",
+     "due": "2026-02-08",
+     "open": "90.317"
+    },
+    {
+     "id": "i39-1",
+     "due": "2026-02-08",
+     "open": "65.790"
+    },
+    {
+     "id": "i39-2",
+     "due": "2026-06-07",
+     "open": "14.154"
+    },
+    {
+     "id": "i39-3",
+     "due": "2026-03-27",
+     "open": "96.147"
+    },
+    {
+     "id": "i39-4",
+     "due": "2026-02-05",
+     "open": "110.493"
+    }
+   ],
+   "amount": "376.722",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i39-4",
+      "amount": "110.493"
+     },
+     {
+      "id": "i39-0",
+      "amount": "90.317"
+     },
+     {
+      "id": "i39-1",
+      "amount": "65.790"
+     },
+     {
+      "id": "i39-3",
+      "amount": "96.147"
+     },
+     {
+      "id": "i39-2",
+      "amount": "13.975"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i40-0",
+     "due": "2026-03-10",
+     "open": "78.197"
+    },
+    {
+     "id": "i40-1",
+     "due": "2026-03-10",
+     "open": "17.094"
+    },
+    {
+     "id": "i40-2",
+     "due": "2026-01-16",
+     "open": "115.754"
+    },
+    {
+     "id": "i40-3",
+     "due": "2026-06-26",
+     "open": "42.497"
+    },
+    {
+     "id": "i40-4",
+     "due": "2026-02-06",
+     "open": "65.183"
+    },
+    {
+     "id": "i40-5",
+     "due": "2026-06-25",
+     "open": "88.174"
+    }
+   ],
+   "amount": "434.364",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i40-2",
+      "amount": "115.754"
+     },
+     {
+      "id": "i40-4",
+      "amount": "65.183"
+     },
+     {
+      "id": "i40-0",
+      "amount": "78.197"
+     },
+     {
+      "id": "i40-1",
+      "amount": "17.094"
+     },
+     {
+      "id": "i40-5",
+      "amount": "88.174"
+     },
+     {
+      "id": "i40-3",
+      "amount": "42.497"
+     }
+    ],
+    "left": "27.465"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i41-0",
+     "due": "2026-03-06",
+     "open": "92.062"
+    },
+    {
+     "id": "i41-1",
+     "due": "2026-03-06",
+     "open": "148.879"
+    },
+    {
+     "id": "i41-2",
+     "due": "2026-04-09",
+     "open": "49.490"
+    },
+    {
+     "id": "i41-3",
+     "due": "2026-07-15",
+     "open": "120.307"
+    },
+    {
+     "id": "i41-4",
+     "due": "2026-04-04",
+     "open": "71.451"
+    },
+    {
+     "id": "i41-5",
+     "due": "2026-01-24",
+     "open": "34.515"
+    }
+   ],
+   "amount": "440.748",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i41-5",
+      "amount": "34.515"
+     },
+     {
+      "id": "i41-0",
+      "amount": "92.062"
+     },
+     {
+      "id": "i41-1",
+      "amount": "148.879"
+     },
+     {
+      "id": "i41-4",
+      "amount": "71.451"
+     },
+     {
+      "id": "i41-2",
+      "amount": "49.490"
+     },
+     {
+      "id": "i41-3",
+      "amount": "44.351"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i42-0",
+     "due": "2026-02-09",
+     "open": "26.956"
+    },
+    {
+     "id": "i42-1",
+     "due": "2026-06-28",
+     "open": "123.358"
+    },
+    {
+     "id": "i42-2",
+     "due": "2026-06-10",
+     "open": "13.039"
+    }
+   ],
+   "amount": "173.468",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i42-0",
+      "amount": "26.956"
+     },
+     {
+      "id": "i42-2",
+      "amount": "13.039"
+     },
+     {
+      "id": "i42-1",
+      "amount": "123.358"
+     }
+    ],
+    "left": "10.115"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i43-0",
+     "due": "2026-03-15",
+     "open": "105.777"
+    }
+   ],
+   "amount": "304.751",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i43-0",
+      "amount": "105.777"
+     }
+    ],
+    "left": "198.974"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i44-0",
+     "due": "2026-03-26",
+     "open": "145.292"
+    },
+    {
+     "id": "i44-1",
+     "due": "2026-07-03",
+     "open": "133.061"
+    }
+   ],
+   "amount": "408.709",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i44-0",
+      "amount": "145.292"
+     },
+     {
+      "id": "i44-1",
+      "amount": "133.061"
+     }
+    ],
+    "left": "130.356"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i45-0",
+     "due": "2026-05-31",
+     "open": "71.670"
+    },
+    {
+     "id": "i45-1",
+     "due": "2026-02-15",
+     "open": "138.130"
+    },
+    {
+     "id": "i45-2",
+     "due": "2026-02-08",
+     "open": "146.148"
+    },
+    {
+     "id": "i45-3",
+     "due": "2026-02-24",
+     "open": "62.252"
+    }
+   ],
+   "amount": "328.981",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i45-2",
+      "amount": "146.148"
+     },
+     {
+      "id": "i45-1",
+      "amount": "138.130"
+     },
+     {
+      "id": "i45-3",
+      "amount": "44.703"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i46-0",
+     "due": "2026-03-29",
+     "open": "137.567"
+    }
+   ],
+   "amount": "44.708",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i46-0",
+      "amount": "44.708"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i47-0",
+     "due": "2026-06-02",
+     "open": "30.875"
+    },
+    {
+     "id": "i47-1",
+     "due": "2026-01-26",
+     "open": "143.454"
+    }
+   ],
+   "amount": "139.634",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i47-1",
+      "amount": "139.634"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i48-0",
+     "due": "2026-05-31",
+     "open": "121.589"
+    }
+   ],
+   "amount": "491.074",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i48-0",
+      "amount": "121.589"
+     }
+    ],
+    "left": "369.485"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i49-0",
+     "due": "2026-04-24",
+     "open": "62.524"
+    },
+    {
+     "id": "i49-1",
+     "due": "2026-02-02",
+     "open": "81.026"
+    },
+    {
+     "id": "i49-2",
+     "due": "2026-05-25",
+     "open": "93.820"
+    },
+    {
+     "id": "i49-3",
+     "due": "2026-03-13",
+     "open": "142.817"
+    },
+    {
+     "id": "i49-4",
+     "due": "2026-05-18",
+     "open": "22.809"
+    },
+    {
+     "id": "i49-5",
+     "due": "2026-02-09",
+     "open": "100.088"
+    }
+   ],
+   "amount": "37.732",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i49-1",
+      "amount": "37.732"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i50-0",
+     "due": "2026-06-10",
+     "open": "0.873"
+    },
+    {
+     "id": "i50-1",
+     "due": "2026-05-11",
+     "open": "57.424"
+    },
+    {
+     "id": "i50-2",
+     "due": "2026-07-15",
+     "open": "111.417"
+    },
+    {
+     "id": "i50-3",
+     "due": "2026-07-04",
+     "open": "26.417"
+    }
+   ],
+   "amount": "230.401",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i50-1",
+      "amount": "57.424"
+     },
+     {
+      "id": "i50-0",
+      "amount": "0.873"
+     },
+     {
+      "id": "i50-3",
+      "amount": "26.417"
+     },
+     {
+      "id": "i50-2",
+      "amount": "111.417"
+     }
+    ],
+    "left": "34.270"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i51-0",
+     "due": "2026-02-15",
+     "open": "87.432"
+    },
+    {
+     "id": "i51-1",
+     "due": "2026-02-15",
+     "open": "36.818"
+    },
+    {
+     "id": "i51-2",
+     "due": "2026-01-10",
+     "open": "147.835"
+    },
+    {
+     "id": "i51-3",
+     "due": "2026-01-01",
+     "open": "130.315"
+    }
+   ],
+   "amount": "487.397",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i51-3",
+      "amount": "130.315"
+     },
+     {
+      "id": "i51-2",
+      "amount": "147.835"
+     },
+     {
+      "id": "i51-0",
+      "amount": "87.432"
+     },
+     {
+      "id": "i51-1",
+      "amount": "36.818"
+     }
+    ],
+    "left": "84.997"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i52-0",
+     "due": "2026-06-19",
+     "open": "3.021"
+    },
+    {
+     "id": "i52-1",
+     "due": "2026-03-01",
+     "open": "68.075"
+    },
+    {
+     "id": "i52-2",
+     "due": "2026-03-22",
+     "open": "101.790"
+    },
+    {
+     "id": "i52-3",
+     "due": "2026-04-10",
+     "open": "35.725"
+    },
+    {
+     "id": "i52-4",
+     "due": "2026-06-23",
+     "open": "69.128"
+    },
+    {
+     "id": "i52-5",
+     "due": "2026-05-17",
+     "open": "88.857"
+    }
+   ],
+   "amount": "299.988",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i52-1",
+      "amount": "68.075"
+     },
+     {
+      "id": "i52-2",
+      "amount": "101.790"
+     },
+     {
+      "id": "i52-3",
+      "amount": "35.725"
+     },
+     {
+      "id": "i52-5",
+      "amount": "88.857"
+     },
+     {
+      "id": "i52-0",
+      "amount": "3.021"
+     },
+     {
+      "id": "i52-4",
+      "amount": "2.520"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i53-0",
+     "due": "2026-03-17",
+     "open": "101.672"
+    },
+    {
+     "id": "i53-1",
+     "due": "2026-04-15",
+     "open": "77.820"
+    },
+    {
+     "id": "i53-2",
+     "due": "2026-04-03",
+     "open": "12.470"
+    },
+    {
+     "id": "i53-3",
+     "due": "2026-03-28",
+     "open": "105.496"
+    },
+    {
+     "id": "i53-4",
+     "due": "2026-07-09",
+     "open": "147.194"
+    },
+    {
+     "id": "i53-5",
+     "due": "2026-04-01",
+     "open": "4.513"
+    }
+   ],
+   "amount": "426.964",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i53-0",
+      "amount": "101.672"
+     },
+     {
+      "id": "i53-3",
+      "amount": "105.496"
+     },
+     {
+      "id": "i53-5",
+      "amount": "4.513"
+     },
+     {
+      "id": "i53-2",
+      "amount": "12.470"
+     },
+     {
+      "id": "i53-1",
+      "amount": "77.820"
+     },
+     {
+      "id": "i53-4",
+      "amount": "124.993"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i54-0",
+     "due": "2026-03-08",
+     "open": "54.930"
+    }
+   ],
+   "amount": "270.648",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i54-0",
+      "amount": "54.930"
+     }
+    ],
+    "left": "215.718"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i55-0",
+     "due": "2026-03-04",
+     "open": "137.194"
+    }
+   ],
+   "amount": "262.984",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i55-0",
+      "amount": "137.194"
+     }
+    ],
+    "left": "125.790"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i56-0",
+     "due": "2026-04-04",
+     "open": "104.197"
+    },
+    {
+     "id": "i56-1",
+     "due": "2026-04-04",
+     "open": "93.104"
+    },
+    {
+     "id": "i56-2",
+     "due": "2026-02-22",
+     "open": "114.599"
+    },
+    {
+     "id": "i56-3",
+     "due": "2026-03-06",
+     "open": "118.440"
+    }
+   ],
+   "amount": "478.376",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i56-2",
+      "amount": "114.599"
+     },
+     {
+      "id": "i56-3",
+      "amount": "118.440"
+     },
+     {
+      "id": "i56-0",
+      "amount": "104.197"
+     },
+     {
+      "id": "i56-1",
+      "amount": "93.104"
+     }
+    ],
+    "left": "48.036"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i57-0",
+     "due": "2026-07-12",
+     "open": "143.661"
+    },
+    {
+     "id": "i57-1",
+     "due": "2026-01-30",
+     "open": "94.133"
+    },
+    {
+     "id": "i57-2",
+     "due": "2026-01-04",
+     "open": "42.921"
+    },
+    {
+     "id": "i57-3",
+     "due": "2026-02-19",
+     "open": "147.608"
+    },
+    {
+     "id": "i57-4",
+     "due": "2026-02-18",
+     "open": "3.982"
+    }
+   ],
+   "amount": "208.734",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i57-2",
+      "amount": "42.921"
+     },
+     {
+      "id": "i57-1",
+      "amount": "94.133"
+     },
+     {
+      "id": "i57-4",
+      "amount": "3.982"
+     },
+     {
+      "id": "i57-3",
+      "amount": "67.698"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i58-0",
+     "due": "2026-06-15",
+     "open": "105.861"
+    },
+    {
+     "id": "i58-1",
+     "due": "2026-06-15",
+     "open": "35.551"
+    },
+    {
+     "id": "i58-2",
+     "due": "2026-01-21",
+     "open": "94.439"
+    },
+    {
+     "id": "i58-3",
+     "due": "2026-01-30",
+     "open": "99.377"
+    },
+    {
+     "id": "i58-4",
+     "due": "2026-05-22",
+     "open": "55.838"
+    }
+   ],
+   "amount": "288.247",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i58-2",
+      "amount": "94.439"
+     },
+     {
+      "id": "i58-3",
+      "amount": "99.377"
+     },
+     {
+      "id": "i58-4",
+      "amount": "55.838"
+     },
+     {
+      "id": "i58-0",
+      "amount": "38.593"
+     }
+    ],
+    "left": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "id": "i59-0",
+     "due": "2026-03-26",
+     "open": "118.419"
+    },
+    {
+     "id": "i59-1",
+     "due": "2026-03-26",
+     "open": "138.113"
+    },
+    {
+     "id": "i59-2",
+     "due": "2026-04-13",
+     "open": "47.730"
+    },
+    {
+     "id": "i59-3",
+     "due": "2026-05-10",
+     "open": "24.723"
+    },
+    {
+     "id": "i59-4",
+     "due": "2026-06-11",
+     "open": "10.142"
+    }
+   ],
+   "amount": "248.824",
+   "expect": {
+    "allocations": [
+     {
+      "id": "i59-0",
+      "amount": "118.419"
+     },
+     {
+      "id": "i59-1",
+      "amount": "130.405"
+     }
+    ],
+    "left": "0.000"
+   }
+  }
+ ],
+ "aging": [
+  {
+   "items": [
+    {
+     "due": "2026-05-20",
+     "open": "117.352"
+    },
+    {
+     "due": "2026-08-24",
+     "open": "95.716"
+    },
+    {
+     "due": "2026-05-18",
+     "open": "37.400"
+    },
+    {
+     "due": "2026-05-08",
+     "open": "113.948"
+    },
+    {
+     "due": "2026-08-19",
+     "open": "81.884"
+    },
+    {
+     "due": "2026-01-23",
+     "open": "5.220"
+    },
+    {
+     "due": "2026-08-28",
+     "open": "92.874"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2027-02-03",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "544.394",
+    "onAccount": "0.000",
+    "total": "544.394"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-03-05",
+     "open": "71.931"
+    },
+    {
+     "due": "2026-10-12",
+     "open": "122.451"
+    },
+    {
+     "due": "2026-10-27",
+     "open": "62.124"
+    },
+    {
+     "due": "2026-03-11",
+     "open": "79.694"
+    },
+    {
+     "due": "2026-08-15",
+     "open": "106.783"
+    },
+    {
+     "due": "2026-06-27",
+     "open": "50.193"
+    },
+    {
+     "due": "2026-02-02",
+     "open": "141.500"
+    },
+    {
+     "due": "2026-02-14",
+     "open": "89.119"
+    }
+   ],
+   "unallocated": "9.411",
+   "asOf": "2026-01-14",
+   "expect": {
+    "current": "723.795",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "9.411",
+    "total": "714.384"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-11-21",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-03-26",
+     "open": "18.699"
+    },
+    {
+     "due": "2026-09-10",
+     "open": "83.961"
+    },
+    {
+     "due": "2026-03-19",
+     "open": "52.964"
+    },
+    {
+     "due": "2026-10-23",
+     "open": "68.972"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2027-02-03",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "224.596",
+    "onAccount": "0.000",
+    "total": "224.596"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-07-30",
+     "open": "11.229"
+    },
+    {
+     "due": "2026-07-18",
+     "open": "26.076"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-06-17",
+   "expect": {
+    "current": "37.305",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "37.305"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-06-08",
+     "open": "135.464"
+    },
+    {
+     "due": "2026-02-01",
+     "open": "16.753"
+    },
+    {
+     "due": "2026-02-10",
+     "open": "131.852"
+    },
+    {
+     "due": "2026-01-01",
+     "open": "117.796"
+    },
+    {
+     "due": "2026-05-10",
+     "open": "34.305"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-12-13",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "436.170",
+    "onAccount": "0.000",
+    "total": "436.170"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-08-01",
+     "open": "126.870"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-04-26",
+   "expect": {
+    "current": "126.870",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "126.870"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-03-11",
+     "open": "35.276"
+    },
+    {
+     "due": "2026-04-13",
+     "open": "22.872"
+    },
+    {
+     "due": "2026-08-02",
+     "open": "14.099"
+    },
+    {
+     "due": "2026-03-25",
+     "open": "29.561"
+    },
+    {
+     "due": "2026-06-22",
+     "open": "11.459"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2027-01-27",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "113.267",
+    "onAccount": "0.000",
+    "total": "113.267"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-05",
+     "open": "132.034"
+    },
+    {
+     "due": "2026-05-14",
+     "open": "66.628"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2027-02-03",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "198.662",
+    "onAccount": "0.000",
+    "total": "198.662"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-07-31",
+     "open": "112.320"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-10-27",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "112.320",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "112.320"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-09-09",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-06-27",
+     "open": "24.943"
+    },
+    {
+     "due": "2026-07-22",
+     "open": "110.714"
+    },
+    {
+     "due": "2026-05-10",
+     "open": "90.185"
+    },
+    {
+     "due": "2026-06-03",
+     "open": "81.216"
+    },
+    {
+     "due": "2026-01-25",
+     "open": "140.254"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-06-04",
+   "expect": {
+    "current": "135.657",
+    "d1_30": "171.401",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "140.254",
+    "onAccount": "0.000",
+    "total": "447.312"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-09-09",
+     "open": "59.757"
+    },
+    {
+     "due": "2026-07-21",
+     "open": "127.527"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-01-09",
+   "expect": {
+    "current": "187.284",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "187.284"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-08-12",
+     "open": "61.041"
+    }
+   ],
+   "unallocated": "45.262",
+   "asOf": "2026-06-02",
+   "expect": {
+    "current": "61.041",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "45.262",
+    "total": "15.779"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-07-11",
+     "open": "76.518"
+    },
+    {
+     "due": "2026-08-30",
+     "open": "41.719"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-12-30",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "118.237",
+    "onAccount": "0.000",
+    "total": "118.237"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-03-09",
+     "open": "147.022"
+    },
+    {
+     "due": "2026-01-27",
+     "open": "142.544"
+    },
+    {
+     "due": "2026-07-05",
+     "open": "21.319"
+    },
+    {
+     "due": "2026-08-12",
+     "open": "32.329"
+    },
+    {
+     "due": "2026-08-24",
+     "open": "16.039"
+    },
+    {
+     "due": "2026-07-09",
+     "open": "95.694"
+    },
+    {
+     "due": "2026-06-25",
+     "open": "52.641"
+    },
+    {
+     "due": "2026-07-02",
+     "open": "69.545"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-04-07",
+   "expect": {
+    "current": "287.567",
+    "d1_30": "147.022",
+    "d31_60": "0.000",
+    "d61_90": "142.544",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "577.133"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-04-03",
+     "open": "51.059"
+    },
+    {
+     "due": "2026-07-18",
+     "open": "40.812"
+    },
+    {
+     "due": "2026-01-12",
+     "open": "80.941"
+    },
+    {
+     "due": "2026-10-10",
+     "open": "32.717"
+    },
+    {
+     "due": "2026-01-22",
+     "open": "63.629"
+    },
+    {
+     "due": "2026-03-25",
+     "open": "24.182"
+    },
+    {
+     "due": "2026-10-18",
+     "open": "24.748"
+    },
+    {
+     "due": "2026-09-08",
+     "open": "124.153"
+    }
+   ],
+   "unallocated": "10.925",
+   "asOf": "2026-05-24",
+   "expect": {
+    "current": "222.430",
+    "d1_30": "0.000",
+    "d31_60": "75.241",
+    "d61_90": "0.000",
+    "d90plus": "144.570",
+    "onAccount": "10.925",
+    "total": "431.316"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-10-05",
+     "open": "41.035"
+    },
+    {
+     "due": "2026-06-11",
+     "open": "98.349"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-06-27",
+   "expect": {
+    "current": "41.035",
+    "d1_30": "98.349",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "139.384"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-10-06",
+     "open": "28.991"
+    },
+    {
+     "due": "2026-01-02",
+     "open": "12.778"
+    },
+    {
+     "due": "2026-04-05",
+     "open": "101.109"
+    },
+    {
+     "due": "2026-10-26",
+     "open": "51.463"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-08-28",
+   "expect": {
+    "current": "80.454",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "113.887",
+    "onAccount": "0.000",
+    "total": "194.341"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-11-22",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-04-30",
+     "open": "147.005"
+    },
+    {
+     "due": "2026-01-31",
+     "open": "113.734"
+    },
+    {
+     "due": "2026-08-09",
+     "open": "68.227"
+    },
+    {
+     "due": "2026-10-10",
+     "open": "116.406"
+    },
+    {
+     "due": "2026-03-09",
+     "open": "41.360"
+    }
+   ],
+   "unallocated": "6.488",
+   "asOf": "2026-01-31",
+   "expect": {
+    "current": "486.732",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "6.488",
+    "total": "480.244"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-05-17",
+     "open": "109.846"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-08-14",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "109.846",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "109.846"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-08-18",
+     "open": "120.950"
+    },
+    {
+     "due": "2026-02-13",
+     "open": "76.872"
+    }
+   ],
+   "unallocated": "32.044",
+   "asOf": "2026-08-17",
+   "expect": {
+    "current": "120.950",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "76.872",
+    "onAccount": "32.044",
+    "total": "165.778"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-01-14",
+     "open": "119.766"
+    },
+    {
+     "due": "2026-08-20",
+     "open": "147.877"
+    },
+    {
+     "due": "2026-06-16",
+     "open": "145.636"
+    },
+    {
+     "due": "2026-04-22",
+     "open": "120.494"
+    }
+   ],
+   "unallocated": "28.417",
+   "asOf": "2027-02-03",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "533.773",
+    "onAccount": "28.417",
+    "total": "505.356"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-11",
+     "open": "106.829"
+    }
+   ],
+   "unallocated": "34.871",
+   "asOf": "2026-09-09",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "106.829",
+    "onAccount": "34.871",
+    "total": "71.958"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-01",
+     "open": "80.092"
+    },
+    {
+     "due": "2026-08-25",
+     "open": "76.365"
+    },
+    {
+     "due": "2026-03-11",
+     "open": "46.161"
+    }
+   ],
+   "unallocated": "27.207",
+   "asOf": "2026-09-10",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "76.365",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "126.253",
+    "onAccount": "27.207",
+    "total": "175.411"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-10-25",
+     "open": "6.934"
+    },
+    {
+     "due": "2026-07-29",
+     "open": "27.634"
+    },
+    {
+     "due": "2026-07-20",
+     "open": "89.261"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-01-16",
+   "expect": {
+    "current": "123.829",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "123.829"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-19",
+     "open": "72.701"
+    },
+    {
+     "due": "2026-08-31",
+     "open": "64.925"
+    },
+    {
+     "due": "2026-06-28",
+     "open": "102.911"
+    }
+   ],
+   "unallocated": "29.050",
+   "asOf": "2026-07-01",
+   "expect": {
+    "current": "64.925",
+    "d1_30": "102.911",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "72.701",
+    "onAccount": "29.050",
+    "total": "211.487"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-04-02",
+     "open": "76.659"
+    },
+    {
+     "due": "2026-09-19",
+     "open": "131.799"
+    },
+    {
+     "due": "2026-08-28",
+     "open": "39.529"
+    },
+    {
+     "due": "2026-01-10",
+     "open": "51.630"
+    },
+    {
+     "due": "2026-08-01",
+     "open": "47.101"
+    },
+    {
+     "due": "2026-04-26",
+     "open": "26.029"
+    },
+    {
+     "due": "2026-03-01",
+     "open": "130.281"
+    },
+    {
+     "due": "2026-01-04",
+     "open": "135.592"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2027-01-25",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "638.620",
+    "onAccount": "0.000",
+    "total": "638.620"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "41.641",
+   "asOf": "2027-01-25",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "41.641",
+    "total": "-41.641"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-09-02",
+     "open": "38.250"
+    },
+    {
+     "due": "2026-05-04",
+     "open": "125.829"
+    },
+    {
+     "due": "2026-09-01",
+     "open": "1.343"
+    },
+    {
+     "due": "2026-07-21",
+     "open": "17.046"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-03-14",
+   "expect": {
+    "current": "182.468",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "182.468"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-05-23",
+     "open": "107.482"
+    },
+    {
+     "due": "2026-06-12",
+     "open": "101.295"
+    },
+    {
+     "due": "2026-08-17",
+     "open": "1.384"
+    }
+   ],
+   "unallocated": "46.024",
+   "asOf": "2026-08-10",
+   "expect": {
+    "current": "1.384",
+    "d1_30": "0.000",
+    "d31_60": "101.295",
+    "d61_90": "107.482",
+    "d90plus": "0.000",
+    "onAccount": "46.024",
+    "total": "164.137"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-08-27",
+     "open": "139.026"
+    }
+   ],
+   "unallocated": "25.382",
+   "asOf": "2027-02-05",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "139.026",
+    "onAccount": "25.382",
+    "total": "113.644"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-09-29",
+     "open": "98.383"
+    },
+    {
+     "due": "2026-01-20",
+     "open": "1.680"
+    },
+    {
+     "due": "2026-01-26",
+     "open": "30.620"
+    },
+    {
+     "due": "2026-10-16",
+     "open": "39.350"
+    },
+    {
+     "due": "2026-02-28",
+     "open": "133.159"
+    },
+    {
+     "due": "2026-03-25",
+     "open": "54.236"
+    }
+   ],
+   "unallocated": "21.867",
+   "asOf": "2026-03-05",
+   "expect": {
+    "current": "191.969",
+    "d1_30": "133.159",
+    "d31_60": "32.300",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "21.867",
+    "total": "335.561"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-06-01",
+     "open": "108.443"
+    },
+    {
+     "due": "2026-10-18",
+     "open": "55.708"
+    },
+    {
+     "due": "2026-07-10",
+     "open": "102.470"
+    },
+    {
+     "due": "2026-04-15",
+     "open": "117.718"
+    }
+   ],
+   "unallocated": "41.507",
+   "asOf": "2026-09-09",
+   "expect": {
+    "current": "55.708",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "102.470",
+    "d90plus": "226.161",
+    "onAccount": "41.507",
+    "total": "342.832"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-04-05",
+     "open": "14.466"
+    },
+    {
+     "due": "2026-06-15",
+     "open": "88.655"
+    },
+    {
+     "due": "2026-10-06",
+     "open": "29.573"
+    },
+    {
+     "due": "2026-01-16",
+     "open": "51.225"
+    },
+    {
+     "due": "2026-07-06",
+     "open": "73.377"
+    },
+    {
+     "due": "2026-08-13",
+     "open": "101.515"
+    },
+    {
+     "due": "2026-10-21",
+     "open": "134.303"
+    }
+   ],
+   "unallocated": "47.024",
+   "asOf": "2026-10-26",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "163.876",
+    "d31_60": "0.000",
+    "d61_90": "101.515",
+    "d90plus": "227.723",
+    "onAccount": "47.024",
+    "total": "446.090"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-10-09",
+     "open": "136.555"
+    },
+    {
+     "due": "2026-04-04",
+     "open": "58.979"
+    },
+    {
+     "due": "2026-03-07",
+     "open": "43.074"
+    },
+    {
+     "due": "2026-03-22",
+     "open": "27.391"
+    },
+    {
+     "due": "2026-10-09",
+     "open": "76.335"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-04-21",
+   "expect": {
+    "current": "212.890",
+    "d1_30": "86.370",
+    "d31_60": "43.074",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "342.334"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-01-26",
+     "open": "118.652"
+    },
+    {
+     "due": "2026-03-03",
+     "open": "21.152"
+    },
+    {
+     "due": "2026-04-27",
+     "open": "82.625"
+    },
+    {
+     "due": "2026-02-21",
+     "open": "96.480"
+    },
+    {
+     "due": "2026-05-22",
+     "open": "40.483"
+    },
+    {
+     "due": "2026-03-05",
+     "open": "51.858"
+    },
+    {
+     "due": "2026-01-11",
+     "open": "55.029"
+    }
+   ],
+   "unallocated": "18.945",
+   "asOf": "2027-02-01",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "466.279",
+    "onAccount": "18.945",
+    "total": "447.334"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "38.488",
+   "asOf": "2026-04-07",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "38.488",
+    "total": "-38.488"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-01-31",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-01-14",
+     "open": "6.546"
+    },
+    {
+     "due": "2026-08-09",
+     "open": "149.399"
+    },
+    {
+     "due": "2026-06-05",
+     "open": "53.209"
+    }
+   ],
+   "unallocated": "25.217",
+   "asOf": "2026-05-11",
+   "expect": {
+    "current": "202.608",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "6.546",
+    "onAccount": "25.217",
+    "total": "183.937"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-17",
+     "open": "120.029"
+    },
+    {
+     "due": "2026-07-22",
+     "open": "139.805"
+    },
+    {
+     "due": "2026-08-25",
+     "open": "133.924"
+    },
+    {
+     "due": "2026-09-19",
+     "open": "85.181"
+    },
+    {
+     "due": "2026-07-11",
+     "open": "109.203"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-03-26",
+   "expect": {
+    "current": "468.113",
+    "d1_30": "0.000",
+    "d31_60": "120.029",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "588.142"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-28",
+     "open": "96.534"
+    },
+    {
+     "due": "2026-04-16",
+     "open": "14.347"
+    },
+    {
+     "due": "2026-01-29",
+     "open": "96.597"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-06-25",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "14.347",
+    "d90plus": "193.131",
+    "onAccount": "0.000",
+    "total": "207.478"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-06-28",
+     "open": "17.462"
+    },
+    {
+     "due": "2026-10-10",
+     "open": "37.944"
+    },
+    {
+     "due": "2026-06-09",
+     "open": "134.671"
+    },
+    {
+     "due": "2026-01-07",
+     "open": "101.220"
+    },
+    {
+     "due": "2026-08-09",
+     "open": "58.454"
+    },
+    {
+     "due": "2026-04-12",
+     "open": "40.751"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-06-19",
+   "expect": {
+    "current": "113.860",
+    "d1_30": "134.671",
+    "d31_60": "0.000",
+    "d61_90": "40.751",
+    "d90plus": "101.220",
+    "onAccount": "0.000",
+    "total": "390.502"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-07-06",
+     "open": "94.307"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-04-17",
+   "expect": {
+    "current": "94.307",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "94.307"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-07-24",
+     "open": "121.442"
+    },
+    {
+     "due": "2026-10-21",
+     "open": "149.741"
+    },
+    {
+     "due": "2026-06-06",
+     "open": "9.212"
+    }
+   ],
+   "unallocated": "20.399",
+   "asOf": "2026-09-12",
+   "expect": {
+    "current": "149.741",
+    "d1_30": "0.000",
+    "d31_60": "121.442",
+    "d61_90": "0.000",
+    "d90plus": "9.212",
+    "onAccount": "20.399",
+    "total": "259.996"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-02-03",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-06-13",
+     "open": "148.429"
+    },
+    {
+     "due": "2026-09-23",
+     "open": "129.458"
+    },
+    {
+     "due": "2026-01-26",
+     "open": "129.915"
+    },
+    {
+     "due": "2026-01-26",
+     "open": "128.970"
+    },
+    {
+     "due": "2026-07-12",
+     "open": "116.329"
+    }
+   ],
+   "unallocated": "45.031",
+   "asOf": "2026-05-18",
+   "expect": {
+    "current": "394.216",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "258.885",
+    "onAccount": "45.031",
+    "total": "608.070"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-09-30",
+     "open": "58.658"
+    },
+    {
+     "due": "2026-09-30",
+     "open": "98.635"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-08-12",
+   "expect": {
+    "current": "157.293",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "157.293"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-07",
+     "open": "116.824"
+    },
+    {
+     "due": "2026-02-11",
+     "open": "71.097"
+    },
+    {
+     "due": "2026-05-08",
+     "open": "121.782"
+    },
+    {
+     "due": "2026-10-21",
+     "open": "68.929"
+    },
+    {
+     "due": "2026-09-17",
+     "open": "147.110"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-12-22",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "68.929",
+    "d90plus": "456.813",
+    "onAccount": "0.000",
+    "total": "525.742"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-03-13",
+     "open": "60.531"
+    },
+    {
+     "due": "2026-10-25",
+     "open": "92.560"
+    },
+    {
+     "due": "2026-10-14",
+     "open": "89.766"
+    },
+    {
+     "due": "2026-01-19",
+     "open": "65.362"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-03-07",
+   "expect": {
+    "current": "242.857",
+    "d1_30": "0.000",
+    "d31_60": "65.362",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "308.219"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-09-26",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [],
+   "unallocated": "0.000",
+   "asOf": "2026-04-16",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "0.000"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-08-25",
+     "open": "144.072"
+    },
+    {
+     "due": "2026-09-29",
+     "open": "77.254"
+    },
+    {
+     "due": "2026-08-14",
+     "open": "91.709"
+    },
+    {
+     "due": "2026-07-01",
+     "open": "16.889"
+    },
+    {
+     "due": "2026-07-03",
+     "open": "47.535"
+    },
+    {
+     "due": "2026-07-04",
+     "open": "140.996"
+    },
+    {
+     "due": "2026-01-27",
+     "open": "112.441"
+    },
+    {
+     "due": "2026-03-17",
+     "open": "70.616"
+    }
+   ],
+   "unallocated": "11.126",
+   "asOf": "2026-05-06",
+   "expect": {
+    "current": "518.455",
+    "d1_30": "0.000",
+    "d31_60": "70.616",
+    "d61_90": "0.000",
+    "d90plus": "112.441",
+    "onAccount": "11.126",
+    "total": "690.386"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-03-24",
+     "open": "0.375"
+    },
+    {
+     "due": "2026-05-02",
+     "open": "40.816"
+    },
+    {
+     "due": "2026-06-17",
+     "open": "144.375"
+    },
+    {
+     "due": "2026-01-08",
+     "open": "51.269"
+    }
+   ],
+   "unallocated": "13.455",
+   "asOf": "2026-11-04",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "0.000",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "236.835",
+    "onAccount": "13.455",
+    "total": "223.380"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-02-03",
+     "open": "147.213"
+    },
+    {
+     "due": "2026-05-06",
+     "open": "54.897"
+    },
+    {
+     "due": "2026-06-26",
+     "open": "34.940"
+    },
+    {
+     "due": "2026-10-08",
+     "open": "83.449"
+    },
+    {
+     "due": "2026-06-14",
+     "open": "61.691"
+    },
+    {
+     "due": "2026-02-14",
+     "open": "18.305"
+    },
+    {
+     "due": "2026-06-09",
+     "open": "38.061"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-08-11",
+   "expect": {
+    "current": "83.449",
+    "d1_30": "0.000",
+    "d31_60": "96.631",
+    "d61_90": "38.061",
+    "d90plus": "220.415",
+    "onAccount": "0.000",
+    "total": "438.556"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-04-30",
+     "open": "33.024"
+    },
+    {
+     "due": "2026-01-29",
+     "open": "129.277"
+    },
+    {
+     "due": "2026-07-13",
+     "open": "40.818"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-07-20",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "40.818",
+    "d31_60": "0.000",
+    "d61_90": "33.024",
+    "d90plus": "129.277",
+    "onAccount": "0.000",
+    "total": "203.119"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-01-31",
+     "open": "27.969"
+    },
+    {
+     "due": "2026-08-23",
+     "open": "48.607"
+    },
+    {
+     "due": "2026-01-30",
+     "open": "3.196"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-08-26",
+   "expect": {
+    "current": "0.000",
+    "d1_30": "48.607",
+    "d31_60": "0.000",
+    "d61_90": "0.000",
+    "d90plus": "31.165",
+    "onAccount": "0.000",
+    "total": "79.772"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-04-22",
+     "open": "110.660"
+    },
+    {
+     "due": "2026-04-09",
+     "open": "72.802"
+    },
+    {
+     "due": "2026-03-22",
+     "open": "130.717"
+    },
+    {
+     "due": "2026-02-26",
+     "open": "37.940"
+    },
+    {
+     "due": "2026-07-28",
+     "open": "50.081"
+    },
+    {
+     "due": "2026-03-01",
+     "open": "10.411"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-05-22",
+   "expect": {
+    "current": "50.081",
+    "d1_30": "110.660",
+    "d31_60": "72.802",
+    "d61_90": "179.068",
+    "d90plus": "0.000",
+    "onAccount": "0.000",
+    "total": "412.611"
+   }
+  },
+  {
+   "items": [
+    {
+     "due": "2026-10-01",
+     "open": "91.802"
+    },
+    {
+     "due": "2026-02-18",
+     "open": "108.619"
+    },
+    {
+     "due": "2026-06-12",
+     "open": "76.312"
+    },
+    {
+     "due": "2026-08-13",
+     "open": "90.855"
+    },
+    {
+     "due": "2026-08-16",
+     "open": "75.077"
+    },
+    {
+     "due": "2026-04-09",
+     "open": "110.280"
+    },
+    {
+     "due": "2026-09-20",
+     "open": "92.339"
+    }
+   ],
+   "unallocated": "0.000",
+   "asOf": "2026-08-28",
+   "expect": {
+    "current": "184.141",
+    "d1_30": "165.932",
+    "d31_60": "0.000",
+    "d61_90": "76.312",
+    "d90plus": "218.899",
+    "onAccount": "0.000",
+    "total": "645.284"
+   }
+  }
+ ]
+}
