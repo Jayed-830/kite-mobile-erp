@@ -52,6 +52,8 @@ export function FiguresView({ f }: { f: ShiftFigures }) {
       {row(t('salesReports.transfer'), f.transferPayments)}
       {!!f.tradeInCredit && row(t('tradein.figures.tradeInCredit'), f.tradeInCredit)}
       {!!f.storeCreditPayments && row(t('tradein.figures.storeCreditPayments'), f.storeCreditPayments)}
+      {!!f.onAccountSales && row(t('credit.figuresOnAccount'), f.onAccountSales)}
+      {!!f.creditReceipts && row(t('credit.figuresReceipts'), f.creditReceipts)}
       <div className="fig"><span>{t('salesReports.noSales')}</span><span className="num">{f.noSales}</span></div>
     </div>
   );

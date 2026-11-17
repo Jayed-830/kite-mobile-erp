@@ -28,7 +28,7 @@ const FONT = 'Tahoma, "Segoe UI", "Noto Sans Arabic", "DejaVu Sans", sans-serif'
 export const money = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const qtyText = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(3).replace(/0+$/, ''));
 export const METHOD: Record<string, [string, string]> = {
-  cash: ['Cash', 'نقداً'], card: ['Card', 'بطاقة'], bank_transfer: ['Bank transfer', 'تحويل بنكي'], trade_in: ['Trade-in', 'جهاز مستبدل'], store_credit: ['Store credit', 'رصيد المتجر'],
+  cash: ['Cash', 'نقداً'], card: ['Card', 'بطاقة'], bank_transfer: ['Bank transfer', 'تحويل بنكي'], trade_in: ['Trade-in', 'جهاز مستبدل'], store_credit: ['Store credit', 'رصيد المتجر'], credit: ['On account', 'على الحساب'],
 };
 
 /** Printable width in dots at 203 dpi: 576 for 80 mm paper, 384 for 58 mm. */

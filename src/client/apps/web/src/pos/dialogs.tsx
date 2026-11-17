@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ApiError, type ApprovalAction, type Customer, type PosPolicy, type SaleDetail, type ShiftFigures, type TenderInput } from '@kite/api';
+import { ApiError, type ApprovalAction, type CreditAvailable, type Customer, type PosPolicy, type SaleDetail, type ShiftFigures, type TenderInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
-import { Badge, Button, Checkbox, Modal, SelectField, TextField } from '@kite/ui';
+import { Alert, Badge, Button, Checkbox, Modal, SelectField, TextField } from '@kite/ui';
 import { apportionReturn, cashDue, countTotal, fromBaisa, roundCash, toBaisa, type Baisa } from '@kite/pos';
 import { ErrorBox, useApi } from '../core';
 import { CustomerFields } from '../pages/Customers';
@@ -60,13 +60,21 @@ export function ApprovalDialog({ action, reason, onApproved, onClose }: { action
 }
 
 // ------------------------------------------------------------------ payment
-export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer, cartId, tradeIns: tradeInsOn }: {
-  gross: Baisa; policy: PosPolicy; busy: boolean; error: unknown; onClose: () => void; onPay: (tenders: TenderInput[]) => void;
+export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer, cartId, tradeIns: tradeInsOn, creditSales }: {
+  gross: Baisa; policy: PosPolicy; busy: boolean; error: unknown; onClose: () => void; onPay: (tenders: TenderInput[], plan?: { instalments: number; intervalDays: number } | null) => void;
   /** Phase 7: the cart's customer, for their trade-in credit and store credit. */
   customer?: Customer | null; cartId?: string; tradeIns?: boolean;
+  /** Phase 10: the cashier may sell on account (POS.CREDIT_SALE). */
+  creditSales?: boolean;
 }) {
   const { t, pick } = useI18n();
   const api = useApi();
+  // On account (14.3): the customer's credit account, what is available, and an instalment plan.
+  const account = useQuery({ queryKey: ['payCreditAccount', customer?.id, cartId], enabled: !!customer && !!creditSales, retry: false,
+    queryFn: () => api.creditAvailable(customer!.id).catch((): CreditAvailable => ({ hasAccount: false })) });
+  const [onAccount, setOnAccount] = useState('');
+  const [instalments, setInstalments] = useState('1');
+  const [interval, setIntervalDays] = useState('30');
   const credits = useQuery({ queryKey: ['payCredits', customer?.id, cartId], enabled: !!customer && !!tradeInsOn, retry: false,
     queryFn: async () => ({ open: await api.openTradeIns({ customerId: customer!.id }).catch(() => []), balance: (await api.storeCredit(customer!.id).catch(() => null))?.balance ?? 0 }) });
   const [useTi, setUseTi] = useState<Record<string, string>>({});
@@ -90,7 +98,7 @@ export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer
   const [tendered, setTendered] = useState('');
   const amount = (s: string) => (/^\d+(\.\d{1,3})?$/.test(s.trim()) ? toBaisa(s.trim()) : 0n);
   const tiTotal = Object.values(useTi).reduce((a, v) => a + amount(v), 0n);
-  const nonCash = amount(card) + amount(transfer) + tiTotal + amount(storeCredit);
+  const nonCash = amount(card) + amount(transfer) + tiTotal + amount(storeCredit) + amount(onAccount);
   const tiValid = Object.entries(useTi).every(([k, v]) => { const o = credits.data?.open.find((x) => x.id === k); return !v.trim() || (o != null && amount(v) <= toBaisa(o.outstanding)); })
     && amount(storeCredit) <= toBaisa(credits.data?.balance ?? 0);
   const { due } = cashDue(gross, nonCash > gross ? gross : nonCash, policy.cashRounding);
@@ -101,11 +109,14 @@ export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer
     const tenders: TenderInput[] = [];
     for (const [tradeInId, v] of Object.entries(useTi)) if (amount(v) > 0n) tenders.push({ method: 'trade_in', amount: b2n(amount(v)), tradeInId });
     if (amount(storeCredit) > 0n) tenders.push({ method: 'store_credit', amount: b2n(amount(storeCredit)) });
+    if (amount(onAccount) > 0n) tenders.push({ method: 'credit', amount: b2n(amount(onAccount)) });
     if (amount(card) > 0n) tenders.push({ method: 'card', amount: b2n(amount(card)), cardTerminal: cardTerminal.trim(), approvalCode: approvalCode.trim() });
     if (amount(transfer) > 0n) tenders.push({ method: 'bank_transfer', amount: b2n(amount(transfer)), reference: reference.trim() });
     if (due > 0n || tenders.length === 0) tenders.push({ method: 'cash', amount: b2n(due), tendered: b2n(given) });
-    onPay(due === 0n && tenders.length > 1 ? tenders.filter((x) => x.method !== 'cash') : tenders.filter((x) => x.amount > 0 || tenders.length === 1));
+    const plan = amount(onAccount) > 0n && Number(instalments) > 1 ? { instalments: Number(instalments), intervalDays: Number(interval) || 30 } : null;
+    onPay(due === 0n && tenders.length > 1 ? tenders.filter((x) => x.method !== 'cash') : tenders.filter((x) => x.amount > 0 || tenders.length === 1), plan);
   };
+  const acc = account.data;
   const quick = [due, ...[1000n, 5000n, 10000n, 20000n, 50000n].map((n) => (due <= 0n ? 0n : ((due + n - 1n) / n) * n))].filter((v, i, a) => v > 0n && a.indexOf(v) === i).slice(0, 5);
   return (
     <Modal open title={t('pos.payTitle')} onClose={onClose}
@@ -130,6 +141,31 @@ export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer
           <Button onClick={() => { const rest = gross - (nonCash - amount(storeCredit)); const bal = toBaisa(credits.data!.balance); setStoreCredit(fromBaisa(bal < rest ? bal : rest > 0n ? rest : 0n)); }}>{t('tradein.pay.useAll')}</Button>
         </div>
       )}
+      {acc && acc.hasAccount && (
+        <fieldset className="pay-credits"><legend>{t('credit.till.onAccount')}</legend>
+          <p className="muted">{t('credit.till.status', { limit: fmt(acc.limit ?? 0), owed: fmt(acc.exposure ?? 0) })} · <strong>{t('credit.till.available', { amount: fmt(acc.available ?? 0) })}</strong>
+            {acc.mode === 'branch_copy' && <small> · {t('credit.till.branchCopy')}</small>}</p>
+          {acc.status === 'hold' ? <Alert tone="error">{t('credit.till.onHold', { reason: acc.holdReason ?? '' })}</Alert> : acc.status === 'closed' ? <Alert tone="error">{t('credit.statuses.closed')}</Alert> : (
+            <>
+              {acc.blocked && <Alert tone="warning">{t('credit.till.blocked', { n: acc.overdueDays ?? 0 })}</Alert>}
+              <div className="grid-2">
+                <TextField label={t('credit.till.onAccount')} value={onAccount} onChange={(e) => setOnAccount(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0.000"
+                  help={amount(onAccount) > toBaisa(acc.available ?? 0) ? t('credit.till.overAvailable') : undefined} />
+                <Button onClick={() => { const rest = gross - (nonCash - amount(onAccount)); const avail = toBaisa(acc.available ?? 0); const take = avail < rest ? avail : rest; setOnAccount(fromBaisa(take > 0n ? take : 0n)); }}>{t('credit.till.useAvailable')}</Button>
+              </div>
+              {amount(onAccount) > 0n && (acc.maxInstalments ?? 1) > 1 && (
+                <div className="grid-2">
+                  <SelectField label={t('credit.till.instalments')} value={instalments} onChange={(e) => setInstalments(e.target.value)}>
+                    {Array.from({ length: acc.maxInstalments ?? 1 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+                  </SelectField>
+                  {Number(instalments) > 1 && <TextField label={t('credit.till.every')} value={interval} onChange={(e) => setIntervalDays(e.target.value.replace(/\D/g, ''))} inputMode="numeric" dir="ltr" />}
+                </div>
+              )}
+            </>
+          )}
+        </fieldset>
+      )}
+      {acc && !acc.hasAccount && customer && creditSales && <p className="muted">{t('credit.till.noAccount')}</p>}
       <div className="grid-2">
         <TextField label={t('pos.card')} value={card} onChange={(e) => setCard(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0.000" />
         <Button onClick={() => setCard(fromBaisa(gross))}>{t('pos.allOnCard')}</Button>
@@ -157,6 +193,62 @@ export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer
         {roundCash(gross - nonCash, policy.cashRounding) !== gross - nonCash && due > 0n && <p className="muted">{t('pos.roundingNote', { step: String(policy.cashRounding) })}</p>}
       </div>
       <ErrorBox error={error} />
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------------ credit payment (14.4)
+/** A payment on a credit account at the till: on the drawer, settling the oldest instalments first. */
+export function CreditPaymentDialog({ onClose, onDone }: { onClose: () => void; onDone: (message: string, cash: boolean) => void }) {
+  const api = useApi();
+  const { t, pick } = useI18n();
+  const [q, setQ] = useState('');
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [method, setMethod] = useState<'cash' | 'card' | 'bank_transfer'>('cash');
+  const [amount, setAmount] = useState('');
+  const [cardTerminal, setCardTerminal] = useState('BANK-1');
+  const [approvalCode, setApprovalCode] = useState('');
+  const [reference, setReference] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const found = useQuery({ queryKey: ['creditPayCustomers', q], enabled: q.trim().length >= 2, queryFn: () => api.customers(q.trim()) });
+  const account = useQuery({ queryKey: ['creditPayAccount', customer?.id], enabled: !!customer, queryFn: () => api.creditAvailable(customer!.id) });
+  const value = /^\d+(\.\d{1,3})?$/.test(amount.trim()) ? Number(amount) : 0;
+  const valid = customer && account.data?.hasAccount && value > 0 && (method !== 'card' || (cardTerminal.trim() && approvalCode.trim())) && (method !== 'bank_transfer' || reference.trim());
+  const submit = async () => {
+    setBusy(true); setError(null);
+    try {
+      const r = await api.receiveCustomerPayment({ id: crypto.randomUUID(), customerId: customer!.id, method, amount: value,
+        cardTerminal: method === 'card' ? cardTerminal.trim() : null, approvalCode: method === 'card' ? approvalCode.trim() : null, reference: method === 'bank_transfer' ? reference.trim() : null });
+      onDone(`${t('credit.till.paid', { number: r.number, amount: fmt(r.amount) })} ${t('credit.till.owedNow', { amount: fmt(r.balance) })}`, method === 'cash');
+    } catch (e) { setError(e); } finally { setBusy(false); }
+  };
+  return (
+    <Modal open title={t('credit.till.paymentTitle')} onClose={onClose}
+      footer={<><Button onClick={onClose}>{t('app.cancel')}</Button><Button variant="primary" busy={busy} disabled={!valid} onClick={submit}>{t('credit.receive')}</Button></>}>
+      <div className="stack">
+        {customer ? (
+          <div className="row"><strong>{pick(customer.nameEn, customer.nameAr ?? customer.nameEn)}</strong><span className="ltr muted">{customer.number}</span><span className="spacer" />
+            <Button size="sm" variant="ghost" onClick={() => setCustomer(null)}>{t('app.edit')}</Button></div>
+        ) : (
+          <>
+            <TextField label={t('credit.pickCustomer')} value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+            <div className="pick-list">{(found.data ?? []).slice(0, 8).map((c) => <Button key={c.id} variant="ghost" onClick={() => setCustomer(c)}>{pick(c.nameEn, c.nameAr ?? c.nameEn)} · <span className="ltr">{c.number}</span></Button>)}</div>
+          </>
+        )}
+        {account.data && !account.data.hasAccount && <p className="neg">{t('credit.till.noAccount')}</p>}
+        {account.data?.hasAccount && <p className="muted">{t('credit.till.owedNow', { amount: fmt(account.data.exposure ?? 0) })} · {t('credit.oldestFirst')}</p>}
+        <div className="grid-2">
+          <SelectField label={t('credit.method')} value={method} onChange={(e) => setMethod(e.target.value as typeof method)}>
+            {(['cash', 'card', 'bank_transfer'] as const).map((m) => <option key={m} value={m}>{t(`credit.methods.${m}`)}</option>)}
+          </SelectField>
+          <TextField label={t('credit.amount')} value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0.000" />
+          {method === 'card' && <TextField label={t('pos.bankTerminal')} value={cardTerminal} onChange={(e) => setCardTerminal(e.target.value.toUpperCase())} dir="ltr" />}
+          {method === 'card' && <TextField label={t('pos.approvalCode')} value={approvalCode} onChange={(e) => setApprovalCode(e.target.value)} dir="ltr" />}
+          {method === 'bank_transfer' && <TextField label={t('credit.reference')} value={reference} onChange={(e) => setReference(e.target.value)} dir="ltr" />}
+        </div>
+        <ErrorBox error={error} />
+      </div>
     </Modal>
   );
 }

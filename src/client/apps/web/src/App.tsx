@@ -41,6 +41,10 @@ import { WhatsAppPage } from './repairs/WhatsAppPage';
 import { PartsNeededPage } from './repairs/PartsNeededPage';
 import { CommissionsPage, MyCommissionsPage } from './commissions/CommissionsPage';
 import { CommissionRulesPage } from './commissions/CommissionRulesPage';
+import { CreditPage } from './credit/CreditPage';
+import { CreditAccountPage } from './credit/CreditAccountPage';
+import { CreditSettingsPage } from './credit/CreditSettingsPage';
+import { SupplierPage, SuppliersPage } from './suppliers/SuppliersPage';
 
 function Guarded() {
   const { stage } = useAuth();
@@ -93,6 +97,11 @@ function AppRoutes() {
         <Route path="commissions" element={<CommissionsPage />} />
         <Route path="commissions/mine" element={<MyCommissionsPage />} />
         <Route path="settings/commissions" element={<CommissionRulesPage />} />
+        <Route path="credit" element={<CreditPage />} />
+        <Route path="credit/:customerId" element={<CreditAccountPage />} />
+        <Route path="settings/credit" element={<CreditSettingsPage />} />
+        <Route path="suppliers" element={<SuppliersPage />} />
+        <Route path="suppliers/:id" element={<SupplierPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

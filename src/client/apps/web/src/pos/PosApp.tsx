@@ -7,7 +7,7 @@ import { classifyCode, fromBaisa, PosError, priceLine, totals, UNLIMITED, type I
 import { ErrorBox, useApi, useAuth, workBranchId } from '../core';
 import { fmt, fmtB, qty } from '../money';
 import { FiguresView } from '../pages/Sales';
-import { ApprovalDialog, CashDialog, CloseShiftDialog, CustomerDialog, DenominationCount, PayDialog, ReturnDialog } from './dialogs';
+import { ApprovalDialog, CashDialog, CloseShiftDialog, CreditPaymentDialog, CustomerDialog, DenominationCount, PayDialog, ReturnDialog } from './dialogs';
 import { desktop, isEmergencyMode, openDrawer, printReceipt, printRoute } from './printing';
 import { ReceiptView } from './ReceiptView';
 import { ConditionBadge, Ident } from '../devices/bits';
@@ -87,7 +87,7 @@ function RegisterTerminal({ onRegistered }: { onRegistered: (t: StoredTerminal) 
         <TextField label={t('terminals.name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       </div>
       <ErrorBox error={error} />
-      <Button variant="primary" busy={busy} onClick={async () => {
+      <Button variant="primary" busy={busy} disabled={!form.branchId || !form.code.trim()} onClick={async () => {
         setBusy(true); setError(null);
         try {
           const deviceKey = newDeviceKey();
@@ -139,7 +139,7 @@ function TerminalSignIn({ terminal, onForget }: { terminal: StoredTerminal; onFo
 
 // ------------------------------------------------------------------ the till
 interface CartRow { key: string; item: PosItem; qty: string; discount: string; unitPrice: string | null; unit?: PosUnit | null; damagedApprovalId?: string | null }
-type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | 'tradein' | 'repair' | { pickUnits: PosItem };
+type Dialog = null | 'pay' | 'customer' | 'cash' | 'return' | 'close' | 'parked' | 'x' | 'printer' | 'void' | 'tradein' | 'repair' | 'creditPayment' | { pickUnits: PosItem };
 interface ApprovalAsk { action: ApprovalAction; retry: (approvalId: string) => void }
 
 const asItem = (i: PosItem): Item => ({ ...i, taxRate: i.taxRate, listPrice: i.listPrice, minPrice: i.minPrice });
@@ -282,13 +282,14 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
   const newSale = () => { setCart([]); setCustomer(null); setTaxInvoice(false); setCartId(crypto.randomUUID()); setPayError(null); setError(null); setTimeout(() => searchRef.current?.focus(), 0); };
   const ask = (action: ApprovalAction, retry: (approvalId: string) => void) => setApproval({ action, retry });
 
-  const complete = async (tenders: TenderInput[], approvalId?: string) => {
+  const complete = async (tenders: TenderInput[], approvalId?: string, creditApprovalId?: string, creditPlan?: { instalments: number; intervalDays: number } | null) => {
     setPaying(true); setPayError(null);
     try {
       const res = await api.completeSale(cartId, {
         lines: cart.map((r) => ({ variantId: r.item.variantId, qty: Number(r.qty), discount: r.discount ? Number(r.discount) : null, unitPrice: r.unitPrice === null ? null : Number(r.unitPrice),
           deviceUnitId: r.unit?.unitId ?? null, damagedApprovalId: r.damagedApprovalId ?? null })),
         payments: tenders, docType: taxInvoice ? 'tax_invoice' : 'simplified_invoice', customerId: customer?.id ?? null, expectedTotal: Number(fromBaisa(sum.gross)), approvalId,
+        creditApprovalId: creditApprovalId ?? null, creditPlan: creditPlan ?? null,
       });
       setDialog(null);
       const r = await api.receipt(res.id);
@@ -306,7 +307,11 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
       void qc.invalidateQueries({ queryKey: ['posQuick'] });
     } catch (e) {
       if (e instanceof ApiError && (e.code === 'POS-006' || e.code === 'POS-007')) {
-        ask(e.code === 'POS-006' ? 'POS.PRICE.OVERRIDE' : 'POS.DISCOUNT.ABOVE_LIMIT', (aid) => { setApproval(null); void complete(tenders, aid); });
+        ask(e.code === 'POS-006' ? 'POS.PRICE.OVERRIDE' : 'POS.DISCOUNT.ABOVE_LIMIT', (aid) => { setApproval(null); void complete(tenders, aid, creditApprovalId, creditPlan); });
+      } else if (e instanceof ApiError && e.code === 'CRD-004') {
+        // On account past the available credit, or with an invoice overdue: a manager approves up to the override cap (14.3).
+        setPayError(e);
+        ask('CREDIT.OVERRIDE', (aid) => { setApproval(null); void complete(tenders, approvalId, aid, creditPlan); });
       } else setPayError(e);
     } finally { setPaying(false); }
   };
@@ -354,6 +359,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         <span className="spacer" />
         {tradeInsOn && !emergency && <Button size="sm" onClick={() => setDialog('tradein')}>{t('tradein.start')}</Button>}
         {repairsOn && !emergency && <Button size="sm" onClick={() => setDialog('repair')}>{t('repair.till.button')}</Button>}
+        {can(me, 'CREDIT.RECEIVE') && !emergency && <Button size="sm" onClick={() => setDialog('creditPayment')}>{t('credit.till.payment')}</Button>}
         <Button size="sm" onClick={() => setDialog('parked')}>{t('pos.recall')}</Button>
         <Button size="sm" onClick={() => setDialog('return')}>{t('pos.return')}</Button>
         <Button size="sm" onClick={() => setDialog('cash')}>{t('pos.cashMenu')}</Button>
@@ -426,8 +432,9 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
         </div>
       </section>
 
-      {dialog === 'pay' && policy.data && <PayDialog gross={sum.gross} policy={policy.data} busy={paying} error={payError} onClose={() => setDialog(null)} onPay={(x) => void complete(x)}
-        customer={customer} cartId={cartId} tradeIns={tradeInsOn && !emergency} />}
+      {dialog === 'pay' && policy.data && <PayDialog gross={sum.gross} policy={policy.data} busy={paying} error={payError} onClose={() => setDialog(null)} onPay={(x, plan) => void complete(x, undefined, undefined, plan)}
+        customer={customer} cartId={cartId} tradeIns={tradeInsOn && !emergency} creditSales={can(me, 'POS.CREDIT_SALE') && !emergency} />}
+      {dialog === 'creditPayment' && <CreditPaymentDialog onClose={() => setDialog(null)} onDone={(m, cash) => { setDialog(null); setNotice(m); if (cash) void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
       {dialog === 'repair' && policy.data && <RepairCounter policy={policy.data} onClose={() => setDialog(null)}
         onDone={(message, cash) => { setDialog(null); setNotice(message); if (cash) void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
       {dialog === 'tradein' && <TradeInWizard cartId={cartId} cartCustomer={customer} cartHasItems={cart.length > 0} onClose={() => setDialog(null)} ask={ask}
