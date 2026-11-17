@@ -5,6 +5,7 @@ import { tradeinEn } from './en.tradein';
 import { repairEn } from './en.repair';
 import { commEn } from './en.comm';
 import { creditEn } from './en.credit';
+import { purchEn } from './en.purch';
 // English strings. Arabic (ar.ts) must have exactly the same keys; a test enforces it.
 export const en = {
   ...posEn,
@@ -14,6 +15,7 @@ export const en = {
   ...repairEn,
   ...commEn,
   ...creditEn,
+  ...purchEn,
   app: {
     name: 'KITE MOBILE ERP',
     by: 'by Nextdab',
@@ -68,6 +70,13 @@ export const en = {
     commissionRules: 'Commission rules',
     credit: 'Customer credit',
     creditSettings: 'Credit settings',
+    purchasing: 'Purchasing',
+    finance: 'Finance',
+    accounting: 'Accounting',
+    statements: 'Statements',
+    vat: 'VAT returns',
+    expenses: 'Expenses',
+    purchSettings: 'Purchasing settings',
     suppliers: 'Suppliers',
     whatsapp: 'WhatsApp',
     posSettings: 'POS and printers',
@@ -170,7 +179,6 @@ export const en = {
     twoFactorOff: 'Turn on two-step verification for your account',
     twoFactorOn: 'Two-step verification is on',
     terminalsPending: '{count} terminal(s) waiting for approval',
-    phase: 'Phase 2 foundation: sales, inventory and repairs arrive in later phases.',
   },
   users: {
     title: 'Users',
@@ -576,6 +584,25 @@ export const en = {
       'CRD-008': 'Head office could not be asked about this credit.',
       'CRD-009': 'Only what the sale charged on account goes back on account.',
       'SUP-001': 'That supplier was merged or is not in a state for this.',
+      'PUR-001': 'The purchase order is not in a state for this.',
+      'PUR-002': 'More than was ordered, received or is still open: check the quantities.',
+      'PUR-003': 'The supplier invoice is already posted or cancelled.',
+      'PUR-004': 'A price differs from the order by more than the tolerance: someone with the override permission posts it, with a reason.',
+      'PUR-005': 'That payment does not fit what is open on the supplier’s invoices.',
+      'PUR-006': 'This order is above the amount you may approve.',
+      'PUR-007': 'That supplier is not on this branch’s approved list.',
+      'PUR-008': 'This supplier’s invoice number is already booked.',
+      'PUR-009': 'Those goods cannot go back to the supplier.',
+      'ACC-001': 'That period is closed. Late documents go to the next open period; reopening is for the accountant.',
+      'ACC-002': 'The journal does not balance: debits and credits differ.',
+      'ACC-003': 'The manual journal is not in a state for this.',
+      'ACC-004': 'That is a control account: posting to it by hand needs ACCT.CONTROL_ACCOUNT.POST.',
+      'ACC-005': 'Someone other than the person who entered it approves this journal.',
+      'ACC-006': 'The VAT return is filed and keeps its figures, or one already covers that period.',
+      'ACC-007': 'A month of the VAT return is still open at a branch: close it first (soft close is enough).',
+      'ACC-008': 'The year-end close is not possible now: every period must be closed first, and a year closes once.',
+      'ACC-009': 'That account has a balance or is used by posting rules.',
+      'ACC-010': 'The bank cannot settle more than card clearing holds at that branch.',
       'WA-001': 'WhatsApp is not ready for this. Check WhatsApp settings on the main server.',
       'WA-002': 'WhatsApp allows a typed reply only within 24 hours of the customer’s last message. Call the customer instead.',
       'WA-003': 'WhatsApp updates need the customer’s mobile number and agreement.',

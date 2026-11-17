@@ -98,6 +98,23 @@ public static class Permissions
     public const string SupplierView = "SUPPLIER.VIEW";
     public const string SupplierManage = "SUPPLIER.MANAGE";
     public const string SupplierApprove = "SUPPLIER.APPROVE";
+    // Phase 11 (V0020)
+    public const string PurchView = "PURCH.VIEW";
+    public const string PurchOrder = "PURCH.ORDER";
+    public const string PurchApprove = "PURCH.APPROVE";
+    public const string PurchReceive = "PURCH.RECEIVE";
+    public const string PurchInvoice = "PURCH.INVOICE";
+    public const string PurchInvoiceOverride = "PURCH.INVOICE.OVERRIDE";
+    public const string PurchReturn = "PURCH.RETURN";
+    public const string PurchPay = "PURCH.PAY";
+    public const string PurchSettings = "PURCH.SETTINGS";
+    public const string AcctView = "ACCT.VIEW";
+    public const string AcctJournalApprove = "ACCT.JOURNAL.APPROVE";
+    public const string AcctVatReturn = "ACCT.VAT.RETURN";
+    public const string AcctYearEnd = "ACCT.YEAR_END";
+    public const string AcctCardSettle = "ACCT.CARD_SETTLE";
+    public const string ExpView = "EXP.VIEW";
+    public const string ExpCreate = "EXP.CREATE";
 
     public static readonly IReadOnlyList<string> All = typeof(Permissions)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
@@ -137,6 +154,8 @@ public static class RoleTemplates
             Permissions.RepairSettings, Permissions.RepairCredentialView, Permissions.NotifSettings, Permissions.NotifReply,
             Permissions.RepairInvoiceCorrect, Permissions.CommView, Permissions.CommOwn, Permissions.CommApprove,
             Permissions.CreditView, Permissions.CreditReceive, Permissions.SupplierView, Permissions.SupplierManage,
+            Permissions.PurchView, Permissions.PurchOrder, Permissions.PurchApprove, Permissions.PurchReceive, Permissions.PurchReturn,
+            Permissions.ExpView, Permissions.ExpCreate,
         ]),
         new("senior_cashier", "Senior cashier", "أمين صندوق أول",
             [Permissions.PosSell, Permissions.PosCreditSale, Permissions.PosDrawerNoSale, Permissions.PosReceiptReprint,
@@ -152,8 +171,10 @@ public static class RoleTemplates
              Permissions.RepairView, Permissions.RepairWork, Permissions.CommOwn]),
         new("inventory_controller", "Inventory controller", "مراقب المخزون",
             [Permissions.DeviceImeiManualEntry, Permissions.CatalogView, Permissions.CatalogManage, Permissions.InvView, Permissions.InvAdjust, Permissions.InvCount,
-             Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceCount, Permissions.DeviceImeiCorrect]),
-        new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry, Permissions.SupplierView, Permissions.SupplierManage]),
+             Permissions.DeviceView, Permissions.DeviceInspect, Permissions.DeviceCount, Permissions.DeviceImeiCorrect, Permissions.PurchView, Permissions.PurchReceive]),
+        new("purchasing_officer", "Purchasing officer", "مسؤول المشتريات", [Permissions.DeviceImeiManualEntry, Permissions.SupplierView, Permissions.SupplierManage,
+            Permissions.PurchView, Permissions.PurchOrder, Permissions.PurchApprove, Permissions.PurchReceive, Permissions.PurchInvoice, Permissions.PurchReturn,
+            Permissions.CatalogView, Permissions.InvView]),
         new("accountant", "Accountant", "المحاسب",
         [
             Permissions.SettingsView, Permissions.AuditView, Permissions.AuditVerify, Permissions.TaxManage, Permissions.TaxReview,
@@ -161,6 +182,9 @@ public static class RoleTemplates
             Permissions.CatalogView, Permissions.InvView, Permissions.CustomersView, Permissions.PosReportsView, Permissions.DeviceView,
             Permissions.TradeInView, Permissions.RepairView, Permissions.CommView, Permissions.CommPay,
             Permissions.CreditView, Permissions.CreditManage, Permissions.CreditReceive, Permissions.SupplierView, Permissions.SupplierManage, Permissions.SupplierApprove,
+            Permissions.PurchView, Permissions.PurchApprove, Permissions.PurchInvoice, Permissions.PurchInvoiceOverride, Permissions.PurchPay, Permissions.PurchSettings,
+            Permissions.AcctView, Permissions.AcctJournalApprove, Permissions.AcctVatReturn, Permissions.AcctYearEnd, Permissions.AcctCardSettle,
+            Permissions.AcctControlAccountPost, Permissions.ExpView, Permissions.ExpCreate,
         ]),
     ];
 }

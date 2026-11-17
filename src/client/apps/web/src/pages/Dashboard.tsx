@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { can } from '@kite/api';
 import { useI18n } from '@kite/i18n';
-import { Alert, Badge, Card, PageHeader } from '@kite/ui';
+import { Badge, Card, PageHeader } from '@kite/ui';
 import { useApi, useAuth } from '../core';
 
 export function DashboardPage() {
@@ -39,7 +39,6 @@ export function DashboardPage() {
           )}
         </div>
       </Card>
-      <Alert tone="info">{t('dashboard.phase')}</Alert>
     </div>
   );
 }

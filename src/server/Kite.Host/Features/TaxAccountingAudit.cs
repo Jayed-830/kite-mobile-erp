@@ -62,12 +62,6 @@ public static class AccountingEndpoints
                 """, new { b = server.BusinessId }), ct)))
             .RequirePermission(Permissions.SettingsView).RequireModule("acct_ui");
 
-        g.MapGet("/periods", async (HttpContext http, KiteDb db, CancellationToken ct) =>
-            Results.Ok(await db.InTransactionAsync(http.User.ScopeOf(), http.ActorOf(), t => t.QueryAsync<PeriodDto>("""
-                SELECT id, fiscal_year AS FiscalYear, period_no AS PeriodNo, starts_on AS StartsOn, ends_on AS EndsOn, status
-                  FROM acct.fiscal_period ORDER BY fiscal_year, period_no
-                """), ct)))
-            .RequirePermission(Permissions.SettingsView).RequireModule("acct_ui");
     }
 }
 

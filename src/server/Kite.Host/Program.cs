@@ -132,6 +132,9 @@ CommissionEndpoints.Map(app);
 WhatsAppEndpoints.Map(app);
 CreditEndpoints.Map(app);
 SupplierEndpoints.Map(app);
+PurchaseEndpoints.Map(app);
+AccountingDeskEndpoints.Map(app);
+ExpenseEndpoints.Map(app);
 
 // The web app (built into wwwroot) handles every non-API route; unknown API routes are 404.
 app.MapFallback(async ctx =>

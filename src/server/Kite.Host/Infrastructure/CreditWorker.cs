@@ -13,40 +13,106 @@ namespace Kite.Host.Infrastructure;
 /// </summary>
 public static class Reconciliation
 {
+    private const string Own = "(SELECT id FROM core.server WHERE is_self)";
+
+    /// <summary>
+    /// A control account's balance by branch from this server's own journals, in the ledger's natural sign: debit balances for assets
+    /// (receivables, stock, VAT input, work in progress), credit balances for liabilities.
+    /// </summary>
+    private static string Control(string codes, bool debit, string extra = "") => $"""
+        SELECT jl.branch_id, sum({(debit ? "jl.debit - jl.credit" : "jl.credit - jl.debit")})
+          FROM acct.journal_line jl JOIN acct.journal j ON j.id = jl.journal_id JOIN acct.account a ON a.id = jl.account_id
+         WHERE a.code IN ({codes}) AND j.origin_server_id = {Own} AND jl.branch_id IS NOT NULL {extra}
+         GROUP BY jl.branch_id
+        """;
+
+    /// <summary>
+    /// The daily ledger check (17.8): every subledger against its control account, branch by branch, from what this server wrote itself
+    /// (a branch's copy of another server's documents is checked where they were written), then the interbranch accounts across the business
+    /// and the trial balance of each branch. A difference is a finding: it is recorded, never corrected here.
+    /// </summary>
     public static async Task<object> RunAsync(DbTx t)
     {
         var biz = await BusinessInfo.LoadAsync(t);
         var today = BusinessDay.Today(biz.TimeZone, t.Clock);
         var run = t.NewId();
         var rows = new List<object>();
-        foreach (var (ledger, sub, code) in new[]
+        var checks = new (string Ledger, string Sub, string Control)[]
         {
-            ("customers", "SELECT branch_id, sum(amount) FROM crm.credit_ledger WHERE balance_type = 'receivable' AND origin_server_id = (SELECT id FROM core.server WHERE is_self) GROUP BY branch_id", "1300"),
-            ("suppliers", "SELECT branch_id, sum(amount) FROM purch.supplier_ledger WHERE origin_server_id = (SELECT id FROM core.server WHERE is_self) GROUP BY branch_id", "2100"),
-        })
+            ("customers", $"SELECT branch_id, sum(amount) FROM crm.credit_ledger WHERE balance_type = 'receivable' AND origin_server_id = {Own} GROUP BY branch_id",
+                Control("'1300'", debit: true)),
+            ("suppliers", $"SELECT branch_id, sum(amount) FROM purch.supplier_ledger WHERE origin_server_id = {Own} GROUP BY branch_id",
+                Control("'2100'", debit: false)),
+            ("inventory", $"SELECT branch_id, sum(value) FROM inv.stock_movement WHERE origin_server_id = {Own} GROUP BY branch_id",
+                Control("'1400','1410','1420','1430'", debit: true)),
+            ("grni", $"SELECT branch_id, sum(amount) FROM purch.grni_entry WHERE origin_server_id = {Own} GROUP BY branch_id",
+                Control("'2110'", debit: false)),
+            // VAT declared from the source documents against the VAT accounts, settlements left out (the VAT report check, 17.4).
+            ("vat_output", "SELECT branch_id, sum(vat) FROM tax.vat_lines(@b, DATE '2000-01-01', DATE '2999-12-31') WHERE direction = 'output' GROUP BY branch_id",
+                Control("'2200'", debit: false, "AND j.posting_kind <> 'vat.settlement'").Replace($"AND j.origin_server_id = {Own}", "")),
+            ("vat_input", "SELECT branch_id, sum(vat) FROM tax.vat_lines(@b, DATE '2000-01-01', DATE '2999-12-31') WHERE direction = 'input' GROUP BY branch_id",
+                Control("'1500'", debit: true, "AND j.posting_kind <> 'vat.settlement'").Replace($"AND j.origin_server_id = {Own}", "")),
+            ("store_credit", $"SELECT branch_id, sum(amount) FROM crm.credit_ledger WHERE balance_type = 'store_credit' AND origin_server_id = {Own} GROUP BY branch_id",
+                Control("'2310'", debit: false)),
+            ("deposits", $"""
+                SELECT branch_id, sum(CASE WHEN kind = 'deposit' THEN amount - tax ELSE tax - amount END) FROM repair.deposit
+                 WHERE origin_server_id = {Own} GROUP BY branch_id
+                """, Control("'2300'", debit: false)),
+            ("repair_wip", $"""
+                SELECT j.branch_id, sum(repair.wip(j.id)) FROM repair.repair_job j WHERE j.origin_server_id = {Own} GROUP BY j.branch_id
+                """, Control("'1460'", debit: true)),
+            // Each branch's part of every journal balances on its own (ADR 54).
+            ("trial_balance", $"""
+                SELECT jl.branch_id, sum(jl.debit) FROM acct.journal_line jl JOIN acct.journal j ON j.id = jl.journal_id
+                 WHERE j.origin_server_id = {Own} AND jl.branch_id IS NOT NULL GROUP BY jl.branch_id
+                """, $"""
+                SELECT jl.branch_id, sum(jl.credit) FROM acct.journal_line jl JOIN acct.journal j ON j.id = jl.journal_id
+                 WHERE j.origin_server_id = {Own} AND jl.branch_id IS NOT NULL GROUP BY jl.branch_id
+                """),
+        };
+        await t.WithAllBranchesAsync(async () =>
         {
-            var subs = (await t.QueryAsync<(Guid Branch, decimal Total)>(sub)).ToDictionary(x => x.Branch, x => x.Total);
-            // Receivable is a debit balance, payables a credit balance: each ledger is compared in its own sign.
-            var controls = (await t.QueryAsync<(Guid Branch, decimal Total)>("""
-                SELECT jl.branch_id, sum(CASE WHEN @code = '1300' THEN jl.debit - jl.credit ELSE jl.credit - jl.debit END)
-                  FROM acct.journal_line jl JOIN acct.journal j ON j.id = jl.journal_id JOIN acct.account a ON a.id = jl.account_id
-                 WHERE a.code = @code AND j.origin_server_id = (SELECT id FROM core.server WHERE is_self) AND jl.branch_id IS NOT NULL
-                 GROUP BY jl.branch_id
-                """, new { code })).ToDictionary(x => x.Branch, x => x.Total);
-            foreach (var branch in subs.Keys.Union(controls.Keys).OrderBy(b => b))
+            foreach (var (ledger, sub, control) in checks)
             {
-                var s = subs.GetValueOrDefault(branch);
-                var c = controls.GetValueOrDefault(branch);
-                await t.ExecuteAsync("""
-                    INSERT INTO acct.subledger_check (id, business_id, ledger, branch_id, as_of, subledger, control, difference, run_id)
-                    VALUES (@id, @b, @ledger, @branch, @today::date, @s, @c, @d, @run)
-                    """, new { id = t.NewId(), b = biz.Id, ledger, branch, today = today.ToDateTime(TimeOnly.MinValue), s, c, d = s - c, run });
-                rows.Add(new { ledger, branchId = branch, subledger = s, control = c, difference = s - c });
+                var subs = (await t.QueryAsync<(Guid Branch, decimal Total)>(sub, new { b = biz.Id })).ToDictionary(x => x.Branch, x => x.Total);
+                var controls = (await t.QueryAsync<(Guid Branch, decimal Total)>(control, new { b = biz.Id })).ToDictionary(x => x.Branch, x => x.Total);
+                foreach (var branch in subs.Keys.Union(controls.Keys).OrderBy(b => b))
+                    rows.Add(await RecordAsync(t, biz.Id, run, today, ledger, branch, subs.GetValueOrDefault(branch), controls.GetValueOrDefault(branch)));
             }
-        }
+            // Interbranch (14.6): what branches are owed by others equals what the others owe, across the business; consolidation eliminates both.
+            var due = await t.QuerySingleOrDefaultAsync<(decimal From, decimal To)>($"""
+                SELECT coalesce(sum(jl.debit - jl.credit) FILTER (WHERE a.code = '1310'), 0), coalesce(sum(jl.credit - jl.debit) FILTER (WHERE a.code = '2500'), 0)
+                  FROM acct.journal_line jl JOIN acct.journal j ON j.id = jl.journal_id JOIN acct.account a ON a.id = jl.account_id
+                 WHERE a.code IN ('1310','2500') AND j.origin_server_id = {Own}
+                """);
+            rows.Add(await RecordAsync(t, biz.Id, run, today, "interbranch", null, due.From, due.To));
+            return 0;
+        });
         await t.AuditAsync(new AuditEntry("acct.subledger_checked", "subledger_check", run, After: Json.Obj(new { rows.Count })));
         return new { runId = run, asOf = today, rows };
     }
+
+    private static async Task<object> RecordAsync(DbTx t, Guid businessId, Guid run, DateOnly today, string ledger, Guid? branch, decimal s, decimal c)
+    {
+        await t.ExecuteAsync("""
+            INSERT INTO acct.subledger_check (id, business_id, ledger, branch_id, as_of, subledger, control, difference, run_id)
+            VALUES (@id, @businessId, @ledger, @branch, @today::date, @s, @c, @d, @run)
+            """, new { id = t.NewId(), businessId, ledger, branch, today = today.ToDateTime(TimeOnly.MinValue), s, c, d = s - c, run });
+        return new { ledger, branchId = branch, subledger = s, control = c, difference = s - c };
+    }
+
+    /// <summary>The latest run of the ledger check, with branch codes.</summary>
+    public static async Task<object> LatestAsync(DbTx t) => await t.WithAllBranchesAsync(async () =>
+    {
+        var run = await t.ExecuteScalarAsync<Guid?>("SELECT run_id FROM acct.subledger_check ORDER BY checked_at DESC LIMIT 1");
+        if (run is null) return (object)new { runId = (Guid?)null, rows = Array.Empty<object>() };
+        var rows = await t.RowsAsync("""
+            SELECT c.ledger, c.branch_id AS "branchId", b.code AS "branchCode", c.subledger, c.control, c.difference, c.as_of::text AS "asOf", c.checked_at AS "checkedAt"
+              FROM acct.subledger_check c LEFT JOIN core.branch b ON b.id = c.branch_id WHERE c.run_id = @run
+             ORDER BY array_position(ARRAY['customers','suppliers','inventory','grni','vat_output','vat_input','store_credit','deposits','repair_wip','interbranch','trial_balance'], c.ledger), b.code
+            """, new { run });
+        return (object)new { runId = run, rows, clean = rows.All(r => (decimal)r["difference"]! == 0) };
+    });
 }
 
 /// <summary>

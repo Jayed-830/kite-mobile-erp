@@ -61,6 +61,6 @@ export const creditEn = {
     opening: 'Opening balance', openingTitle: 'Opening balance with {name}', openingHelp: 'Positive: what the business owed this supplier when you started; negative: an advance paid.',
     byBranch: 'Owed by branch', mergedFrom: 'Merged into this supplier', ledger: 'Ledger', statement: 'Statement', advance: 'Advance', amount: 'Amount', date: 'Date',
     kinds: { opening: 'Opening balance', invoice: 'Invoice', payment: 'Payment', debit_note: 'Debit note', adjustment: 'Adjustment' },
-    phase11: 'Purchase orders, goods receipts, supplier invoices and payments come with purchasing.',
+    phase11: 'Orders, goods received, supplier invoices and payments are in Purchasing.',
   },
 };

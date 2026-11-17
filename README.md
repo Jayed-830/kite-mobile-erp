@@ -4,7 +4,7 @@
 
 Offline-first, multi-branch ERP and POS for mobile phone sales and repair shops. Oman first: OMR with 3 decimals, English and Arabic (right-to-left), Windows desktop and browser.
 
-**Status:** Phase 10 (customer credit and suppliers: credit accounts kept by head office with a limit, terms, a cap per offline sale and an allowance for each branch; sales and repair collections on account at the till in instalments, decided online by head office under one lock, offline by a branch within its allowance, with a manager's PIN over the limit up to a cap; breaches found on sync hold the account; payments at any branch settle the oldest instalments first, with interbranch journals; holds, write-offs, opening balances, statements and their PDF, ageing, exposure by branch and approvals reports, WhatsApp reminders; suppliers kept by head office, provisional ones from branches approved or merged, opening balances; the customer and supplier ledgers checked against the books every day) is done. See [`docs/phase-10-report.md`](docs/phase-10-report.md), the earlier [`docs/phase-9-report.md`](docs/phase-9-report.md), the earlier [`docs/phase-8-report.md`](docs/phase-8-report.md), [`docs/phase-7-report.md`](docs/phase-7-report.md), [`docs/phase-6-report.md`](docs/phase-6-report.md), [`docs/phase-5-report.md`](docs/phase-5-report.md), [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
+**Status:** Phase 11 (purchasing and accounting: purchase orders with approval limits by role and branch, sent with a PDF; goods received against the order with IMEIs and landed costs spread by value or quantity; goods received not invoiced kept as a ledger; supplier invoices matched three ways with tolerances, an override with a reason, the price difference split between stock on hand and price variance, one invoice booked for several branches; returns and debit notes; supplier payments oldest first or as head office names them; expenses and card settlements; the chart of accounts, periods soft- and hard-closed per branch with late documents moved to the next open month, manual journals with a second approver and reversal, year-end; trial balance, ledger, profit and loss, balance sheet and cash flow per branch or consolidated; the VAT return worked out from the documents, filed from closed months and settled branch by branch; every subledger checked against its control account every day) is done. See [`docs/phase-11-report.md`](docs/phase-11-report.md), the earlier [`docs/phase-10-report.md`](docs/phase-10-report.md), [`docs/phase-9-report.md`](docs/phase-9-report.md), [`docs/phase-8-report.md`](docs/phase-8-report.md), [`docs/phase-7-report.md`](docs/phase-7-report.md), [`docs/phase-6-report.md`](docs/phase-6-report.md), [`docs/phase-5-report.md`](docs/phase-5-report.md), [`docs/phase-4-report.md`](docs/phase-4-report.md), [`docs/phase-3-report.md`](docs/phase-3-report.md) and [`docs/phase-2-report.md`](docs/phase-2-report.md), and [`docs/architecture-decisions.md`](docs/architecture-decisions.md) for the decisions behind the code. The Phase 1 blueprint is the design reference.
 
 ## Repository layout
 
@@ -37,14 +37,16 @@ tests/
   Kite.UnitTests               unit and property-based tests
   Kite.IntegrationTests        end-to-end tests against a real PostgreSQL
   vectors/                     NEXTDAB PROTOCOL 1 signing vectors (one made by Nextdab Admin 5.14 itself), POS,
-                               device, trade-in, repair, commission and credit arithmetic vectors (from independent Python implementations), PIN hash vectors
+                               device, trade-in, repair, commission, credit and purchase arithmetic vectors (from independent Python implementations), PIN hash vectors
 e2e/                           browser walk-throughs of real servers (Phase 2; Phase 3 with two servers and a Nextdab stub;
                                Phase 4 the till and back office; Phase 5 phones from receiving to profit; Phase 6 IMEIs
                                across head office and a branch, with head office stopped and restarted; Phase 7
                                trade-ins, store credit and a margin-scheme resale; Phase 8 repairs from intake to
                                collection with a WhatsApp approval; Phase 9 parts waited for, commissions, a
                                correction at the till and payouts; Phase 10 credit accounts, sales on account in
-                               instalments, approvals, payments, holds, statements, the ledger check and suppliers)
+                               instalments, approvals, payments, holds, statements, the ledger check and suppliers;
+                               Phase 11 an order, receipt, three-way match, debit note, payment, expense, manual
+                               journal, the VAT return filed and the statements)
 poc/                           Phase 2 proofs of concept
 scripts/                       build helpers
 ```
@@ -107,6 +109,8 @@ For UI work without a server: `cd src/client && npm run dev:mock` (owner `owner`
 | End-to-end, parts and commissions (Phase 9) | see the `e2e-phase9` CI job (`e2e/phase9.mjs` + `e2e/nextdab-stub.mjs`; it reads the accounts with `psql`) |
 | Credit online and offline, 12 tills and 4 branch servers (Phase 10 exit gate) | `KITE_P10_TILLS=12 KITE_P10_BRANCHES=4 KITE_P10_CUSTOMERS=10 KITE_P10_ATTEMPTS=10 dotnet test tests/Kite.IntegrationTests --filter Phase10ExitGateTests` with `KITE_TEST_PG` set |
 | End-to-end, customer credit and suppliers (Phase 10) | see the `e2e-phase10` CI job (`e2e/phase10.mjs` + `e2e/nextdab-stub.mjs`; it reads the accounts with `psql`) |
+| Purchasing races, a full day at three branches and the quarter's VAT return (Phase 11 exit gate) | `KITE_P11_WORKERS=16 KITE_P11_SALES=10 dotnet test tests/Kite.IntegrationTests --filter Phase11ExitGateTests` with `KITE_TEST_PG` set |
+| End-to-end, purchasing and accounting (Phase 11) | see the `e2e-phase11` CI job (`e2e/phase11.mjs` + `e2e/nextdab-stub.mjs`; it reads the accounts with `psql`) |
 | Proofs of concept | see `poc/*/` and the `pocs-*` CI jobs |
 
 Every push runs all of these on GitHub Actions (Linux and Windows, PostgreSQL 16 and 17).

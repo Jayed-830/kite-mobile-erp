@@ -168,4 +168,24 @@ public static class ErrorCodes
     public const string CreditHeadOffice = "CRD-008";
     public const string CreditRefund = "CRD-009";
     public const string SupplierState = "SUP-001";
+    // Phase 11: purchasing (16) and accounting (17)
+    public const string PurchOrderState = "PUR-001";
+    public const string PurchQuantity = "PUR-002";
+    public const string PurchInvoiceState = "PUR-003";
+    public const string PurchMatch = "PUR-004";
+    public const string PurchAllocation = "PUR-005";
+    public const string PurchApprovalLimit = "PUR-006";
+    public const string PurchSupplierNotAllowed = "PUR-007";
+    public const string PurchDuplicateInvoice = "PUR-008";
+    public const string PurchReturnState = "PUR-009";
+    public const string PeriodClosed = "ACC-001";
+    public const string JournalUnbalanced = "ACC-002";
+    public const string ManualJournalState = "ACC-003";
+    public const string ControlAccount = "ACC-004";
+    public const string SecondApprover = "ACC-005";
+    public const string VatReturnState = "ACC-006";
+    public const string VatPeriodOpen = "ACC-007";
+    public const string YearEndState = "ACC-008";
+    public const string AccountInUse = "ACC-009";
+    public const string CardSettlementTooMuch = "ACC-010";
 }

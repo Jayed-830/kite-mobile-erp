@@ -143,10 +143,13 @@ public static class SupplierEndpoints
                 var today = BusinessDay.Today(biz.TimeZone, t.Clock);
                 return await t.WithAllBranchesAsync(async () =>
                 {
+                    // Each entry as it stands after allocations (16.1): an invoice's open part, a payment's or debit note's part not yet set against one.
                     var lines = (await t.QueryAsync<(Guid Supplier, DateTime Due, decimal Amount)>("""
-                        SELECT coalesce(s.merged_into_id, s.id), coalesce(l.due_date, l.doc_date), l.amount
+                        SELECT coalesce(s.merged_into_id, s.id), coalesce(l.due_date, l.doc_date),
+                               l.amount - coalesce((SELECT sum(a.amount) FROM purch.supplier_allocation a WHERE a.debit_entry_id = l.id), 0)
+                                        + coalesce((SELECT sum(a.amount) FROM purch.supplier_allocation a WHERE a.credit_entry_id = l.id), 0)
                           FROM purch.supplier_ledger l JOIN purch.supplier s ON s.id = l.supplier_id
-                        """)).GroupBy(l => l.Supplier).ToList();
+                        """)).Where(l => l.Amount != 0).GroupBy(l => l.Supplier).ToList();
                     var names = (await t.QueryAsync<(Guid Id, string Number, string NameEn, string NameAr)>("SELECT id, number, name_en, name_ar FROM purch.supplier"))
                         .ToDictionary(x => x.Id);
                     return (object)lines.Select(gr =>

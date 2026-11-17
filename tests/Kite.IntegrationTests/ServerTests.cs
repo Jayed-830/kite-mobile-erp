@@ -82,11 +82,12 @@ public sealed class ServerTests(KiteServerFixture fx)
         var marginApproved = await fx.QueryDbAsync<bool>("SELECT coalesce(bool_or(approved), false) FROM tax.margin_scheme");
         Assert.Equal(marginApproved ? "active" : "inactive", await fx.QueryDbAsync<string>("SELECT status FROM tax.tax_code WHERE code = 'VAT-MARGIN'"));
         Assert.Equal((long)Kite.Accounting.ChartTemplate.Accounts.Count, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.account"));
-        Assert.Equal(12L, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.fiscal_period"));
+        // Setup makes the twelve business-wide periods of the current year (Phase 11 tests add other years and branch rows).
+        Assert.Equal(12L, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.fiscal_period WHERE branch_id IS NULL AND period_no <= 12 AND fiscal_year = (SELECT min(fiscal_year) FROM acct.fiscal_period WHERE branch_id IS NULL AND starts_on <= (now() AT TIME ZONE 'Asia/Muscat')::date AND ends_on >= (now() AT TIME ZONE 'Asia/Muscat')::date)"));
         Assert.Equal(8L, await fx.QueryDbAsync<long>("SELECT count(*) FROM iam.role WHERE is_system"));
-        // Only the series setup made: other tests sharing this database add branches, and each branch gets its own series.
-        // Branch series plus the business-wide customer series (Phase 4).
-        Assert.Equal((long)SetupEndpoints.NumberSeries.Count + 2, await fx.QueryDbAsync<long>("SELECT count(*) FROM core.number_series WHERE branch_id IS NULL OR branch_id = (SELECT id FROM core.branch WHERE is_head_office)"));   // + customers and suppliers, numbered business-wide
+        // Only the series setup made: other tests sharing this database add branches, and each branch gets its own series;
+        // documents dated in other years (Phase 11) add that year's series. Branch series plus the business-wide customer series (Phase 4).
+        Assert.Equal((long)SetupEndpoints.NumberSeries.Count + 2, await fx.QueryDbAsync<long>("SELECT count(*) FROM core.number_series WHERE branch_id IS NULL OR (branch_id = (SELECT id FROM core.branch WHERE is_head_office) AND fiscal_year = extract(year FROM now() AT TIME ZONE 'Asia/Muscat')::int)"));   // + customers and suppliers, numbered business-wide
         // Phase 4 defaults: posting rules, POS policy, the default price list and the role discount limits.
         Assert.Equal((long)Kite.Accounting.PostingRuleTemplates.All.Count, await fx.QueryDbAsync<long>("SELECT count(*) FROM acct.posting_rule"));
         Assert.Equal(1L, await fx.QueryDbAsync<long>("SELECT count(*) FROM sales.pos_policy WHERE branch_id IS NULL"));

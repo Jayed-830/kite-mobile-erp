@@ -34,6 +34,7 @@ public static class SetupEndpoints
         ("shift", "SH"), ("stock_adjustment", "ADJ"), ("stock_count", "CNT"), ("device_inspection", "INS"), ("refurb_order", "RF"), ("device_count", "DC"),
         ("margin_self_invoice", "SI"), ("store_credit", "SC"), ("repair_deposit", "DEP"), ("comm_payout", "COM"),
         ("credit_write_off", "WO"), ("opening_balance", "OB"), ("supplier_provisional", "SP"),
+        ("purchase_invoice", "PI"), ("supplier_return", "DN"), ("supplier_payment", "PV"), ("expense", "EX"), ("card_settlement", "CS"), ("manual_journal", "MJ"),
     ];
 
     public static void Map(WebApplication app)
@@ -135,10 +136,11 @@ public static class SetupEndpoints
                         var id = Ids.New();
                         accountIds[a.Code] = id;
                         await t.ExecuteAsync("""
-                            INSERT INTO acct.account (id, business_id, code, name_en, name_ar, type, parent_id, is_postable, is_control, created_by)
-                            VALUES (@id, @businessId, @Code, @NameEn, @NameAr, @type, @parent, @IsPostable, @IsControl, @ownerId)
+                            INSERT INTO acct.account (id, business_id, code, name_en, name_ar, type, parent_id, is_postable, is_control, cash_flow_class, created_by)
+                            VALUES (@id, @businessId, @Code, @NameEn, @NameAr, @type, @parent, @IsPostable, @IsControl, @cff, @ownerId)
                             """, new { id, businessId, ownerId, a.Code, a.NameEn, a.NameAr, type = a.Type.ToString().ToLowerInvariant(),
-                                       parent = a.ParentCode is null ? (Guid?)null : accountIds[a.ParentCode], a.IsPostable, a.IsControl });
+                                       parent = a.ParentCode is null ? (Guid?)null : accountIds[a.ParentCode], a.IsPostable, a.IsControl,
+                                       cff = CashFlow.DefaultClass(a.Code, a.Type, a.IsPostable) });
                     }
 
                     Guid ownerRoleId = Guid.Empty;

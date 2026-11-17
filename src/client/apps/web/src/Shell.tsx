@@ -28,6 +28,11 @@ export function Shell() {
     { to: '/app/commissions', label: t('nav.commissions'), show: can(me, 'COMM.VIEW') },
     { to: '/app/commissions/mine', label: t('nav.myCommissions'), show: can(me, 'COMM.OWN') && !can(me, 'COMM.VIEW') },
     { to: '/app/suppliers', label: t('nav.suppliers'), show: can(me, 'SUPPLIER.VIEW') },
+    { to: '/app/purchasing', label: t('nav.purchasing'), show: can(me, 'PURCH.VIEW') },
+    { to: '/app/accounting', label: t('nav.accounting'), show: can(me, 'ACCT.VIEW'), section: t('nav.finance') },
+    { to: '/app/accounting/statements', label: t('nav.statements'), show: can(me, 'ACCT.VIEW') },
+    { to: '/app/accounting/vat', label: t('nav.vat'), show: can(me, 'ACCT.VIEW') },
+    { to: '/app/expenses', label: t('nav.expenses'), show: can(me, 'EXP.VIEW') },
     { to: '/app/users', label: t('nav.users'), show: can(me, 'USERS.VIEW'), section: t('nav.administration') },
     { to: '/app/roles', label: t('nav.roles'), show: can(me, 'USERS.VIEW') },
     { to: '/app/terminals', label: t('nav.terminals'), show: can(me, 'TERMINALS.APPROVE') },
@@ -46,6 +51,7 @@ export function Shell() {
     { to: '/app/settings/whatsapp', label: t('nav.whatsapp'), show: can(me, 'NOTIF.SETTINGS') },
     { to: '/app/settings/commissions', label: t('nav.commissionRules'), show: can(me, 'COMM.RULES') },
     { to: '/app/settings/credit', label: t('nav.creditSettings'), show: can(me, 'CREDIT.MANAGE') },
+    { to: '/app/settings/purchasing', label: t('nav.purchSettings'), show: can(me, 'PURCH.SETTINGS') },
     { to: '/app/account', label: t('nav.account'), show: true, section: '' },
   ];
 
@@ -59,7 +65,7 @@ export function Shell() {
         {links.filter((l) => l.show).map((l) => (
           <div key={l.to}>
             {l.section !== undefined && l.section !== '' && <div className="nav-section">{l.section}</div>}
-            <NavLink to={l.to} end={l.to === '/app'} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>{l.label}</NavLink>
+            <NavLink to={l.to} end={l.to === '/app' || links.some((o) => o.show && o.to !== l.to && o.to.startsWith(l.to + '/'))} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>{l.label}</NavLink>
           </div>
         ))}
       </nav>

@@ -84,6 +84,26 @@ const PERMISSIONS: Permission[] = [
   ['SUPPLIER.VIEW', 'purch', 'View suppliers, their balances and statements', 'عرض الموردين وأرصدتهم وكشوفهم'],
   ['SUPPLIER.MANAGE', 'purch', 'Add and edit suppliers and their opening balances', 'إضافة الموردين وتعديلهم وأرصدتهم الافتتاحية'],
   ['SUPPLIER.APPROVE', 'purch', 'Approve or merge suppliers added by branches', 'اعتماد الموردين المضافين من الفروع أو دمجهم'],
+  ['PURCH.VIEW', 'purch', 'View purchase orders, goods received, supplier invoices and payments', 'عرض أوامر الشراء والاستلام وفواتير الموردين والدفعات'],
+  ['PURCH.ORDER', 'purch', 'Raise, change, send and close purchase orders', 'إنشاء أوامر الشراء وتعديلها وإرسالها وإغلاقها'],
+  ['PURCH.APPROVE', 'purch', 'Approve purchase orders up to the role’s limit', 'اعتماد أوامر الشراء ضمن حد الدور'],
+  ['PURCH.RECEIVE', 'purch', 'Receive goods', 'استلام البضاعة'],
+  ['PURCH.INVOICE', 'purch', 'Enter and post supplier invoices', 'إدخال فواتير الموردين وترحيلها'],
+  ['PURCH.INVOICE.OVERRIDE', 'purch', 'Post supplier invoices outside the match tolerance', 'ترحيل فواتير الموردين خارج حد المطابقة'],
+  ['PURCH.RETURN', 'purch', 'Return goods to suppliers', 'إرجاع البضاعة إلى الموردين'],
+  ['PURCH.PAY', 'purch', 'Pay suppliers', 'الدفع للموردين'],
+  ['PURCH.SETTINGS', 'purch', 'Purchasing settings and approval limits', 'إعدادات المشتريات وحدود الاعتماد'],
+  ['ACCT.VIEW', 'acct', 'View the chart, journals and statements', 'عرض دليل الحسابات والقيود والقوائم'],
+  ['ACCT.COA.MANAGE', 'acct', 'Manage the chart of accounts', 'إدارة دليل الحسابات'],
+  ['ACCT.JOURNAL.MANUAL', 'acct', 'Enter manual journals', 'إدخال القيود اليدوية'],
+  ['ACCT.JOURNAL.APPROVE', 'acct', 'Approve manual journals above the threshold', 'اعتماد القيود اليدوية فوق الحد'],
+  ['ACCT.CONTROL_ACCOUNT.POST', 'acct', 'Post to control accounts by hand', 'الترحيل إلى الحسابات الرقابية يدويًا'],
+  ['ACCT.PERIOD.CLOSE', 'acct', 'Close and reopen periods', 'إغلاق الفترات وإعادة فتحها'],
+  ['ACCT.YEAR_END', 'acct', 'Close the fiscal year', 'إقفال السنة المالية'],
+  ['ACCT.VAT.RETURN', 'acct', 'Prepare and file VAT returns', 'إعداد إقرارات الضريبة وتقديمها'],
+  ['ACCT.CARD_SETTLE', 'acct', 'Record card settlements from the bank', 'تسجيل تسويات البطاقات من البنك'],
+  ['EXP.VIEW', 'exp', 'View expenses', 'عرض المصروفات'],
+  ['EXP.CREATE', 'exp', 'Record expenses', 'تسجيل المصروفات'],
 ].map(([code, moduleCode, descriptionEn, descriptionAr]) => ({ code: code!, moduleCode: moduleCode!, descriptionEn: descriptionEn!, descriptionAr: descriptionAr! }));
 
 const MODULES: Module[] = [
@@ -126,9 +146,12 @@ export function createMockApi(opts: MockOptions): KiteApi {
       'DEVICE.IMEI.CORRECT', 'DEVICE.CONFLICTS', 'DEVICE.BLOCKLIST', 'DEVICE.COUNT',
       'TRADEIN.CREATE', 'TRADEIN.APPROVE', 'TRADEIN.STORE_CREDIT', 'TRADEIN.PAYOUT', 'TRADEIN.VIEW', 'TRADEIN.SETTINGS',
       'REPAIR.VIEW', 'REPAIR.INTAKE', 'REPAIR.WORK', 'REPAIR.ASSIGN', 'REPAIR.CANCEL', 'REPAIR.SETTINGS', 'REPAIR.CREDENTIAL.VIEW', 'NOTIF.SETTINGS', 'NOTIF.REPLY',
-      'REPAIR.INVOICE.CORRECT', 'COMM.VIEW', 'COMM.OWN', 'COMM.APPROVE', 'POS.CREDIT_SALE', 'CREDIT.OVERRIDE', 'CREDIT.VIEW', 'CREDIT.RECEIVE', 'SUPPLIER.VIEW', 'SUPPLIER.MANAGE'] },
+      'REPAIR.INVOICE.CORRECT', 'COMM.VIEW', 'COMM.OWN', 'COMM.APPROVE', 'POS.CREDIT_SALE', 'CREDIT.OVERRIDE', 'CREDIT.VIEW', 'CREDIT.RECEIVE', 'SUPPLIER.VIEW', 'SUPPLIER.MANAGE',
+      'PURCH.VIEW', 'PURCH.ORDER', 'PURCH.APPROVE', 'PURCH.RECEIVE', 'PURCH.RETURN', 'EXP.VIEW', 'EXP.CREATE'] },
     { id: id(), code: 'cashier', nameEn: 'Cashier', nameAr: 'أمين صندوق', isSystem: true, version: 1, permissions: ['POS.SELL', 'POS.SHIFT.OPEN', 'POS.RECEIPT.REPRINT', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'CUSTOMERS.MANAGE', 'TRADEIN.CREATE', 'TRADEIN.VIEW', 'REPAIR.VIEW', 'REPAIR.INTAKE', 'NOTIF.REPLY'] },
-    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW', 'COMM.VIEW', 'COMM.PAY', 'CREDIT.VIEW', 'CREDIT.MANAGE', 'CREDIT.RECEIVE', 'CREDIT.WRITE_OFF', 'SUPPLIER.VIEW', 'SUPPLIER.MANAGE', 'SUPPLIER.APPROVE'] },
+    { id: id(), code: 'accountant', nameEn: 'Accountant', nameAr: 'المحاسب', isSystem: true, version: 1, permissions: ['SETTINGS.VIEW', 'AUDIT.VIEW', 'AUDIT.VERIFY', 'TAX.MANAGE', 'TAX.REVIEW', 'TRADEIN.VIEW', 'COMM.VIEW', 'COMM.PAY', 'CREDIT.VIEW', 'CREDIT.MANAGE', 'CREDIT.RECEIVE', 'CREDIT.WRITE_OFF', 'SUPPLIER.VIEW', 'SUPPLIER.MANAGE', 'SUPPLIER.APPROVE',
+      'PURCH.VIEW', 'PURCH.APPROVE', 'PURCH.INVOICE', 'PURCH.INVOICE.OVERRIDE', 'PURCH.PAY', 'PURCH.SETTINGS', 'ACCT.VIEW', 'ACCT.COA.MANAGE', 'ACCT.JOURNAL.MANUAL', 'ACCT.JOURNAL.APPROVE',
+      'ACCT.CONTROL_ACCOUNT.POST', 'ACCT.PERIOD.CLOSE', 'ACCT.YEAR_END', 'ACCT.VAT.RETURN', 'ACCT.CARD_SETTLE', 'EXP.VIEW', 'EXP.CREATE'] },
     { id: id(), code: 'technician', nameEn: 'Technician', nameAr: 'فني', isSystem: true, version: 1, permissions: ['REPAIR.VIEW', 'REPAIR.WORK', 'CATALOG.VIEW', 'CUSTOMERS.VIEW', 'COMM.OWN'] },
   ];
   const passwords = new Map<string, string>([['owner', 'Muscat-Ruwi-2026!'], ['manager', 'Manager-Pass-2026'], ['cashier', 'Cashier-Pass-2026']]);
@@ -216,6 +239,7 @@ export function createMockApi(opts: MockOptions): KiteApi {
     need, current: () => current, setCurrent: (u) => { current = u; mfaPending = false; }, permsOf, users, passwords, pins, terminals, branchId: branch.id,
     taxCodeId: taxCodes[0]!.id, business: () => business, tokens,
     setMarginCode: (active) => { taxCodes.find((c) => c.kind === 'margin')!.status = active ? 'active' : 'inactive'; },
+    roles: () => roles.map((r) => ({ id: r.id, code: r.code, nameEn: r.nameEn, nameAr: r.nameAr })),
   });
 
   const api: KiteApi = {

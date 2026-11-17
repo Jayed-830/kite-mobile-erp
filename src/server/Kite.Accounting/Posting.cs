@@ -40,7 +40,11 @@ public sealed record AccountSelector(
     [property: JsonPropertyName("code")] string? Code,
     [property: JsonPropertyName("by")] string? By,
     [property: JsonPropertyName("map")] IReadOnlyDictionary<string, string>? Map,
-    [property: JsonPropertyName("default")] string? Default);
+    [property: JsonPropertyName("default")] string? Default)
+{
+    /// <summary>A default that takes each key as the account code itself.</summary>
+    public const string KeyIsCode = "$key";
+}
 
 public sealed record PostingRuleLine(
     [property: JsonPropertyName("side")] string Side,                 // "debit" | "credit"
@@ -134,7 +138,8 @@ public static class PostingEngine
                 if (v == 0m) continue;
                 string? code = null;
                 if (sel.Map is not null && sel.Map.TryGetValue(k, out var mapped)) code = mapped;
-                code ??= sel.Default ?? throw new KiteException(ErrorCodes.Validation,
+                // A default of "$key" takes the key itself as the account code (an expense line names its own account).
+                code ??= sel.Default == AccountSelector.KeyIsCode ? k : sel.Default ?? throw new KiteException(ErrorCodes.Validation,
                     $"Posting rule has no account for {sel.By} '{k}' (figure {line.Amount}).");
                 yield return (code, v);
             }
@@ -143,6 +148,8 @@ public static class PostingEngine
         if (facts.TryScalar(line.Amount, out var scalar))
         {
             if (sel.Code is not null) { yield return (sel.Code, scalar); yield break; }
+            if (sel.Default == AccountSelector.KeyIsCode)
+                throw new KiteException(ErrorCodes.Validation, $"Figure {line.Amount} is a single amount, but the rule takes the account from its key.");
             yield return (sel.Default ?? throw new KiteException(ErrorCodes.Validation,
                 $"Figure {line.Amount} is a single amount, but the rule selects the account by {sel.By} with no default."), scalar);
             yield break;
@@ -184,6 +191,15 @@ public static class PostingRuleTemplates
     public const string CreditInterbranchIn = "credit.interbranch_in";
     public const string CreditOpening = "credit.opening";
     public const string SupplierOpening = "supplier.opening";
+    // Phase 11: purchasing (16.2), expenses, card settlements and VAT (17.3, 17.4).
+    public const string PurchReceipt = "purch.receipt";
+    public const string PurchInvoice = "purch.invoice";
+    public const string PurchReturn = "purch.return";
+    public const string PurchPayment = "purch.payment";
+    public const string Expense = "exp.expense";
+    public const string CardSettlement = "acct.card_settlement";
+    public const string VatSettlement = "vat.settlement";
+    public const string VatPayment = "vat.payment";
 
     /// <summary>The posting class of a stocked item: its product type, or "device_used" for a device that is not brand new.</summary>
     public static string ClassOf(string productType, string? condition) =>
@@ -215,12 +231,16 @@ public static class PostingRuleTemplates
     // Customer payments come in cash, by card or by transfer (14.4).
     private static readonly IReadOnlyDictionary<string, string> ReceiptMethods = new Dictionary<string, string>
     { ["cash"] = "1100", ["card"] = "1150", ["bank_transfer"] = "1200" };
+    // Suppliers and expenses are paid in cash, by transfer or by cheque (16.2, 17.3).
+    private static readonly IReadOnlyDictionary<string, string> PayMethods = new Dictionary<string, string>
+    { ["cash"] = "1100", ["bank_transfer"] = "1200", ["cheque"] = "1200" };
 
     /// <summary>The inventory account of a posting class (for the valuation check).</summary>
     public static string InventoryAccount(string postingClass) => Inventory.TryGetValue(postingClass, out var c) ? c : "1420";
 
     private static AccountSelector Code(string c) => new(c, null, null, null);
     private static AccountSelector By(string by, IReadOnlyDictionary<string, string> map) => new(null, by, map, null);
+    private static AccountSelector ByKey(string by) => new(null, by, null, AccountSelector.KeyIsCode);
 
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> All = Build(Revenue, Cost, Inventory, Tenders, phase8: true);
 
@@ -229,6 +249,7 @@ public static class PostingRuleTemplates
     private static readonly string[] SincePhase8 = [RepairDeposit, RepairDepositRefund, RepairParts, RepairCost];
     private static readonly string[] SincePhase9 = [RepairOutsideWork, CommissionAccrual, CommissionPayout];
     private static readonly string[] SincePhase10 = [CreditPayment, CreditWriteOff, CreditInterbranchOut, CreditInterbranchIn, CreditOpening, SupplierOpening];
+    private static readonly string[] SincePhase11 = [PurchReceipt, PurchInvoice, PurchReturn, PurchPayment, Expense, CardSettlement, VatSettlement, VatPayment];
 
     /// <summary>
     /// The Phase 4 defaults (version 1), before used devices had their own accounts. A business whose stored rule is
@@ -237,19 +258,20 @@ public static class PostingRuleTemplates
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version1 = Build(
         Phase7Revenue.Where(x => x.Key != "device_used").ToDictionary(), Cost.Where(x => x.Key != "device_used").ToDictionary(),
         Inventory.Where(x => x.Key != "device_used").ToDictionary(), Phase4Tenders)
-        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase5.Contains(r.EventType) && !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType) && !SincePhase11.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 5 and 6 defaults (version 2), before trade-in credit and store credit were tenders.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version2 = Build(Phase7Revenue, Cost, Inventory, Phase4Tenders)
-        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase7.Contains(r.EventType) && !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)
+                    && !SincePhase11.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 7 defaults (version 3), before repair parts income, repair deposits as a tender and deposit VAT.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version3 = Build(Phase7Revenue, Cost, Inventory, Phase7Tenders)
-        .Where(r => !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase8.Contains(r.EventType) && !SincePhase9.Contains(r.EventType) && !SincePhase10.Contains(r.EventType) && !SincePhase11.Contains(r.EventType)).ToArray();
 
     /// <summary>The Phase 8 and 9 defaults (version 4), before a sale could be charged to the customer's credit account.</summary>
     public static readonly IReadOnlyList<(string EventType, PostingRuleDefinition Definition)> Version4 = Build(Revenue, Cost, Inventory, Phase9Tenders, phase8: true)
-        .Where(r => !SincePhase10.Contains(r.EventType)).ToArray();
+        .Where(r => !SincePhase10.Contains(r.EventType) && !SincePhase11.Contains(r.EventType)).ToArray();
 
     /// <summary>Every earlier default, oldest first.</summary>
     public static readonly IReadOnlyList<IReadOnlyList<(string EventType, PostingRuleDefinition Definition)>> Earlier = [Version1, Version2, Version3, Version4];
@@ -388,6 +410,52 @@ public static class PostingRuleTemplates
         (SupplierOpening, new("Supplier opening balance: opening balance equity against supplier payables (an advance posts the other way)", [
             new("debit", Code("3900"), "amount"),
             new("credit", Code("2100"), "amount"),
+        ])),
+        (PurchReceipt, new("Goods received: inventory by product class, at cost with its landed costs, owed through goods received not invoiced", [
+            new("debit", By("product_type", inventory), "stock_by_class"),
+            new("credit", Code("2110"), "stock_by_class"),
+        ])),
+        (PurchInvoice, new("Supplier invoice: goods received not invoiced cleared, price differences to the stock still on hand or to purchase price variance, expenses, VAT input, owed to the supplier (with interbranch entries when another branch received)", [
+            new("debit", Code("2110"), "grni_cleared"),
+            new("debit", By("product_type", inventory), "inventory_variance_by_class"),
+            new("debit", Code("5300"), "ppv"),
+            new("debit", ByKey("account"), "expense_by_account"),
+            new("debit", Code("1500"), "vat"),
+            new("credit", Code("2100"), "payable"),
+            new("credit", Code("2500"), "due_to_branch"),
+            new("debit", Code("1310"), "due_from_branch"),
+        ])),
+        (PurchReturn, new("Goods returned to the supplier: out of stock at cost, against goods received not invoiced or a debit note on the invoice with its VAT; the difference to purchase price variance", [
+            new("debit", Code("2110"), "grni_back"),
+            new("debit", Code("2100"), "payable_back"),
+            new("credit", Code("1500"), "vat_back"),
+            new("credit", By("product_type", inventory), "stock_by_class"),
+            new("credit", Code("5300"), "ppv"),
+        ])),
+        (PurchPayment, new("Supplier paid: payables against cash or bank (with interbranch entries when head office pays a branch's invoice)", [
+            new("debit", Code("2100"), "paid"),
+            new("credit", By("method", PayMethods), "paid_by_method"),
+            new("credit", Code("2500"), "due_to_branch"),
+            new("debit", Code("1310"), "due_from_branch"),
+        ])),
+        (Expense, new("Expense paid: the expense account and VAT input (when recoverable) against cash or bank", [
+            new("debit", ByKey("account"), "net_by_account"),
+            new("debit", Code("1500"), "vat"),
+            new("credit", By("method", PayMethods), "paid_by_method"),
+        ])),
+        (CardSettlement, new("Card settlement from the bank: bank and card fees against card clearing", [
+            new("debit", Code("1200"), "net"),
+            new("debit", Code("6800"), "fees"),
+            new("credit", Code("1150"), "gross"),
+        ])),
+        (VatSettlement, new("VAT return filed: VAT output and VAT input for the period into VAT payable (a refund posts the other way)", [
+            new("debit", Code("2200"), "output"),
+            new("credit", Code("1500"), "input"),
+            new("credit", Code("2210"), "payable"),
+        ])),
+        (VatPayment, new("VAT paid to the Tax Authority (or refunded): VAT payable against the bank", [
+            new("debit", Code("2210"), "amount"),
+            new("credit", Code("1200"), "amount"),
         ])),
     ];
 }

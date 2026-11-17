@@ -72,7 +72,7 @@ export function SuppliersPage() {
           )}
         </Card>
       )}
-      <p className="muted">{t('sup.phase11')}</p>
+      {can(me, 'PURCH.VIEW') && <p className="muted"><Link to="/app/purchasing">{t('sup.phase11')}</Link></p>}
       {adding && <SupplierForm onClose={() => setAdding(false)} onDone={(m) => { setAdding(false); setMsg(m); refresh(); }} />}
     </div>
   );
@@ -157,7 +157,7 @@ export function SupplierPage() {
           </table></div>
         )}
       </Card>
-      <p className="muted">{t('sup.phase11')}</p>
+      {can(me, 'PURCH.VIEW') && <p className="row"><Link className="btn" to={`/app/purchasing?tab=invoices&supplier=${s.id}`}>{t('sup.phase11')}</Link></p>}
       {dialog === 'edit' && <SupplierForm supplier={s} onClose={() => setDialog(null)} onDone={done} />}
       {dialog === 'merge' && <MergeDialog supplier={s} onClose={() => setDialog(null)} onDone={done} />}
       {dialog === 'opening' && <SupplierOpening supplier={s} onClose={() => setDialog(null)} onDone={done} />}

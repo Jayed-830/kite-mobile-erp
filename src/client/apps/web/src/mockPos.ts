@@ -1,12 +1,13 @@
 // In-memory Phase 4 server for tests, `npm run dev:mock` and design review: catalog, stock, customers, shifts, sales,
 // returns, approvals, printers. Prices and totals use the same arithmetic as the real server (@kite/pos), but the real
 // server is the source of truth and checks everything again.
-import { ApiError, type CreditApi, type RepairApi, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
+import { ApiError, type CreditApi, type PurchasingApi, type RepairApi, type DeviceApi, type DeviceIdentityApi, type TradeInApi, type ApprovalAction, type ApprovalRow, type Balance, type Customer, type PosApi, type PosItem, type PosPolicy, type Printer, type ProductView,
   type SaleDetail, type SaleLine, type SaleListRow, type Shift, type ShiftFigures, type TenderInput, type Terminal, type Tokens, type User } from '@kite/api';
 import { createMockDevices } from './mockDevices';
 import { createMockTradeIn } from './mockTradeIn';
 import { createMockRepairs } from './mockRepairs';
 import { createMockCredit } from './mockCredit';
+import { createMockPurchasing } from './mockPurch';
 import { apportionReturn, checkTenders, countTotal, fromBaisa, PosError, priceLine, qrPayload, toBaisa, toNumber, totals, UNLIMITED, type Item, type ReceiptModel, type Tender } from '@kite/pos';
 
 export interface MockPosContext {
@@ -26,6 +27,8 @@ export interface MockPosContext {
   tokens: (u: User) => Tokens;
   /** Phase 7: the margin scheme approval switches VAT-MARGIN on or off. */
   setMarginCode?: (active: boolean) => void;
+  /** Phase 11: the roles (purchase approval limits). */
+  roles?: () => { id: string; code: string; nameEn: string; nameAr: string }[];
 }
 
 const problem = (status: number, code: string, title: string) => new ApiError({ status, code, title });
@@ -37,7 +40,7 @@ const n = (b: bigint) => toNumber(b);
 interface StockRow { qty: bigint; value: bigint }
 interface MockSale { detail: SaleDetail; shiftId: string; terminalId: string; payments: { method: string; amount: bigint; cardTerminal: string | null; tendered: bigint | null; change: bigint | null; tradeInId: string | null }[] }
 
-export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi & RepairApi & CreditApi {
+export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceIdentityApi & TradeInApi & RepairApi & CreditApi & PurchasingApi {
   const products: ProductView[] = [];
   const stock = new Map<string, StockRow>();
   const customers: Customer[] = [];
@@ -250,6 +253,12 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     useApproval: (aid, action, requester) => { useApproval(aid, action, requester); return undefined; },
     drawer: (method, amount) => cashEvents.push({ shiftId: myShift().s.id, kind: 'credit_receipt', amount: toBaisa(amount), reason: method, createdAt: now() }),
   });
+  // Phase 11: purchasing and accounting; goods received go into the same stock and device units the till sells.
+  const pu = createMockPurchasing({
+    need: ctx.need, can: (p) => can(ctx.need(), p), next, branches: () => ctx.branches?.() ?? [], branchId: ctx.branchId, suppliers: () => cr.suppliers(), supplierLines: cr.supplierLines,
+    item: (vid) => posItem(vid), stockIn: (vid, q, cost) => move(vid, q, cost), stockOf: (vid) => stock.get(vid)?.qty ?? 0n,
+    receiveUnit: (vid, input, cost) => { const u = dev.receive(vid, input, cost); return { id: u.id, status: u.status }; }, roles: () => ctx.roles?.() ?? [], taxCodeId: ctx.taxCodeId,
+  });
   // A walk-in customer for trade-ins (design review).
   customers.push({ id: id(), number: 'C-000002', kind: 'individual', nameEn: 'Maryam Al Hinai', nameAr: 'مريم الهنائية', phoneE164: '+96899112233', email: null, vatNumber: null, crNumber: null, addressEn: null, addressAr: null, status: 'active', version: 1 });
   rp.seed();
@@ -260,6 +269,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     ...ti.api,
     ...rp.api,
     ...cr.api,
+    ...pu.api,
     async brands() { ctx.need('CATALOG.VIEW'); return delay([]); },
     async createBrand(b) { ctx.need('CATALOG.MANAGE'); return delay({ id: id(), ...b, status: 'active', version: 1 }); },
     async categories() { ctx.need('CATALOG.VIEW'); return delay([]); },

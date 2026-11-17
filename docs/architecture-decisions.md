@@ -465,3 +465,87 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Decision.** Available online and offline, the decision, instalments, oldest-first allocation and ageing are in `CreditMath` (server) and `@kite/pos credit.ts` (web app), and both are tested with `tests/vectors/credit-math-vectors.json`, written by an independent Python implementation (`tests/vectors/generators/credit_vectors.py`); CI regenerates the vectors and fails on any difference.
 **Why.** The till shows what is available and splits instalments before the server decides; both must agree to the baisa.
 **Cost.** A change to a rule is made in three places.
+
+## ADR 78: Purchasing takes its locks after credit and before numbers, in one order
+
+**Decision.** The order of advisory locks (ADR 54, 61, 68) gains three levels between the deposit and document numbers: the purchase order (`kite:po:<id>`), then the goods receipts and outside work an invoice or return touches (`kite:grn:<id>`, `kite:grni:<type>:<id>`, taken sorted), then the supplier (`kite:supplier:<id>`). Receiving locks the order; invoicing and returning lock the receipts and then the supplier; paying locks the supplier. Each then reads what is still open inside the lock and refuses what would go past it (PUR-002 more than is open, PUR-005 more than is owed).
+**Why.** Two people receiving the last units of one order line, or invoicing and returning the same receipt line, must not both succeed. One order everywhere means no deadlocks.
+**Cost.** Work on one supplier is serialised at one server; it is short (a few rows and one journal).
+
+## ADR 79: Periods are closed per branch, and a late document lands in the first period open at every branch it touches
+
+**Decision.** `acct.fiscal_period` keeps a row per branch and month (12 months and a closing period 13). A period is open, soft-closed (only users with ACCT.PERIOD.CLOSE may post into it, by setting `kite.allow_soft_closed` for that one insert) or hard-closed. The accountant closes one branch or all branches at once. A document dated in a closed period (a receipt keyed late, an invoice that arrives after the month is closed) keeps its document date and is journalled on the first day of the first period open at every branch its journal touches; the journal says so. A period a filed VAT return covers cannot be reopened (ACC-006), and nothing in a closed year can (ACC-008).
+**Why.** Branches close at different speeds; a late invoice is normal and must not be refused or reopen a month that has been reported.
+**Cost.** A document's date and its journal's date can differ; reports by journal date and documents by document date can disagree for a late document, and the journal line explains it.
+
+## ADR 80: Goods received not invoiced is its own ledger, per source line
+
+**Decision.** Every receipt line, receipt charge and outside-work line (repair work sent out, Phase 9) accrues to GRNI (2110) when received, as an `accrued` entry in `purch.grni_entry` at the receiving branch; an invoice clears it with an `invoiced` entry (all that is open when it invoices all that is open, its share otherwise), and a return before invoicing reverses it with a `returned` entry. The open GRNI of a line is the sum of its entries; zero entries are not written.
+**Why.** The three-way match needs to know what each receipt line is still owed for, and the ledger check (ADR 88) needs a subledger for 2110.
+**Cost.** One more table written in the same transaction as the receipt, invoice or return.
+
+## ADR 81: An invoice's price difference goes to stock for what is still on hand and to purchase price variance for the rest
+
+**Decision.** An invoice line is matched against its receipt line at the order's price (or the receipt's): within tolerance when the unit price is within the policy's percentage (2%) or the line within its amount (1.000 OMR), else `price`; more than is open is `qty` and refused (PUR-002). Posting a line outside tolerance needs PURCH.INVOICE.OVERRIDE and a reason. The difference between the invoice line and what it clears is split by `PurchaseMath.SplitVariance`: the share for units still in stock (serialised units in stock, or the branch's stock balance) goes to inventory (the units' cost is corrected, or a `cost_adjustment` stock movement for quantity items), the rest to purchase price variance (5300).
+**Why.** Stock should carry what the goods really cost; what has already been sold cannot be re-costed, so its share is an expense of the period.
+**Cost.** The split depends on what is on hand when the invoice is posted, so the same invoice posted a day later can split differently.
+
+## ADR 82: A supplier invoice is booked at one branch; the goods' branches clear their own GRNI through interbranch lines
+
+**Decision.** The invoice, its VAT, the supplier ledger entry and the payable (2100) are at the booking branch. Each receiving branch's part of the journal clears its own GRNI and takes its own variance and expenses, and is owed by the booking branch through due to branches (2500) and due from branches (1310), in one journal posted with `PostManyAsync`. Each branch's part balances on its own.
+**Why.** Head office often receives the invoice for goods delivered to a branch; each branch's books stay complete and the interbranch accounts eliminate when consolidated (ADR 89).
+**Cost.** Input VAT is reclaimed at the booking branch, not where the goods went.
+
+## ADR 83: Supplier payments settle the oldest open items at the paying branch, unless head office names them
+
+**Decision.** A payment is recorded in the supplier ledger at the paying branch. Without allocations it settles that branch's open invoices oldest first; head office may name invoices of any branch, and each other branch's share is settled between branches in the same journal (as for customers, ADR 72). What is left is an advance, which settles the next invoice posted for that supplier at that branch (as does a debit note). Paying more than is owed in named allocations is refused (PUR-005); a provisional supplier cannot be paid (ADR 74).
+**Why.** Branches pay their own suppliers; head office often pays for everyone.
+**Cost.** An advance waits at its branch; head office moves it by naming the invoices.
+
+## ADR 84: Goods returned to a supplier come off GRNI first, then on a debit note at the invoiced price
+
+**Decision.** A return takes back units of a receipt line. What has not been invoiced reverses its GRNI; what has been invoiced is raised on a debit note (`DN-`) at the invoice's price with its VAT, which reduces the supplier's balance and input VAT. Stock goes out at its carrying cost; any difference between that and what is credited (GRNI back plus the debit note's net) is purchase price variance. Serialised units are named by IMEI.
+**Why.** The supplier credits what it invoiced; stock leaves at what it cost us; the difference is a real gain or loss.
+**Cost.** A return of units bought at different prices on one line uses the line's average.
+
+## ADR 85: The VAT return is worked out from the documents by the date of their journals, and settled branch by branch
+
+**Decision.** `tax.vat_lines` gathers every VAT amount from the documents (sales and credit notes, VAT on deposits, purchase invoices, debit notes, expenses) by the date of the journal that booked it, so a late document falls in the period it was posted to, and each box adds them up by tax kind and class; boxes 5b and 6d are adjustments the accountant enters. A return is prepared for a quarter (`VAT-2026-10`), and filed only when its months are closed at every branch (ACC-007) and the box definitions marked for review have been confirmed by an accountant. Filing posts a settlement journal (`vat.settlement`) per branch moving VAT output (2200) and VAT input (1500) into VAT payable (2210); adjustments go to 2210 against general expenses (6900) for the accountant to reclassify. Paying posts VAT payable against the bank. The return page also shows the VAT accounts' own movements beside the boxes ("VAT report vs VAT accounts"), which must agree.
+**Why.** The Oman return is per business, but the books are per branch; working from documents shows where each figure came from, and checking against the accounts catches a posting rule that is wrong.
+**Cost.** A posting made directly to a VAT account by a manual journal is not on the return; the check shows it as a difference.
+
+## ADR 86: Documents that must not change are written once, and link their journal once
+
+**Decision.** Expenses and card settlements post their journal first and are inserted with its id (their rows cannot be updated). Goods receipts, supplier returns and supplier payments are inserted first (their stock and ledger rows refer to them) and get their journal id once: the app role may update that one column (column grant), and the trigger `purch.journal_once` refuses a second link or any other change (KT082).
+**Why.** The audit trail must show a document and its journal as they were posted.
+**Cost.** Two patterns for one rule, because of the order in which rows refer to each other.
+
+## ADR 87: A nil VAT return is filed with no settlement journal
+
+**Decision.** A return whose output and input are both zero is filed with no settlement journal; a return can have a settlement or payment journal only when filed.
+**Why.** A small branch with no sales in a quarter still files; a journal of zeros helps no one.
+**Cost.** None found.
+
+## ADR 88: The daily ledger check compares each subledger with what its own documents posted to the control account
+
+**Decision.** The Phase 10 check (ADR 75) now covers, per branch: customers (1300), suppliers (2100), GRNI (2110), inventory (stock movement value against 1400–1430), VAT output and VAT input, store credit, deposits, repair WIP (the VAT accounts excluding the settlement journals), and the trial balance (debits equal credits); and once for the business, interbranch (1310 equal to 2500). Each control side counts only journal lines posted by the documents of that subledger at that server ("own origin"), so a manual journal into a control account shows as a difference to be explained rather than being hidden. Accounting → Ledger check shows the last run and runs it on demand.
+**Why.** Row 11 of the exit gate: subledgers equal control accounts, the trial balance balances and interbranch eliminates, every day.
+**Cost.** Each new subledger needs its pair added to the check.
+
+## ADR 89: Statements are as of the latest data each branch has sent, and consolidate by eliminating interbranch
+
+**Decision.** The trial balance, ledger, profit and loss, balance sheet and cash flow can be run for one branch or all. Consolidated, 1310 and 2500 are eliminated against each other and any difference shows. Each statement says "Data as of" per branch: now for branches this server keeps, the last contact for a branch server whose journals arrive with sync. Earlier years' result not yet closed shows on its own line; the cash flow (indirect method, by each account's cash-flow class) shows any difference from the cash accounts' movement, which must be zero.
+**Why.** Head office runs statements while branch servers may be offline; the reader must know how old each branch's figures are.
+**Cost.** A consolidated statement can mix branches' figures of different ages.
+
+## ADR 90: The year is closed once, at head office, into retained earnings
+
+**Decision.** Year-end (ACCT.YEAR_END) needs all twelve periods closed at every branch; it posts one journal at head office taking, branch by branch, every revenue and expense balance into retained earnings (3300) in period 13, dated the last day of the year (`acct.year_end`), and then closes all periods of the year for good. Statements leave the year-end journal out unless asked.
+**Why.** Profit and loss starts again at zero each year; nothing more may land in a closed year.
+**Cost.** A correction found after year-end is posted in the new year.
+
+## ADR 91: Purchase arithmetic is shared and checked against an independent implementation
+
+**Decision.** Line amounts, spreading charges by value or quantity, matching with tolerance, GRNI clearing and the variance split are in `PurchaseMath` (server) and `@kite/pos purchase.ts` (web app), both tested with `tests/vectors/purchase-math-vectors.json` written by `tests/vectors/generators/purchase_vectors.py`; CI regenerates the vectors and fails on any difference.
+**Why.** The receiving and invoice screens show the match before the server decides; both must agree to the baisa.
+**Cost.** A change to a rule is made in three places.

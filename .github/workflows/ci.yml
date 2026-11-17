@@ -472,6 +472,57 @@ jobs:
           name: phase10-report
           path: phase10-report.json
 
+  phase11-exit-gate:
+    name: Phase 11 exit gate (races on receiving, invoicing, paying and returning never overrun; a full day at three branches; the quarter closed and its VAT return filed; every subledger equals its control account, trial balances balance, interbranch eliminates)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The purchase vectors are what the independent Python implementation writes
+        run: |
+          python3 tests/vectors/generators/purchase_vectors.py
+          git diff --exit-code tests/vectors/purchase-math-vectors.json
+      - run: dotnet build Kite.slnx -c Release
+      - name: 16 workers racing on one order line, one receipt line, one invoice and one return; then a full day at three branches, the VAT return and the ledger check
+        env:
+          KITE_TEST_PG: "Host=localhost;Port=5432;Username=postgres;Password=postgres"
+          KITE_P11_WORKERS: "16"
+          KITE_P11_SALES: "10"
+          KITE_P11_REPORT: ${{ github.workspace }}/phase11-report.json
+        run: dotnet test tests/Kite.IntegrationTests -c Release --no-build --filter "FullyQualifiedName~Phase11ExitGateTests|FullyQualifiedName~Phase11Tests" --logger "console;verbosity=detailed"
+      - name: Report
+        if: always()
+        run: |
+          test -f phase11-report.json && cat phase11-report.json
+          test -f phase11-report.json && python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          d = json.load(open('phase11-report.json'))
+          print('### Phase 11 exit gate\n')
+          print(f"{d['workers']} workers per race, {d['sales']} till sales, in {d['seconds']} s.\n")
+          print('| Race | Succeeded | Refused | Result |\n| --- | ---: | --- | ---: |')
+          for k, v in d['races'].items(): print(f"| {k} | {v['Ok']} | {v['Refused']} | {[x for x in v.values()][-1]} |")
+          print('\n| Ledger | Branch | Subledger | Control | Difference |\n| --- | --- | ---: | ---: | ---: |')
+          for r in d['reconciliation']: print(f"| {r['ledger']} | {r.get('branchCode') or 'business'} | {r['subledger']} | {r['control']} | {r['difference']} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase11-report
+          path: phase11-report.json
+
   pocs-linux:
     name: Proofs of concept (QuestPDF Arabic, ESC/POS raster, SQLCipher)
     runs-on: ubuntu-latest
@@ -1333,3 +1384,93 @@ jobs:
         with:
           name: e2e-phase10-screenshots
           path: ${{ runner.temp }}/e2e-phase10-shots/
+
+  e2e-phase11:
+    name: End-to-end Phase 11 (an order above the branch manager's limit approved by the officer, goods received with IMEIs and freight, an invoice outside tolerance posted by the owner with a reason, the carrier's invoice, a debit note, a payment, an expense, a manual journal with a second approver, the quarter closed and its VAT return filed, statements, ledger check, Arabic, accounts)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create the database and roles (the installer's job in production)
+        run: |
+          createdb kite
+          psql -v ON_ERROR_STOP=1 -d kite -f db/bootstrap/00_bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -d kite -c "ALTER ROLE kite_migrator PASSWORD 'e2e-migrator'; ALTER ROLE kite_app PASSWORD 'e2e-app';"
+      - name: Build the web app into the server, and the server
+        run: |
+          bash scripts/build-web.sh
+          dotnet build src/server/Kite.Host -c Release
+      - name: Start the Nextdab stub (checks its signing against the Nextdab Admin vectors first)
+        working-directory: e2e
+        run: |
+          npm ci
+          STUB_KEY_FILE="$RUNNER_TEMP/stub-key.txt" nohup node nextdab-stub.mjs > "$RUNNER_TEMP/stub.log" 2>&1 &
+          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/stub-key.txt" ] && break; sleep 1; done
+          cat "$RUNNER_TEMP/stub.log"
+          test -s "$RUNNER_TEMP/stub-key.txt"
+      - name: Start the KITE server
+        working-directory: src/server/Kite.Host
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development   # only so the test licence key below is accepted
+          export ASPNETCORE_URLS=http://localhost:5080
+          export ConnectionStrings__App="Host=localhost;Database=kite;Username=kite_app;Password=e2e-app"
+          export ConnectionStrings__Migrator="Host=localhost;Database=kite;Username=kite_migrator;Password=e2e-migrator"
+          export Kite__DataDir="$RUNNER_TEMP/kite-data" Kite__Sync__Port=0
+          export Kite__Licensing__ControlUrl=http://127.0.0.1:8799 Kite__Licensing__DevPublicKey="$(cat "$RUNNER_TEMP/stub-key.txt")"
+          nohup dotnet bin/Release/net10.0/Kite.Host.dll > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5080/health/ready > /dev/null && break; sleep 2; done
+          curl -sf http://localhost:5080/health/ready && test -s "$RUNNER_TEMP/kite-data/setup-code.txt"
+      - name: Browser walk-through
+        working-directory: e2e
+        env:
+          KITE_URL: http://localhost:5080
+          SETUP_CODE_FILE: ${{ runner.temp }}/kite-data/setup-code.txt
+          SHOTS_DIR: ${{ runner.temp }}/e2e-phase11-shots
+        run: node phase11.mjs
+      - name: Database after the walk-through (orders, receipts, invoices, returns, payments, GRNI, VAT return, ledger check, journals, audit chain)
+        if: always()
+        run: |
+          psql -d kite -c "SELECT number, status, gross_total FROM purch.purchase_order ORDER BY created_at;"
+          psql -d kite -c "SELECT r.number, l.qty, l.unit_price, l.goods_value, l.charge_share, l.stock_value FROM purch.receipt_line l JOIN purch.goods_receipt r ON r.id = l.receipt_id ORDER BY r.number, l.line_no;"
+          psql -d kite -c "SELECT i.number, i.status, i.supplier_invoice_no, l.match_status, l.net_amount, l.expected_amount, l.variance_inventory, l.variance_ppv, i.override_reason FROM purch.invoice_line l JOIN purch.purchase_invoice i ON i.id = l.invoice_id ORDER BY i.number, l.line_no;"
+          psql -d kite -c "SELECT source_type, kind, amount FROM purch.grni_entry ORDER BY created_at;"
+          psql -d kite -c "SELECT s.name_en, l.kind, l.number, l.amount FROM purch.supplier_ledger l JOIN purch.supplier s ON s.id = l.supplier_id ORDER BY l.created_at;"
+          psql -d kite -c "SELECT number, period_from, period_to, status, output_vat, input_vat, net_vat FROM tax.vat_return;"
+          psql -d kite -c "SELECT a.code, sum(l.debit - l.credit) AS balance FROM acct.journal_line l JOIN acct.account a ON a.id = l.account_id GROUP BY a.code ORDER BY a.code;"
+          psql -d kite -c "SELECT c.ledger, b.code, c.subledger, c.control, c.difference FROM acct.subledger_check c LEFT JOIN core.branch b ON b.id = c.branch_id WHERE c.run_id = (SELECT run_id FROM acct.subledger_check ORDER BY checked_at DESC LIMIT 1) ORDER BY c.ledger, b.code;"
+          psql -d kite -c "SELECT (SELECT count(*) FROM acct.journal) AS journals, (SELECT ok FROM audit.verify_chain()) AS audit_chain_ok;"
+      - name: Print screenshots for review
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/e2e-phase11-shots/*.jpg; do
+            [ -f "$f" ] || continue
+            echo "SHOT-BEGIN $(basename "$f")"; base64 -w 40000 "$f"; echo "SHOT-END"
+          done
+      - name: Server log
+        if: always()
+        run: |
+          tail -n 200 "$RUNNER_TEMP/server.log" || true
+          echo "=== stub ==="; cat "$RUNNER_TEMP/stub.log" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-phase11-screenshots
+          path: ${{ runner.temp }}/e2e-phase11-shots/

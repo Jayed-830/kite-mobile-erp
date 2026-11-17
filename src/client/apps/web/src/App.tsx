@@ -45,6 +45,14 @@ import { CreditPage } from './credit/CreditPage';
 import { CreditAccountPage } from './credit/CreditAccountPage';
 import { CreditSettingsPage } from './credit/CreditSettingsPage';
 import { SupplierPage, SuppliersPage } from './suppliers/SuppliersPage';
+import { PurchasingPage } from './purchasing/PurchasingPage';
+import { OrderPage, PaymentPage, ReceiptPage, ReturnPage } from './purchasing/OrderPage';
+import { InvoiceEntryPage, InvoicePage } from './purchasing/InvoicePage';
+import { PurchSettingsPage } from './purchasing/PurchSettingsPage';
+import { AccountingPage, JournalPage, ManualJournalPage } from './accounting/AccountingPage';
+import { StatementsPage } from './accounting/StatementsPage';
+import { VatPage, VatReturnPage } from './accounting/VatPage';
+import { ExpensesPage } from './expenses/ExpensesPage';
 
 function Guarded() {
   const { stage } = useAuth();
@@ -102,6 +110,22 @@ function AppRoutes() {
         <Route path="settings/credit" element={<CreditSettingsPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="suppliers/:id" element={<SupplierPage />} />
+        <Route path="purchasing" element={<PurchasingPage />} />
+        <Route path="purchasing/orders/:id" element={<OrderPage />} />
+        <Route path="purchasing/receipts/:id" element={<ReceiptPage />} />
+        <Route path="purchasing/invoices/new" element={<InvoiceEntryPage />} />
+        <Route path="purchasing/invoices/:id" element={<InvoicePage />} />
+        <Route path="purchasing/invoices/:id/edit" element={<InvoiceEntryPage />} />
+        <Route path="purchasing/returns/:id" element={<ReturnPage />} />
+        <Route path="purchasing/payments/:id" element={<PaymentPage />} />
+        <Route path="settings/purchasing" element={<PurchSettingsPage />} />
+        <Route path="accounting" element={<AccountingPage />} />
+        <Route path="accounting/journals/:id" element={<JournalPage />} />
+        <Route path="accounting/manual/:id" element={<ManualJournalPage />} />
+        <Route path="accounting/statements" element={<StatementsPage />} />
+        <Route path="accounting/vat" element={<VatPage />} />
+        <Route path="accounting/vat/:id" element={<VatReturnPage />} />
+        <Route path="expenses" element={<ExpensesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

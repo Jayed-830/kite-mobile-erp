@@ -409,5 +409,5 @@ export function createMockCredit(h: CreditMockHooks) {
   };
   /** What a sale charged on account, less what credit notes already took back. */
   const refundable = (saleId: string) => r3(entries.filter((e) => e.saleId === saleId && e.kind === 'charge').reduce((s, e) => s + e.amount, 0) - (refunded.get(saleId) ?? 0));
-  return { api, checkSale, charge, creditNote, refundable, hasAccount: (cid: string) => { seed(); return accounts.has(cid); } };
+  return { api, checkSale, charge, creditNote, refundable, hasAccount: (cid: string) => { seed(); return accounts.has(cid); }, suppliers: () => { seed(); return suppliers; }, supplierLines };
 }

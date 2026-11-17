@@ -27,6 +27,7 @@ public static class ChartTemplate
         new("1450", "Goods in transit", "بضاعة في الطريق", AccountType.Asset, "1000", true, true),
         new("1460", "Repair work in progress", "أعمال صيانة قيد التنفيذ", AccountType.Asset, "1000", true, true),
         new("1500", "VAT input", "ضريبة المدخلات", AccountType.Asset, "1000", true, true),
+        new("1600", "Fixed assets", "الأصول الثابتة", AccountType.Asset, "1000", true, false),
         new("2000", "Liabilities", "الالتزامات", AccountType.Liability, null, false, false),
         new("2100", "Supplier payables", "الذمم الدائنة للموردين", AccountType.Liability, "2000", true, true),
         new("2110", "Goods received not invoiced", "بضاعة مستلمة غير مفوترة", AccountType.Liability, "2000", true, true),
@@ -58,6 +59,7 @@ public static class ChartTemplate
         new("5120", "Cost: accessories", "التكلفة: الإكسسوارات", AccountType.Expense, "5000", true, false),
         new("5200", "Cost: repair parts", "التكلفة: قطع الصيانة", AccountType.Expense, "5000", true, false),
         new("5210", "Cost: outside repair work", "التكلفة: أعمال صيانة خارجية", AccountType.Expense, "5000", true, false),
+        new("5300", "Purchase price variance", "فروقات أسعار الشراء", AccountType.Expense, "5000", true, false),
         new("6000", "Expenses", "المصروفات", AccountType.Expense, null, false, false),
         new("6100", "Rent", "الإيجار", AccountType.Expense, "6000", true, false),
         new("6200", "Salaries", "الرواتب", AccountType.Expense, "6000", true, false),
@@ -70,6 +72,20 @@ public static class ChartTemplate
         new("6800", "Card fees", "رسوم البطاقات", AccountType.Expense, "6000", true, false),
         new("6900", "General expenses", "مصروفات عامة", AccountType.Expense, "6000", true, false),
     ];
+}
+
+/// <summary>The cash-flow class of an account (17.7): cash, and the working-capital, investing and financing movements of the indirect method.</summary>
+public static class CashFlow
+{
+    public static readonly IReadOnlyList<string> Classes = ["cash", "operating", "investing", "financing", "none"];
+
+    public static string DefaultClass(string code, AccountType type, bool isPostable) =>
+        !isPostable ? "none"
+        : code is "1100" or "1150" or "1200" ? "cash"
+        : code == "1600" ? "investing"
+        : type is AccountType.Asset or AccountType.Liability ? "operating"
+        : type == AccountType.Equity ? "financing"
+        : "none";
 }
 
 public sealed record JournalLineDraft(string AccountCode, decimal Debit, decimal Credit, Guid? BranchId = null, string? Memo = null);

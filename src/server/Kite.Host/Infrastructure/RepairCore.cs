@@ -600,5 +600,59 @@ public static class Phase10Seed
             INSERT INTO core.number_series (id, business_id, branch_id, doc_type, prefix, fiscal_year, padding)
             VALUES (@id, @businessId, NULL, 'supplier', 'S-', 2000, 5) ON CONFLICT DO NOTHING
             """, new { id = t.NewId(), businessId }));
+        await Phase11Seed.EnsureAsync(t, businessId);
+    }
+}
+
+/// <summary>
+/// Purchasing and accounting defaults for a new business (16.1, 17): the purchasing and accounting policies, the approval limits of the
+/// system roles, and the boxes of the Oman VAT return (flagged for the accountant to confirm, like the tax codes). V0020 seeds the same for
+/// businesses that existed before.
+/// </summary>
+public static class Phase11Seed
+{
+    public sealed record VatBox(string Code, short Sort, string NameEn, string NameAr, string Source, string[]? TaxKinds, string? AccountClass, string? Formula);
+
+    public static readonly IReadOnlyList<VatBox> VatBoxes =
+    [
+        new("1a", 10, "Supplies of goods and services taxed at 5%", "توريدات السلع والخدمات الخاضعة لنسبة 5%", "output", ["standard"], null, null),
+        new("1b", 20, "Supplies of goods and services taxed at 0%", "توريدات السلع والخدمات الخاضعة لنسبة 0%", "output", ["zero"], null, null),
+        new("1c", 30, "Supplies of goods and services exempt from tax", "توريدات السلع والخدمات المعفاة", "output", ["exempt"], null, null),
+        new("1d", 40, "Supplies of goods, tax levy shifted to the recipient in the GCC", "توريدات السلع مع نقل عبء الضريبة إلى المتلقي في دول المجلس", "manual", null, null, null),
+        new("1e", 50, "Supplies of services, tax levy shifted to the recipient in the GCC", "توريدات الخدمات مع نقل عبء الضريبة إلى المتلقي في دول المجلس", "manual", null, null, null),
+        new("1f", 60, "Supplies of goods under the profit margin scheme", "توريدات السلع وفق نظام هامش الربح", "output", ["margin"], null, null),
+        new("2a", 70, "Purchases from the GCC subject to reverse charge", "المشتريات من دول المجلس الخاضعة للاحتساب العكسي", "manual", null, null, null),
+        new("2b", 80, "Purchases from outside the GCC subject to reverse charge", "المشتريات من خارج دول المجلس الخاضعة للاحتساب العكسي", "manual", null, null, null),
+        new("3", 90, "Supplies to countries outside Oman", "التوريدات إلى دول خارج السلطنة", "manual", null, null, null),
+        new("4a", 100, "Import of goods (postponed payment)", "استيراد السلع (الدفع المؤجل)", "manual", null, null, null),
+        new("4b", 110, "Total goods imported", "إجمالي السلع المستوردة", "manual", null, null, null),
+        new("5a", 120, "Total VAT due (1a + 1f + 2a + 2b + 4a)", "إجمالي الضريبة المستحقة (1أ + 1و + 2أ + 2ب + 4أ)", "formula", null, null, "1a+1f+2a+2b+4a"),
+        new("5b", 130, "Adjustment of VAT due", "تعديل الضريبة المستحقة", "manual", null, null, null),
+        new("6a", 140, "Purchases (except import of goods)", "المشتريات (عدا استيراد السلع)", "input", ["standard"], "other", null),
+        new("6b", 150, "Import of goods", "استيراد السلع", "manual", null, null, null),
+        new("6c", 160, "VAT on acquisition of fixed assets", "الضريبة على اقتناء الأصول الثابتة", "input", ["standard"], "fixed_assets", null),
+        new("6d", 170, "Adjustment of input VAT credit", "تعديل رصيد ضريبة المدخلات", "manual", null, null, null),
+        new("6e", 180, "Total input VAT credit (6a + 6b + 6c + 6d)", "إجمالي رصيد ضريبة المدخلات (6أ + 6ب + 6ج + 6د)", "formula", null, null, "6a+6b+6c+6d"),
+        new("7", 190, "Net VAT payable or refundable (5a + 5b - 6e)", "صافي الضريبة المستحقة أو المستردة (5أ + 5ب - 6هـ)", "formula", null, null, "5a+5b-6e"),
+    ];
+
+    public static readonly IReadOnlyDictionary<string, decimal?> ApprovalLimits = new Dictionary<string, decimal?>
+    { ["owner"] = null, ["accountant"] = 5000m, ["purchasing_officer"] = 2000m, ["branch_manager"] = 500m };
+
+    public static async Task EnsureAsync(DbTx t, Guid businessId)
+    {
+        await t.ExecuteAsync("INSERT INTO acct.policy (business_id) VALUES (@businessId) ON CONFLICT DO NOTHING", new { businessId });
+        await t.ExecuteAsync("INSERT INTO purch.policy (business_id) VALUES (@businessId) ON CONFLICT DO NOTHING", new { businessId });
+        foreach (var (code, max) in ApprovalLimits)
+            await t.ExecuteAsync("""
+                INSERT INTO purch.approval_limit (id, business_id, role_id, branch_id, max_amount)
+                SELECT @id, @businessId, r.id, NULL, @max FROM iam.role r WHERE r.business_id = @businessId AND r.code = @code
+                ON CONFLICT DO NOTHING
+                """, new { id = t.NewId(), businessId, code, max });
+        foreach (var v in VatBoxes)
+            await t.ExecuteAsync("""
+                INSERT INTO tax.vat_box (id, business_id, code, sort, name_en, name_ar, source, tax_kinds, account_class, formula)
+                VALUES (@id, @businessId, @Code, @Sort, @NameEn, @NameAr, @Source, @TaxKinds, @AccountClass, @Formula) ON CONFLICT DO NOTHING
+                """, new { id = t.NewId(), businessId, v.Code, v.Sort, v.NameEn, v.NameAr, v.Source, v.TaxKinds, v.AccountClass, v.Formula });
     }
 }
