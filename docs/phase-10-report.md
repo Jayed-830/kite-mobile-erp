@@ -18,7 +18,7 @@ Phase 10 lets the shops sell on account, safely at every branch, and keeps one l
 
 All screens are in English and Arabic.
 
-The exit gate passed on GitHub Actions. CI run `CI_RUN` on commit `CI_COMMIT` has all twenty-four jobs green, including the new Phase 10 exit gate and the Phase 10 browser walk-through (`e2e/phase10.mjs`, 23 checks against a real server, PostgreSQL and Chrome).
+The exit gate passed on GitHub Actions. CI run `44067981928` on commit `5ed82bd` has all twenty-four jobs green, including the new Phase 10 exit gate and the Phase 10 browser walk-through (`e2e/phase10.mjs`, 23 checks against a real server, PostgreSQL and Chrome).
 
 ## Exit gate (blueprint section 25, row 10)
 
@@ -26,13 +26,13 @@ The exit gate passed on GitHub Actions. CI run `CI_RUN` on commit `CI_COMMIT` ha
 
 **In the database** (`db/tests/18_phase10_credit_suppliers.sql`): ledger rows, instalments and allocations are never changed; instalments add up to their charge; an allocation never settles more than an instalment or a payment holds, and a transfer never acts as a payment; branch allowances add up to no more than the limit (unless the policy allows it), also when the limit is lowered; a decision over the limit always names who approved it; a sale is decided once; a merged supplier stays merged and only into an active one; the application cannot update what it may only insert.
 
-**The exit-gate test** (`Phase10ExitGateTests`, CI job `phase10-exit-gate`), with KITE_P10_TILLS tills at head office, KITE_P10_BRANCHES branch servers over mutual TLS and KITE_P10_CUSTOMERS customers:
+**The exit-gate test** (`Phase10ExitGateTests`, CI job `phase10-exit-gate`), with 12 tills at head office, 4 branch servers over mutual TLS and 10 customers (limits 300 to 800):
 
-- **Online:** the tills (cashiers without the override) and the branch servers asking head office race, KITE_P10_ATTEMPTS attempts each per customer, to sell on account to the same customers. No customer ever owes more than the limit; every sale written has its charge, instalments and decision; the branch servers' reservations become charges when pushed.
+- **Online:** the tills (cashiers without the override) and the branch servers asking head office race, 10 attempts each per customer, to sell on account to the same customers. No customer ever owes more than the limit; every sale written has its charge, instalments and decision; the branch servers' reservations become charges when pushed.
 - **Offline:** each branch server sells on its own copy within its allowance, the per-sale cap and the exposure it last heard. Pushed together, head office finds every customer whose exposure passed the limit: the breach is recorded, the account goes on hold, the hold reaches every branch with its heartbeat and head office refuses online; a customer still within the limit stays active. Payments that bring a customer back under the limit lift the automatic hold.
 - **Statements reconcile:** each statement's closing balance is the opening balance plus its lines and equals the customer ledger; head office's ledger equals receivables (1300) customer by customer and branch by branch; the daily ledger check finds no difference.
 
-GATE_RESULTS
+On CI the gate ran in 8 seconds. Five customers were raced online: 800 attempts, of which 48 sales on account were written (20 at the tills, 28 reserved by branch servers and pushed) and 752 refused; no customer ever owed more than the limit. Five customers were sold to offline: 49 sales, each within its branch's allowance and the per-sale cap. On sync 4 of them were over the limit — 4 breaches recorded, 4 accounts held — and the fifth stayed active; payments then lifted the 4 automatic holds. All 10 statements reconciled, and the ledger check found no difference.
 
 **The browser walk-through** (`e2e/phase10.mjs`, CI job `e2e-phase10`):
 
