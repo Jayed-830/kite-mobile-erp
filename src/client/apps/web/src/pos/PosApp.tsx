@@ -435,7 +435,7 @@ function Till({ terminal, onPrinter }: { terminal: StoredTerminal; onPrinter: (p
       {dialog === 'pay' && policy.data && <PayDialog gross={sum.gross} policy={policy.data} busy={paying} error={payError} onClose={() => setDialog(null)} onPay={(x, plan) => void complete(x, undefined, undefined, plan)}
         customer={customer} cartId={cartId} tradeIns={tradeInsOn && !emergency} creditSales={can(me, 'POS.CREDIT_SALE') && !emergency} />}
       {dialog === 'creditPayment' && <CreditPaymentDialog onClose={() => setDialog(null)} onDone={(m, cash) => { setDialog(null); setNotice(m); if (cash) void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
-      {dialog === 'repair' && policy.data && <RepairCounter policy={policy.data} onClose={() => setDialog(null)}
+      {dialog === 'repair' && policy.data && <RepairCounter policy={policy.data} onClose={() => setDialog(null)} onApproval={(a, retry) => ask(a, (id) => { setApproval(null); retry(id); })}
         onDone={(message, cash) => { setDialog(null); setNotice(message); if (cash) void openDrawer(api, route); void qc.invalidateQueries({ queryKey: ['currentShift'] }); }} />}
       {dialog === 'tradein' && <TradeInWizard cartId={cartId} cartCustomer={customer} cartHasItems={cart.length > 0} onClose={() => setDialog(null)} ask={ask}
         onAccepted={(d, kind, c) => {

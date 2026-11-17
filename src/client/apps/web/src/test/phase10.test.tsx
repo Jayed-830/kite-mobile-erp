@@ -1,10 +1,15 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { KiteApi } from '@kite/api';
 import { App } from '../App';
 import { createMockApi } from '../mock';
 
 const OWNER_PW = 'Muscat-Ruwi-2026!';
+// jsdom has no canvas: a pen that records strokes and returns a PNG data URL, as a browser would (the collection signature).
+beforeAll(() => {
+  HTMLCanvasElement.prototype.getContext = (() => ({ beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, clearRect() {}, lineWidth: 1, lineCap: 'round', strokeStyle: '#000' })) as unknown as HTMLCanvasElement['getContext'];
+  HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+});
 beforeEach(() => { window.print = () => undefined; window.open = () => null; URL.createObjectURL = () => 'blob:x'; URL.revokeObjectURL = () => undefined; });
 
 async function owner() { const api = createMockApi({ configured: true }); await api.login('owner', OWNER_PW); return api; }
@@ -120,6 +125,59 @@ describe('customer credit (Phase 10)', () => {
     expect(await screen.findByText(/^Payment RC\S+ taken: 52.500. Owed 200.000$/)).toBeInTheDocument();
     const shift = await api.currentShift();
     expect(shift.figures).toMatchObject({ onAccountSales: 2.5, creditReceipts: 52.5 });
+  });
+
+  it('collects a repair on account at the till, and its correction goes back on the account', async () => {
+    const user = userEvent.setup();
+    const api = await owner();
+    const t01 = (await api.terminals()).find((x) => x.code === 'T01')!;
+    const m = await maryam(api);
+    await api.openCreditAccount({ customerId: m.id, creditLimit: 100, termsDays: 30 });
+    const ready = (await api.repairs({ q: 'Maryam' })).find((r) => r.status === 'ready')!;
+    await api.logout();
+    localStorage.setItem('kite.terminal', JSON.stringify({ terminalId: t01.id, deviceKey: 'k'.repeat(43), code: 'T01', branchId: t01.branchId, printerId: null }));
+    render(<App api={api} initialPath="/pos" lang="en" />);
+    await user.type(await screen.findByLabelText('Username'), 'manager');
+    await user.type(screen.getByLabelText('PIN'), '1357');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByRole('heading', { name: 'Open shift' });
+    await user.type(screen.getByLabelText('Pieces of 50'), '2');
+    await user.click(screen.getByRole('button', { name: 'Open shift' }));
+    await screen.findByLabelText('Scan a barcode or type a name');
+
+    // The ready Galaxy (15.000) is collected and charged to Maryam's account.
+    await user.click(screen.getByRole('button', { name: 'Repairs' }));
+    let dlg = await screen.findByRole('dialog', { name: 'Repairs at the counter' });
+    await user.type(within(dlg).getByLabelText(/Scan the job card/), 'Maryam');
+    await user.click(await within(dlg).findByRole('button', { name: new RegExp(ready.number) }));
+    await user.click(within(dlg).getByRole('button', { name: 'Collect' }));
+    await within(dlg).findByText('Still to pay');
+    await user.selectOptions(within(dlg).getByLabelText('Who is collecting'), 'verified');
+    await user.type(within(dlg).getByLabelText('Name of the person collecting'), 'Maryam Al Hinai');
+    const pad = within(dlg).getByRole('img', { name: 'Signature' });
+    fireEvent.pointerDown(pad, { clientX: 5, clientY: 5, pointerId: 1 }); fireEvent.pointerMove(pad, { clientX: 40, clientY: 30, pointerId: 1 }); fireEvent.pointerUp(pad, { pointerId: 1 });
+    await user.click(within(dlg).getByRole('button', { name: /^Pay 15\.000/ }));
+    const pay = await screen.findByRole('dialog', { name: 'Payment' });
+    expect(await within(pay).findByText(/Available 100.000/)).toBeInTheDocument();
+    await user.click(within(pay).getByRole('button', { name: 'Use available' }));
+    await user.click(within(pay).getByRole('button', { name: 'Complete sale' }));
+    expect(await screen.findByText(new RegExp(`Job ${ready.number} delivered\\. Invoice INV`))).toBeInTheDocument();
+    expect((await api.creditAvailable(m.id)).exposure).toBe(15);
+
+    // Corrected with nothing charged again: the 15.000 goes back on the account, not into the drawer.
+    await user.click(screen.getByRole('button', { name: 'Repairs' }));
+    dlg = await screen.findByRole('dialog', { name: 'Repairs at the counter' });
+    await user.click(within(dlg).getByLabelText('Correct the invoice'));
+    await user.type(within(dlg).getByLabelText(/Delivered job/), 'Maryam');
+    await user.click(await within(dlg).findByRole('button', { name: new RegExp(ready.number) }));
+    expect(await within(dlg).findByText('15.000 was charged on account: it goes back on the account first.')).toBeInTheDocument();
+    expect(within(dlg).queryByLabelText('Refund to')).not.toBeInTheDocument();
+    await user.type(within(dlg).getByLabelText('Why is it corrected?'), 'Goodwill: not charged');
+    await user.selectOptions(within(dlg).getByLabelText('Corrected invoice'), 'no');
+    await user.click(within(dlg).getByRole('button', { name: 'Correct the invoice' }));
+    expect(await screen.findByText(/^Credit note CN\S+ issued\.$/)).toBeInTheDocument();
+    expect((await api.creditAvailable(m.id)).exposure).toBe(0);
+    expect((await api.currentShift()).figures!.expectedCash).toBe(100);
   });
 
   it('keeps the credit policy at head office and shows the ageing report in Arabic', async () => {

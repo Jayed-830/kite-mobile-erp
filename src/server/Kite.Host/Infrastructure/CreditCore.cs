@@ -78,7 +78,9 @@ public sealed record HeadOfficeEvaluation(CreditAccount Account, CreditPolicy Po
 
 // ------------------------------------------------------------------------------------------------ wire formats (sync port)
 public sealed record CreditUnsynced(Guid SaleId, decimal Amount);
-public sealed record CreditAuthoriseRequest(Guid CustomerId, Guid BranchId, Guid SaleId, decimal Amount, bool OverrideApproved, List<CreditUnsynced>? Unsynced = null);
+/// <remarks><c>Offset</c>: credit coming back on account in the same transaction (a repair invoice corrected at the till), not yet in any ledger head office sees.</remarks>
+public sealed record CreditAuthoriseRequest(Guid CustomerId, Guid BranchId, Guid SaleId, decimal Amount, bool OverrideApproved, List<CreditUnsynced>? Unsynced = null,
+    decimal Offset = 0m);
 public sealed record CreditAuthoriseResponse(bool Ok, string Outcome, decimal Available, decimal Exposure, decimal Limit, decimal OverBy, int OverdueDays, string Status,
     string? HoldReason, int TermsDays);
 public sealed record CreditReleaseRequest(Guid SaleId);
@@ -168,8 +170,9 @@ public static class CreditCore
     /// office does not answer within the policy's time, the branch decides on its own copy with the offline rules.
     /// </summary>
     public static async Task<CreditCheck> CheckSaleAsync(DbTx t, CreditLink? link, PosTerminal term, Guid customerId, Guid saleId, decimal amount,
-        Guid? approvalId, Guid cashierId, CreditPlanInput? plan, string timeZone, bool cashierMayOverride = false)
+        Guid? approvalId, Guid cashierId, CreditPlanInput? plan, string timeZone, bool cashierMayOverride = false, decimal offset = 0m)
     {
+        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
         if (!await ModuleOnAsync(t)) throw new KiteException(ErrorCodes.ModuleDisabled, "Customer credit is switched off.", 409, "payments");
         await LockAsync(t, customerId);
         var policy = await PolicyAsync(t);
@@ -191,7 +194,7 @@ public static class CreditCore
 
         if (t.Server.IsHeadOffice)
         {
-            var e = await EvaluateAsync(t, customerId, amount, 0m, mayGoOver, timeZone);
+            var e = await EvaluateAsync(t, customerId, amount, -offset, mayGoOver, timeZone);
             if (!e.Decision.Allowed) ThrowRefusal(e.Decision, e.Available, e.OverdueDays, e.Policy.OverrideCap, e.Account.HoldReason);
             if (e.Decision.Outcome == CreditOutcome.Approved) approvedBy = await UseApproval();
             return new CreditCheck(customerId, e.Account.Id, "local", amount, e.Available, e.Account.CreditLimit, e.Exposure, null, e.Decision.OverBy,
@@ -209,7 +212,7 @@ public static class CreditCore
             """, new { customerId }))).ToList();
         if (mayGoOver) approvedBy = await UseApproval();
 
-        var online = link is null ? null : await link.AuthoriseAsync(new CreditAuthoriseRequest(customerId, term.BranchId, saleId, amount, approvedBy is not null, unsynced),
+        var online = link is null ? null : await link.AuthoriseAsync(new CreditAuthoriseRequest(customerId, term.BranchId, saleId, amount, approvedBy is not null, unsynced, offset),
             policy.OnlineTimeoutMs);
         if (online is not null)
         {
@@ -227,7 +230,7 @@ public static class CreditCore
         // Offline (14.2): the lower of the allowance and the limit less the last known exposure, less charges since the last sync, capped per sale.
         var allowance = await t.ExecuteScalarAsync<decimal?>("SELECT amount FROM crm.credit_allowance WHERE account_id = @a AND branch_id = @b",
             new { a = acc.Id, b = term.BranchId }) ?? 0m;
-        var sinceSync = unsynced.Sum(u => u.Amount);
+        var sinceSync = unsynced.Sum(u => u.Amount) - offset;
         var cap = acc.OfflineSaleCap ?? policy.OfflineSaleCap;
         var available = CreditMath.AvailableOffline(allowance, acc.CreditLimit, acc.Exposure, sinceSync, cap);
         var overdue = CreditMath.OverdueDays(Day(acc.OldestDue), BusinessDay.Today(timeZone, t.Clock));
@@ -568,7 +571,8 @@ public static class CreditCore
             return new CreditAuthoriseResponse(true, ex.OverBy > 0 ? "approved" : "ok", ex.Available, await ExposureAsync(t, req.CustomerId), acc0!.CreditLimit,
                 ex.OverBy, 0, acc0.Status, acc0.HoldReason, acc0.TermsDays);
         }
-        var e = await EvaluateAsync(t, req.CustomerId, req.Amount, extra, req.OverrideApproved, timeZone);
+        if (req.Offset < 0) throw new KiteException(ErrorCodes.Validation, "The offset is zero or more.", 400, "offset");
+        var e = await EvaluateAsync(t, req.CustomerId, req.Amount, extra - req.Offset, req.OverrideApproved, timeZone);
         var outcome = e.Decision.Outcome switch
         {
             CreditOutcome.Ok => "ok", CreditOutcome.Approved => "approved", CreditOutcome.NeedsApproval => "needs_approval",

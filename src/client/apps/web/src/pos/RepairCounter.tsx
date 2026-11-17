@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { can, type DeliverResult, type PosPolicy, type RepairBoardRow, type TenderInput } from '@kite/api';
+import { ApiError, can, type ApprovalAction, type DeliverResult, type PosPolicy, type RepairBoardRow, type TenderInput } from '@kite/api';
 import { useI18n } from '@kite/i18n';
 import { fromBaisa, toBaisa } from '@kite/pos';
 import { Alert, Button, Modal, SelectField, TextField } from '@kite/ui';
@@ -14,8 +14,12 @@ import { openPdf } from './TradeInWizard';
  * Repairs at the till (13.4, 13.5): find a job by its card's QR, number or the customer's phone; take a deposit into the drawer,
  * or hand the device back: the job card or a check of the customer, their signature, the repair invoice with the deposit applied,
  * and the rest paid by any tender (or the deposit's excess back). Phase 9: a manager corrects a delivered job's invoice here.
+ * Phase 10: the rest may be charged to the customer's credit account, with a manager's approval over the limit.
  */
-export function RepairCounter({ policy, onClose, onDone }: { policy: PosPolicy; onClose: () => void; onDone: (message: string, cash: boolean) => void }) {
+export function RepairCounter({ policy, onClose, onDone, onApproval }: {
+  policy: PosPolicy; onClose: () => void; onDone: (message: string, cash: boolean) => void;
+  onApproval?: (action: ApprovalAction, retry: (approvalId: string) => void) => void;
+}) {
   const api = useApi();
   const { me } = useAuth();
   const { t, pick } = useI18n();
@@ -68,8 +72,8 @@ export function RepairCounter({ policy, onClose, onDone }: { policy: PosPolicy; 
               </div>
             )}
             {mode === 'deposit' && <Deposit jobId={job.id} onDone={(m, cash) => onDone(m, cash)} />}
-            {mode === 'correct' && <Correct jobId={job.id} policy={policy} onDone={(m, cash) => onDone(m, cash)} />}
-            {mode === 'collect' && <Collect jobId={job.id} policy={policy} qr={scannedQr} onDone={(r, cash) => onDone(t('repair.till.delivered', { number: r.number, sale: r.saleNumber ?? '—' }), cash)} />}
+            {mode === 'correct' && <Correct jobId={job.id} policy={policy} onApproval={onApproval} onDone={(m, cash) => onDone(m, cash)} />}
+            {mode === 'collect' && <Collect jobId={job.id} policy={policy} qr={scannedQr} onApproval={onApproval} onDone={(r, cash) => onDone(t('repair.till.delivered', { number: r.number, sale: r.saleNumber ?? '—' }), cash)} />}
           </>
         )}
       </div>
@@ -110,8 +114,14 @@ function Deposit({ jobId, onDone }: { jobId: string; onDone: (message: string, c
   );
 }
 
-function Collect({ jobId, policy, qr, onDone }: { jobId: string; policy: PosPolicy; qr: string | null; onDone: (r: DeliverResult, cash: boolean) => void }) {
+type Plan = { instalments: number; intervalDays: number } | null | undefined;
+type AskApproval = (action: ApprovalAction, retry: (approvalId: string) => void) => void;
+
+function Collect({ jobId, policy, qr, onDone, onApproval }: {
+  jobId: string; policy: PosPolicy; qr: string | null; onDone: (r: DeliverResult, cash: boolean) => void; onApproval?: AskApproval;
+}) {
   const api = useApi();
+  const { me } = useAuth();
   const { t, pick } = useI18n();
   const preview = useQuery({ queryKey: ['deliveryPreview', jobId], queryFn: () => api.deliveryPreview(jobId) });
   const [check, setCheck] = useState<'qr' | 'verified'>(qr ? 'qr' : 'verified');
@@ -124,13 +134,18 @@ function Collect({ jobId, policy, qr, onDone }: { jobId: string; policy: PosPoli
   const [error, setError] = useState<unknown>(null);
   const p = preview.data;
   if (!p) return <ErrorBox error={preview.error} />;
-  const deliver = async (payments: TenderInput[]) => {
+  const deliver = async (payments: TenderInput[], plan?: Plan, creditApprovalId?: string) => {
     setBusy(true); setError(null);
     try {
-      const r = await api.deliver(jobId, { check, qrCode: check === 'qr' ? qrCode.trim() : null, collectedBy: name.trim(), signature: sig ?? '', payments, excessTo: p.excess > 0 ? excessTo : null, expectedDue: p.due });
+      const r = await api.deliver(jobId, { check, qrCode: check === 'qr' ? qrCode.trim() : null, collectedBy: name.trim(), signature: sig ?? '', payments, excessTo: p.excess > 0 ? excessTo : null, expectedDue: p.due,
+        creditPlan: payments.some((x) => x.method === 'credit') ? plan ?? null : null, creditApprovalId: creditApprovalId ?? null });
       void openPdf(api.repairDocument(jobId, 'delivery-receipt'));
       onDone(r, payments.some((x) => x.method === 'cash') || (p.excess > 0 && excessTo === 'cash'));
-    } catch (e) { setError(e); setPaying(false); } finally { setBusy(false); }
+    } catch (e) {
+      // Over the available credit (CRD-004): a manager approves with their PIN, and the collection is sent again.
+      if (e instanceof ApiError && e.code === 'CRD-004' && onApproval) onApproval('CREDIT.OVERRIDE', (aid) => void deliver(payments, plan, aid));
+      else { setError(e); setPaying(false); }
+    } finally { setBusy(false); }
   };
   const ready = name.trim().length >= 2 && !!sig && (check === 'verified' || qrCode.trim().length > 0);
   return (
@@ -162,7 +177,8 @@ function Collect({ jobId, policy, qr, onDone }: { jobId: string; policy: PosPoli
           ? <Button variant="primary" disabled={!ready} onClick={() => setPaying(true)}>{t('repair.till.pay')} {fmt(p.due)}</Button>
           : <Button variant="primary" disabled={!ready} busy={busy} onClick={() => void deliver([])}>{t('repair.till.collect')}</Button>}
       </div>
-      {paying && <PayDialog gross={toBaisa(p.due)} policy={policy} busy={busy} error={error} onClose={() => setPaying(false)} onPay={(x) => void deliver(x)} />}
+      {paying && <PayDialog gross={toBaisa(p.due)} policy={policy} busy={busy} error={error} onClose={() => setPaying(false)} onPay={(x, plan) => void deliver(x, plan)}
+        customer={{ id: p.customerId }} cartId={jobId} creditSales={can(me, 'POS.CREDIT_SALE')} />}
     </div>
   );
 }
@@ -171,8 +187,9 @@ function Collect({ jobId, policy, qr, onDone }: { jobId: string; policy: PosPoli
  * Correcting a delivered repair invoice (owner decision, Phase 9): the invoice is credited in full, the money goes back from the
  * drawer or to store credit, and a corrected invoice may be issued with the right prices and paid here. The commissions follow.
  */
-function Correct({ jobId, policy, onDone }: { jobId: string; policy: PosPolicy; onDone: (message: string, cash: boolean) => void }) {
+function Correct({ jobId, policy, onDone, onApproval }: { jobId: string; policy: PosPolicy; onDone: (message: string, cash: boolean) => void; onApproval?: AskApproval }) {
   const api = useApi();
+  const { me } = useAuth();
   const { t, pick } = useI18n();
   const detail = useQuery({ queryKey: ['repair', jobId], queryFn: () => api.repair(jobId) });
   const [reason, setReason] = useState('');
@@ -191,17 +208,28 @@ function Correct({ jobId, policy, onDone }: { jobId: string; policy: PosPolicy; 
   const priceOf = (id: string, unit: number) => (prices[id] === undefined ? unit : parseAmount(prices[id]!) ?? 0);
   const newLines = inv.lines.filter((l) => priceOf(l.id, l.unitPrice) > 0);
   const newGross = toBaisa(newLines.reduce((a, l) => a + Math.round(priceOf(l.id, l.unitPrice) * l.qty * 1000), 0) / 1000);
-  const submit = async (payments: TenderInput[]) => {
+  // Phase 10: what the invoice charged on account goes back on account; only the rest is refunded as chosen.
+  const onAccount = toBaisa(inv.header.onAccount ?? 0);
+  const rest = toBaisa(inv.header.grossTotal) - onAccount;
+  const refunds: TenderInput[] = [
+    ...(onAccount > 0n ? [{ method: 'credit' as const, amount: Number(fromBaisa(onAccount)) }] : []),
+    ...(rest > 0n ? [{ method: refundTo, amount: Number(fromBaisa(rest)) }] : []),
+  ];
+  const submit = async (payments: TenderInput[], plan?: Plan, creditApprovalId?: string) => {
     setBusy(true); setError(null);
     try {
+      const credit = payments.some((p) => p.method === 'credit');
       const r = await api.correctRepairInvoice(jobId, {
-        id: requestId, reason: reason.trim(), refunds: [{ method: refundTo, amount: inv.header.grossTotal }], expectedCredit: inv.header.grossTotal,
+        id: requestId, reason: reason.trim(), refunds, expectedCredit: inv.header.grossTotal,
         lines: reissue ? newLines.map((l) => ({ kind: l.kind ?? 'extra', variantId: l.variantId, qty: l.qty, unitPrice: priceOf(l.id, l.unitPrice), descriptionEn: l.kind === 'extra' ? l.descriptionEn : null })) : null,
-        payments: reissue ? payments : null,
+        payments: reissue ? payments : null, creditPlan: credit ? plan ?? null : null, creditApprovalId: creditApprovalId ?? null,
       });
       onDone(t('correct.done', { cn: r.creditNoteNumber, inv: r.correctedNumber ? t('correct.doneInvoice', { number: r.correctedNumber }) : '' }),
-        refundTo === 'cash' || payments.some((p) => p.method === 'cash'));
-    } catch (e) { setError(e); setPaying(false); } finally { setBusy(false); }
+        (rest > 0n && refundTo === 'cash') || payments.some((p) => p.method === 'cash'));
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'CRD-004' && onApproval) onApproval('CREDIT.OVERRIDE', (aid) => void submit(payments, plan, aid));
+      else { setError(e); setPaying(false); }
+    } finally { setBusy(false); }
   };
   const ready = reason.trim().length >= 3 && (!reissue || newLines.length > 0);
   return (
@@ -210,9 +238,12 @@ function Correct({ jobId, policy, onDone }: { jobId: string; policy: PosPolicy; 
       <p className="muted">{t('correct.intro')}</p>
       <div className="row"><strong>{t('correct.invoice')}</strong> <span className="ltr">{inv.header.number}</span><span className="spacer" />{t('correct.credit')}: <strong className="num">{fmt(inv.header.grossTotal)}</strong></div>
       <TextField label={t('correct.reason')} value={reason} onChange={(e) => setReason(e.target.value)} dir="auto" autoFocus />
-      <SelectField label={t('correct.refundTo')} value={refundTo} onChange={(e) => setRefundTo(e.target.value as 'cash' | 'store_credit')}>
-        <option value="cash">{t('repair.till.excessTos.cash')}</option><option value="store_credit">{t('repair.till.excessTos.store_credit')}</option>
-      </SelectField>
+      {onAccount > 0n && <Alert tone="info">{t('correct.backOnAccount', { amount: fmt(Number(fromBaisa(onAccount))) })}</Alert>}
+      {rest > 0n && (
+        <SelectField label={t(onAccount > 0n ? 'correct.refundRestTo' : 'correct.refundTo')} value={refundTo} onChange={(e) => setRefundTo(e.target.value as 'cash' | 'store_credit')}>
+          <option value="cash">{t('repair.till.excessTos.cash')}</option><option value="store_credit">{t('repair.till.excessTos.store_credit')}</option>
+        </SelectField>
+      )}
       <SelectField label={t('correct.corrected')} value={reissue ? 'yes' : 'no'} onChange={(e) => setReissue(e.target.value === 'yes')}>
         <option value="yes">{t('correct.reissue')}</option><option value="no">{t('correct.noReissue')}</option>
       </SelectField>
@@ -228,7 +259,8 @@ function Correct({ jobId, policy, onDone }: { jobId: string; policy: PosPolicy; 
           ? <Button variant="primary" disabled={!ready} onClick={() => setPaying(true)}>{t('correct.pay')} {fmt(Number(fromBaisa(newGross)))}</Button>
           : <Button variant="danger" disabled={!ready} busy={busy} onClick={() => void submit([])}>{t('correct.action')}</Button>}
       </div>
-      {paying && <PayDialog gross={newGross} policy={policy} busy={busy} error={error} onClose={() => setPaying(false)} onPay={(x) => void submit(x)} />}
+      {paying && <PayDialog gross={newGross} policy={policy} busy={busy} error={error} onClose={() => setPaying(false)} onPay={(x, plan) => void submit(x, plan)}
+        customer={{ id: d.job.customerId }} cartId={`${jobId}-correct`} creditSales={can(me, 'POS.CREDIT_SALE')} />}
     </div>
   );
 }

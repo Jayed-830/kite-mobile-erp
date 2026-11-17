@@ -63,7 +63,7 @@ export function ApprovalDialog({ action, reason, onApproved, onClose }: { action
 export function PayDialog({ gross, policy, onPay, onClose, busy, error, customer, cartId, tradeIns: tradeInsOn, creditSales }: {
   gross: Baisa; policy: PosPolicy; busy: boolean; error: unknown; onClose: () => void; onPay: (tenders: TenderInput[], plan?: { instalments: number; intervalDays: number } | null) => void;
   /** Phase 7: the cart's customer, for their trade-in credit and store credit. */
-  customer?: Customer | null; cartId?: string; tradeIns?: boolean;
+  customer?: Pick<Customer, 'id'> | null; cartId?: string; tradeIns?: boolean;
   /** Phase 10: the cashier may sell on account (POS.CREDIT_SALE). */
   creditSales?: boolean;
 }) {

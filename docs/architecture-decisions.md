@@ -405,3 +405,63 @@ Each record states the decision, why, and what it costs. Records 1 to 7 implemen
 **Why.** Many shops pay commissions with salaries; the payroll system then clears 2410.
 **Cost.** KITE does not run payroll; 2410 must be cleared by the accountant when salaries are paid.
 
+
+## ADR 68: Head office decides credit online, under one lock per customer
+
+**Decision.** A customer's credit account (limit, terms, status, offline cap, branch allowances) belongs to head office (the main or combined server). A sale on account is decided under the customer's credit lock (`kite:credit:<customer>`): available = limit − exposure, where exposure is the receivable balance plus live authorisations. Over the available credit a manager approves with their PIN (`CREDIT.OVERRIDE`, as for prices and discounts; a cashier who holds the permission approves for themselves) up to the policy's override cap (default 50.000); past the cap, on hold or closed, the sale is refused. Every sale on account stores its decision (available, limit, exposure, how much over and who approved). A branch server asks head office first (`/sync/v1/credit/authorise`, answer within the policy's 2 seconds): head office reserves the amount for 15 minutes and counts the branch's charges it has not seen yet. The lock comes after trade-ins and store credit and before any document number: job → shift → trade-ins → store credit → **credit** → deposit → document numbers → stock → journals (ADR 54, 61).
+**Why.** "Online limit" (the Phase 10 exit gate): twelve tills racing for one limit must not sell more than it, which needs one place that decides and one lock.
+**Cost.** A branch server online waits up to 2 seconds for head office on each sale on account.
+
+## ADR 69: Offline, a branch sells on credit within its allowance, a cap per sale and what it last knew
+
+**Decision.** When head office does not answer, a branch server decides by itself: available = the lower of (its allowance − its charges since the last sync) and (limit − the exposure it last heard − its charges since the last sync), never below zero and never above the cap per sale (the account's, or the policy's). The same approval and cap rules apply. Head office sets the allowances; together they may not exceed the limit unless the policy allows it (KT071 in the database).
+**Why.** The blueprint's test: "two branches offline both selling on credit — allowances respected offline". A branch cannot know what another branch is selling, so each spends only what was set aside for it.
+**Cost.** Two offline branches can still, together, go over the limit when exposure grew after their last sync; that is found on sync (ADR 70).
+
+## ADR 70: A breach is found on sync and holds the account until its cause clears
+
+**Decision.** Branch servers push what they sold on account (`/sync/v1/credit/push`, entries with their instalments and decisions, idempotent by entry). Head office takes them into the customer ledger, allocates, and when exposure is above the limit records a breach (which branch, how much, what was owed against what limit) and puts the account on hold (`hold_kind = exposure`). An automatic hold (exposure or overdue) lifts itself when its cause clears; a hold put by hand stays until someone releases it. Holds and releases are kept with their reason and who made them.
+**Why.** "Breach detected and hold applied on sync" (the blueprint's test table).
+**Cost.** Between the offline sales and the next sync, the customer may owe more than the limit.
+
+## ADR 71: Receivables are the customer ledger, in instalments, settled oldest first at head office
+
+**Decision.** `crm.credit_ledger` gains the balance type `receivable`, with kinds charge, payment, credit note, write-off, opening balance and transfer; rows are never changed. A charge is split into instalments (`crm.receivable_item`; up to the policy's 12, the spare baisa on the first ones, each due its terms or interval after the last; the database checks they add up to the charge). Payments, credit notes and write-offs are allocated by head office only, oldest due first (manual allocations first; a credit note settles its own sale first), in `crm.receivable_allocation`. A sale returned or a repair invoice corrected goes back on account up to what it charged there (CRD-009). The customer's account (1300) in the books always equals the customer ledger, branch by branch, with the customer as the journal line's party.
+**Why.** Statements, ageing and reminders need what is due when; one place allocating avoids two branches settling the same instalment.
+**Cost.** On a branch server, its own payments wait for head office to be allocated.
+
+## ADR 72: A payment received at another branch is settled between branches in one journal
+
+**Decision.** When a payment at one branch settles an instalment charged at another, two transfer rows move the receivable (+ at the receiving branch, − at the charging branch) and one journal `credit.interbranch` posts both sides: the receiving branch Dr 1300 / Cr 2500 (it owes the other branch), the charging branch Dr 1310 / Cr 1300 (the other branch owes it). The journal is numbered at the acting branch (`Posting.PostManyAsync`), so one transaction takes only one branch's journal series.
+**Why.** Each branch's receivables, and its own books, stay true: the branch that sold is still owed, now by the branch that holds the money.
+**Cost.** The interbranch accounts (1310, 2500) are settled between branches by the accountant.
+
+## ADR 73: Branch servers keep a copy of the credit accounts, sent with the heartbeat
+
+**Decision.** The heartbeat carries the credit policy, the accounts changed since the branch's last sequence (with that branch's allowance, the exposure and the oldest due date) and the suppliers changed since its last sequence. The branch writes them in replica mode (`SET LOCAL kite.credit_replica = 'on'`), which lets it write rows that otherwise only head office may change, without bumping their versions. Customers arrive with their accounts; a customer number already used at the branch gets the suffix `-HO`. Store credit stays per server, as in Phase 7.
+**Why.** Offline decisions (ADR 69) need the limit, the allowance and the last known exposure at the branch.
+**Cost.** A branch's copy is as old as its last heartbeat; the till says so ("Figures from the last sync with head office").
+
+## ADR 74: Suppliers are one list for the business; a branch may add one for head office to approve or merge
+
+**Decision.** `purch.supplier` is business-wide. Head office numbers suppliers `S-00001`; a branch server offline adds a provisional one (`SP-B02-2026-000001`) that head office approves (it gets an `S-` number) or merges into one it already has (KT072: only into an active supplier; merged stays merged). The supplier ledger is per branch; Phase 10 writes opening balances only (Dr 3900 / Cr 2100, the supplier the journal line's party); purchase orders, receipts, invoices and payments come with purchasing (Phase 11).
+**Why.** Duplicates are the usual problem with supplier lists; merging keeps both histories and one supplier to pay.
+**Cost.** A provisional supplier cannot be paid until head office approves it.
+
+## ADR 75: The customer and supplier ledgers are checked against the books every day
+
+**Decision.** Every day (and on demand: Customer credit → Ledger check → Check now) each branch's own customer ledger is compared with account 1300 (debit − credit) and its supplier ledger with 2100 (credit − debit), and the result is kept (`acct.subledger_check`). A difference is reported, never corrected.
+**Why.** "Statements reconcile" (row 10 of the exit gate), every day and not just in a test.
+**Cost.** None found; a difference needs an accountant to explain it.
+
+## ADR 76: Overdue instalments need a manager, then hold the account, with reminders by WhatsApp
+
+**Decision.** When an instalment is more than the policy's days overdue (30), new credit needs a manager's approval; after more days (60) head office holds the account automatically (`hold_kind = overdue`) and lifts the hold when the overdue is paid. Customers who agreed to WhatsApp get a reminder a few days before an instalment is due (3) and then every few days while it is overdue (7), through the Phase 8 outbox with the templates `credit_due` and `credit_overdue`.
+**Why.** Credit control without someone checking every account by hand.
+**Cost.** The hourly worker runs on head office only.
+
+## ADR 77: Credit arithmetic is shared and checked against an independent implementation
+
+**Decision.** Available online and offline, the decision, instalments, oldest-first allocation and ageing are in `CreditMath` (server) and `@kite/pos credit.ts` (web app), and both are tested with `tests/vectors/credit-math-vectors.json`, written by an independent Python implementation (`tests/vectors/generators/credit_vectors.py`); CI regenerates the vectors and fails on any difference.
+**Why.** The till shows what is available and splits instalments before the server decides; both must agree to the baisa.
+**Cost.** A change to a rule is made in three places.

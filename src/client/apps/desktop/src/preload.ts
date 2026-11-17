@@ -6,7 +6,7 @@ const call = <T>(channel: string, ...args: unknown[]): Promise<T> => ipcRenderer
 
 contextBridge.exposeInMainWorld('kiteDesktop', {
   isDesktop: true,
-  version: process.env.npm_package_version ?? '0.9.0',
+  version: process.env.npm_package_version ?? '0.10.0',
   getServerUrl: () => call<string | null>('kite:get-server-url'),
   setServerUrl: (url: string) => call<{ ok: boolean; url?: string }>('kite:set-server-url', url),
   resetServer: () => call<void>('kite:reset-server'),

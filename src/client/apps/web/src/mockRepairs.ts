@@ -39,7 +39,9 @@ export interface RepairMockHooks {
   /** Money into or out of the drawer for a deposit or its refund. */
   drawer: (shiftId: string, kind: 'repair_deposit' | 'repair_refund' | 'repair_applied', method: string, amount: bigint) => void;
   /** The repair invoice at collection, through the till's sale writer. */
-  invoice: (customerId: string, lines: RepairEstimateLine[], tenders: Tender[]) => { id: string; number: string };
+  invoice: (customerId: string, lines: RepairEstimateLine[], tenders: Tender[], credit?: { approvalId?: string | null; plan?: { instalments: number; intervalDays?: number | null } | null }) => { id: string; number: string };
+  /** Phase 10: how much of a sale is still charged on account (what may go back there). */
+  onAccount?: (saleId: string) => number;
 }
 
 interface Out { id: string; template: string | null; params: string[] | null; text: string | null; status: string; statusAt: string | null; at: string; byName: string | null; buttons: string[]; estimateId: string | null; customerId: string; phone: string }
@@ -216,7 +218,8 @@ export function createMockRepairs(h: RepairMockHooks) {
         const inv = standing(r);
         if (!inv) return null;
         const sum = (k: 'netAmount' | 'taxAmount' | 'grossAmount') => inv.lines.reduce((a, l) => a + l[k], 0);
-        return { header: { id: inv.id, number: inv.number, saleDate: now().slice(0, 10), grossTotal: sum('grossAmount'), taxTotal: sum('taxAmount'), netTotal: sum('netAmount'), cashRounding: 0 },
+        return { header: { id: inv.id, number: inv.number, saleDate: now().slice(0, 10), grossTotal: sum('grossAmount'), taxTotal: sum('taxAmount'), netTotal: sum('netAmount'), cashRounding: 0,
+            onAccount: h.onAccount?.(inv.id) ?? 0 },
           lines: inv.lines.map((l) => ({ id: l.id, kind: l.kind, variantId: l.variantId, descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice,
             netAmount: l.netAmount, taxAmount: l.taxAmount, grossAmount: l.grossAmount })) };
       })(),
@@ -502,7 +505,7 @@ export function createMockRepairs(h: RepairMockHooks) {
       let sale: { id: string; number: string } | null = null;
       if (gross > 0n) {
         const tenders = [...pays, ...(s.applied > 0n ? [{ method: 'deposit', amount: s.applied } as unknown as Tender] : [])];
-        sale = h.invoice(j.customerId, ch, tenders);
+        sale = h.invoice(j.customerId, ch, tenders, { approvalId: d.creditApprovalId, plan: d.creditPlan });
         r.invoices.push({ id: sale.id, number: sale.number, lines: ch });
         r.deposits.push({ id: id(), number: h.next('deposit', 'DEP'), kind: 'applied', amount: n(s.applied), tax: n(s.appliedTax), method: null, reason: null, saleNumber: sale.number, createdAt: now(), createdBy: nameOf(u) });
         if (s.applied > 0n) h.drawer(h.shift().id, 'repair_applied', 'deposit', s.applied);
@@ -701,7 +704,7 @@ export function createMockRepairs(h: RepairMockHooks) {
         const pays: Tender[] = (c.payments ?? []).map((p) => ({ ...p, amount: b(p.amount), tendered: p.tendered == null ? null : b(p.tendered) }));
         const g = lines.reduce((a, l) => a + b(l.grossAmount), 0n);
         if (pays.reduce((a, p) => a + p.amount, 0n) !== g) throw problem(400, 'POS-006', `Pay ${fromBaisa(g)} for the corrected invoice.`);
-        corrected = h.invoice(j.customerId, lines, pays);
+        corrected = h.invoice(j.customerId, lines, pays, { approvalId: c.creditApprovalId, plan: c.creditPlan });
         correctedGross = n(g);
         r.invoices.push({ id: corrected.id, number: corrected.number, lines });
       }

@@ -9,7 +9,7 @@ namespace Kite.Host.Features;
 public sealed record RepairCorrectionLine(string Kind, Guid VariantId, decimal Qty, decimal? UnitPrice, int? Minutes = null, string? DescriptionEn = null,
     string? DescriptionAr = null);
 public sealed record RepairCorrectionRequest(Guid Id, string Reason, List<TenderInput>? Refunds, List<RepairCorrectionLine>? Lines = null,
-    List<TenderInput>? Payments = null, decimal? ExpectedCredit = null, Guid? CorrectedId = null);
+    List<TenderInput>? Payments = null, decimal? ExpectedCredit = null, Guid? CorrectedId = null, Guid? CreditApprovalId = null, CreditPlanInput? CreditPlan = null);
 
 public static partial class PosEndpoints
 {
@@ -62,8 +62,8 @@ public static partial class PosEndpoints
         await CheckCreditTendersAsync(t, term, original.CustomerId, refunds.Tenders, refund: true);
         foreach (var (p, i) in refunds.Tenders.Select((p, i) => (p, i)))
         {
-            if (p.Method is not ("cash" or "card" or "bank_transfer" or "store_credit"))
-                throw new KiteException(ErrorCodes.RefundMethod, "A correction refunds in cash, to a card, by transfer or as store credit.", 400, $"refunds[{i}].method");
+            if (p.Method is not ("cash" or "card" or "bank_transfer" or "store_credit" or "credit"))
+                throw new KiteException(ErrorCodes.RefundMethod, "A correction refunds in cash, to a card, by transfer, as store credit or back on account.", 400, $"refunds[{i}].method");
             if (p.Method == "card" && p.CardTerminal is null)
                 throw new KiteException(ErrorCodes.Validation, "Name the bank terminal the card refund is made on.", 400, $"refunds[{i}].cardTerminal");
         }
@@ -92,18 +92,34 @@ public static partial class PosEndpoints
                 RepairCharge: true, KnownCost: costs[i], RepairKind: c.Kind)).ToList();
             payments = PosMath.CheckTenders(req.Payments ?? [], corrected.Sum(d => d.Gross), policy.CashRounding);
             if (payments.Tenders.Any(p => p.Method is "deposit" or "trade_in"))
-                throw new KiteException(ErrorCodes.Validation, "A corrected invoice is paid in cash, by card, by transfer or with store credit.", 400, "payments");
+                throw new KiteException(ErrorCodes.Validation, "A corrected invoice is paid in cash, by card, by transfer, with store credit or on account.", 400, "payments");
             await CheckCreditTendersAsync(t, term, j.CustomerId, payments.Tenders, refund: false);
         }
         else if ((req.Payments?.Count ?? 0) > 0) throw new KiteException(ErrorCodes.PaymentMismatch, "Nothing is charged again.", 400, "payments");
+
+        // Lock order (ADR 54, 68): the customer's store credit, then their credit account, then both document numbers.
+        if (refunds.Tenders.Concat(payments?.Tenders ?? []).Any(p => p.Method == "store_credit"))
+            await TradeInCore.LockForPaymentAsync(t, [], j.CustomerId);
+        // Phase 10: what the invoice charged on account goes back on account (never more); the corrected invoice may be charged on
+        // account again, checked against the credit that comes back in the same correction.
+        await CheckOnAccountRefundAsync(t, original.Id, original.CustomerId, refunds.Tenders);
+        var refundedOnAccount = refunds.Tenders.Where(p => p.Method == "credit").Sum(p => p.Amount);
+        var correctedId = corrected is null ? (Guid?)null : req.CorrectedId ?? t.NewId();
+        CreditCheck? creditCheck = null;
+        var onAccount = payments?.Tenders.Where(p => p.Method == "credit").Sum(p => p.Amount) ?? 0m;
+        if (onAccount > 0)
+        {
+            http.User.Demand(Permissions.PosCreditSale, term.BranchId);
+            creditCheck = await CreditCore.CheckSaleAsync(t, http.RequestServices.GetRequiredService<CreditLink>(), term, j.CustomerId, correctedId!.Value, onAccount,
+                req.CreditApprovalId, uid, req.CreditPlan, biz.TimeZone, http.User.HasIn(Permissions.CreditOverride, term.BranchId), offset: refundedOnAccount);
+        }
+        else if (req.CreditApprovalId is not null || req.CreditPlan is not null)
+            throw new KiteException(ErrorCodes.Validation, "A credit approval or instalment plan goes with a payment on account.", 400, "creditPlan");
 
         var cashOut = refunds.Tenders.Where(p => p.Method == "cash").Sum(p => p.Amount) - (payments?.Tenders.Where(p => p.Method == "cash").Sum(p => p.Amount) ?? 0m);
         if (cashOut > 0 && cashOut > (await FiguresAsync(t, shift)).ExpectedCash)
             throw new KiteException(ErrorCodes.RefundMethod, "The drawer does not hold enough cash for this refund.", 400, "refunds");
 
-        // Lock order (ADR 54): the customer's store credit, then both document numbers, before the first journal.
-        if (refunds.Tenders.Concat(payments?.Tenders ?? []).Any(p => p.Method == "store_credit"))
-            await TradeInCore.LockForPaymentAsync(t, [], j.CustomerId);
         var fy = await FiscalPeriods.FiscalYearOfAsync(t, biz.Id, BusinessDay.DateOf(now, biz.TimeZone));
         var creditNumber = await DocNumbers.NextAsync(t, biz.Id, term.BranchId, "credit_note", fy, "CN");
         var correctedNumberTaken = corrected is null ? null : await DocNumbers.NextAsync(t, biz.Id, term.BranchId, "sale_invoice", fy, "INV");
@@ -112,14 +128,12 @@ public static partial class PosEndpoints
             original.Id, null, now, credit, refunds, true, Note: $"Correction of {original.Number} (repair {j.Number}): {req.Reason.Trim()}", RepairJobId: j.Id, Number: creditNumber,
             Audit: number => new AuditEntry("repair.invoice_credited", "sale", req.Id, After: Json.Obj(new { number, original = original.Number, job = j.Number, creditGross }),
                 Reason: req.Reason.Trim(), BranchId: term.BranchId)));
-        Guid? correctedId = null;
         string? correctedNumber = null;
         if (corrected is not null)
         {
-            correctedId = req.CorrectedId ?? t.NewId();
-            var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(correctedId.Value, shift.Id, uid, j.CustomerId, "tax_invoice", null, null, null,
-                now, corrected, payments!, false, Note: $"Repair {j.Number}, corrected ({original.Number})", RepairJobId: j.Id, Number: correctedNumberTaken,
-                Audit: number => new AuditEntry("repair.invoice_corrected", "sale", correctedId.Value, After: Json.Obj(new { number, job = j.Number, replaces = original.Number }),
+            var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(correctedId!.Value, shift.Id, uid, j.CustomerId, "tax_invoice", null, null, null,
+                now, corrected, payments!, false, Note: $"Repair {j.Number}, corrected ({original.Number})", RepairJobId: j.Id, Number: correctedNumberTaken, Credit: creditCheck,
+                Audit: number => new AuditEntry("repair.invoice_corrected", "sale", correctedId!.Value, After: Json.Obj(new { number, job = j.Number, replaces = original.Number }),
                     BranchId: term.BranchId)));
             correctedNumber = written.Number;
         }

@@ -226,6 +226,30 @@ public static partial class RepairEndpoints
             shift = await PosEndpoints.OpenShiftForUpdateAsync(t, term, http);
         }
 
+        // The payment is checked first (lock order, ADR 54 and 68: store credit and trade-ins, then the customer's credit account,
+        // then document numbers). Phase 10: the rest may be charged to the customer's credit account, as at the till.
+        PosPolicy? policy = null;
+        CheckedPayments? paid = null;
+        CreditCheck? credit = null;
+        Guid? saleId = null;
+        if (gross > 0)
+        {
+            policy = await PosPolicies.ForBranchAsync(t, biz.Id, term!.BranchId);
+            paid = PosMath.CheckTenders(req.Payments ?? [], split.Due, policy.CashRounding);
+            if (paid.Tenders.Any(p => p.Method == "deposit")) throw new KiteException(ErrorCodes.Validation, "The deposit is applied by itself.", 400, "payments");
+            await PosEndpoints.CheckCreditTendersAsync(t, term, j.CustomerId, paid.Tenders, refund: false);
+            saleId = t.NewId();
+            var onAccount = paid.Tenders.Where(p => p.Method == "credit").Sum(p => p.Amount);
+            if (onAccount > 0)
+            {
+                http.User.Demand(Permissions.PosCreditSale, term.BranchId);
+                credit = await CreditCore.CheckSaleAsync(t, http.RequestServices.GetRequiredService<CreditLink>(), term, j.CustomerId, saleId.Value, onAccount,
+                    req.CreditApprovalId, uid, req.CreditPlan, biz.TimeZone, http.User.HasIn(Permissions.CreditOverride, term.BranchId));
+            }
+        }
+        if (credit is null && (req.CreditApprovalId is not null || req.CreditPlan is not null))
+            throw new KiteException(ErrorCodes.Validation, "A credit approval or instalment plan goes with a payment on account.", 400, "creditPlan");
+
         // Lock order (ADR 54): an excess going back to store credit locks the customer's balance, and its refund receipt takes
         // its number, before the invoice's number and journals.
         string? refundNumber = null;
@@ -237,16 +261,11 @@ public static partial class RepairEndpoints
         }
 
         // The repair invoice: the charges, the deposit applied, the rest by any tender (13.5).
-        Guid? saleId = null;
         string? saleNumber = null;
         CheckedPayments? payments = null;
         if (gross > 0)
         {
-            var policy = await PosPolicies.ForBranchAsync(t, biz.Id, term!.BranchId);
-            var paid = PosMath.CheckTenders(req.Payments ?? [], split.Due, policy.CashRounding);
-            if (paid.Tenders.Any(p => p.Method == "deposit")) throw new KiteException(ErrorCodes.Validation, "The deposit is applied by itself.", 400, "payments");
-            await PosEndpoints.CheckCreditTendersAsync(t, term, j.CustomerId, paid.Tenders, refund: false);
-            var tenders = paid.Tenders.ToList();
+            var tenders = paid!.Tenders.ToList();
             if (split.Applied > 0) tenders.Add(new CheckedTender("deposit", split.Applied, null, null, null, null, null));
             payments = new CheckedPayments(tenders, paid.CashRounding, paid.Paid + split.Applied);
             var partCost = j.Outcome == "repaired" && !j.IsWarrantyClaim ? wip : 0m;
@@ -261,9 +280,8 @@ public static partial class RepairEndpoints
             var lines = charges.Select((c, i) => new DraftLine(c.VariantId, c.ProductType, c.DescriptionEn, c.DescriptionAr, c.Qty, c.UnitPrice, c.UnitPrice,
                 0m, c.NetAmount, c.TaxCodeId, c.TaxRate, c.TaxAmount, c.GrossAmount, null, c.Kind == "part" || c.Kind == "labour" ? j.WarrantyDays : 0,
                 RepairCharge: true, KnownCost: costs[i], RepairKind: c.Kind)).ToList();
-            saleId = t.NewId();
-            var written = await SaleWriter.WriteAsync(t, biz, term, policy, new SaleDraft(saleId.Value, shift!.Id, uid, j.CustomerId, "tax_invoice", null, null, null,
-                t.Clock.UtcNow, lines, payments, false, Note: $"Repair {j.Number}", RepairJobId: j.Id, DepositTax: split.AppliedTax,
+            var written = await SaleWriter.WriteAsync(t, biz, term!, policy!, new SaleDraft(saleId!.Value, shift!.Id, uid, j.CustomerId, "tax_invoice", null, null, null,
+                t.Clock.UtcNow, lines, payments, false, Note: $"Repair {j.Number}", RepairJobId: j.Id, DepositTax: split.AppliedTax, Credit: credit,
                 Audit: number => new AuditEntry("repair.invoiced", "sale", saleId.Value, After: Json.Obj(new { number, job = j.Number, gross }), BranchId: j.BranchId)));
             saleNumber = written.Number;
         }

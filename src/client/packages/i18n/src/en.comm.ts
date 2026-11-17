@@ -22,7 +22,7 @@ export const commEn = {
   correct: {
     action: 'Correct the invoice', title: 'Correct repair invoice {number}', find: 'Delivered job: number, customer or phone',
     intro: 'The invoice is credited in full. The money goes back from the drawer or to store credit, and a corrected invoice can be issued and paid here.',
-    invoice: 'Invoice that stands now', credit: 'To credit', reason: 'Why is it corrected?', refundTo: 'Refund to', reissue: 'Issue a corrected invoice',
+    invoice: 'Invoice that stands now', credit: 'To credit', reason: 'Why is it corrected?', refundTo: 'Refund to', refundRestTo: 'Refund the rest to', backOnAccount: '{amount} was charged on account: it goes back on the account first.', reissue: 'Issue a corrected invoice',
     noReissue: 'Nothing is charged again', corrected: 'Corrected invoice', newPrice: 'Correct price', pay: 'Take payment', done: 'Credit note {cn} issued{inv}.',
     doneInvoice: '; corrected invoice {number}', history: 'Corrections', creditedBy: '{cn} credited {credited}', reissued: 'reissued as {number} ({gross})',
     noInvoice: 'No invoice stands for this job.', commissionsNote: 'The technicians’ commissions are reversed, and generated again from the corrected invoice.',

@@ -327,4 +327,77 @@ public sealed class Phase10Tests(KiteServerFixture fx)
         Assert.All(run.GetProperty("rows").EnumerateArray(), r => Assert.Equal(0m, r.GetProperty("difference").GetDecimal()));
         await Credit.Central.DeactivateAsync(owner, b);
     }
+
+    [PgFact]
+    public async Task A_repair_is_collected_on_account_and_its_correction_goes_back_on_account()
+    {
+        using var owner = await kit.OwnerAsync();
+        await RepairKit.EnableAsync(owner, whatsapp: false);
+        await EnableAsync(owner);
+        await kit.SetPolicyAsync(owner, cashRounding: 0m);
+        var term = await kit.TerminalAsync(owner);
+        using var pos = await kit.OwnerPosAsync(term);
+        await OpenShiftAsync(pos, 50m);
+        var customer = await TradeInKit.CustomerAsync(pos, "Repair account " + Suffix());
+        var category = await RepairKit.CategoryAsync(owner);
+        var labour = await RepairKit.ServiceAsync(owner);
+        await AccountAsync(owner, customer, 100m);
+        async Task<(Guid Job, string Qr)> ReadyAsync(decimal price)
+        {
+            var job = RepairKit.Id(await RepairKit.IntakeAsync(pos, customer, category, preAuthorised: 100m));
+            await RepairKit.MoveAsync(pos, job, "inspection_pending", "under_diagnosis");
+            await RepairKit.EstimateAsync(pos, job, RepairKit.Labour(labour, price));
+            await RepairKit.MoveAsync(pos, job, "in_progress", "testing", "completed", "ready");
+            return (job, (await RepairKit.DeliveryAsync(pos, job)).GetProperty("qr").GetString()!);
+        }
+        Task<HttpResponseMessage> Deliver(Guid job, string qr, object payment, object? plan = null) =>
+            pos.PostAsJsonAsync($"/api/v1/repairs/{job}/deliver", new
+            {
+                check = "qr", qrCode = qr, collectedBy = "Khalid Al Rashdi", signature = RepairKit.Png, payments = new[] { payment }, creditPlan = plan,
+            });
+
+        // Collected on account in two instalments: the repair invoice is charged to the account like a sale at the till.
+        var (j1, qr1) = await ReadyAsync(63m);
+        var done = await Ok(await Deliver(j1, qr1, OnAccount(63m), new { instalments = 2, intervalDays = 30 }));
+        var invoice = done.GetProperty("saleId").GetGuid();
+        var d = await DetailAsync(owner, customer);
+        Assert.Equal(63m, Fig(d, "exposure"));
+        Assert.Equal(new[] { 31.5m, 31.5m }, d.GetProperty("openItems").EnumerateArray().Select(i => i.GetProperty("amount").GetDecimal()).ToArray());
+        Assert.Equal(1L, await fx.QueryDbAsync<long>($"SELECT count(*) FROM crm.credit_decision WHERE sale_id = '{invoice}'"));
+        Assert.Equal(63m, await ArByPartyAsync(customer));
+
+        // A second repair of 45 is 8 over the 37 left: the owner holds CREDIT.OVERRIDE and approves it at the till (a cashier would
+        // need a manager's PIN, as for sales). An instalment plan without anything on account is refused.
+        var (j2, qr2) = await ReadyAsync(45m);
+        await Problem(await Deliver(j2, qr2, Cash(45m), new { instalments = 2 }), HttpStatusCode.BadRequest, "VAL-001");
+        var second = (await Ok(await Deliver(j2, qr2, OnAccount(45m)))).GetProperty("saleId").GetGuid();
+        Assert.Equal(8m, await fx.QueryDbAsync<decimal>($"SELECT over_by FROM crm.credit_decision WHERE sale_id = '{second}' AND approved_by IS NOT NULL"));
+
+        // A repair paid in cash cannot be credited back on account.
+        var (j3, qr3) = await ReadyAsync(20m);
+        await Ok(await Deliver(j3, qr3, Cash(20m)));
+        await Problem(await pos.PostAsJsonAsync($"/api/v1/repairs/{j3}/correct", new
+        {
+            id = Guid.CreateVersion7(), reason = "Wrong rate", refunds = new[] { OnAccount(20m) }, expectedCredit = 20m,
+        }), HttpStatusCode.BadRequest, "CRD-009");
+
+        // The first repair's labour was 50, not 63: the invoice goes back on account and the corrected one is charged again. It is
+        // checked against the 63 coming back (55 available), not the nothing left before the correction: nothing is over.
+        var corrected = await Ok(await pos.PostAsJsonAsync($"/api/v1/repairs/{j1}/correct", new
+        {
+            id = Guid.CreateVersion7(), reason = "Labour charged at the wrong rate", refunds = new[] { OnAccount(63m) }, expectedCredit = 63m,
+            lines = new[] { RepairKit.Labour(labour, 50m) }, payments = new[] { OnAccount(50m) },
+        }));
+        Assert.Equal(50m, corrected.GetProperty("correctedGross").GetDecimal());
+        d = await DetailAsync(owner, customer);
+        Assert.Equal(95m, Fig(d, "exposure"));
+        Assert.Equal(95m, d.GetProperty("openItems").EnumerateArray().Sum(i => i.GetProperty("open").GetDecimal()));
+        Assert.Equal(95m, await LedgerAsync(customer));
+        Assert.Equal(95m, await ArByPartyAsync(customer));
+        var correctedId = corrected.GetProperty("correctedId").GetGuid();
+        Assert.Equal(55m, await fx.QueryDbAsync<decimal>($"SELECT available FROM crm.credit_decision WHERE sale_id = '{correctedId}'"));
+        Assert.Equal(0m, await fx.QueryDbAsync<decimal>($"SELECT over_by FROM crm.credit_decision WHERE sale_id = '{correctedId}'"));
+        var run = await Ok(await owner.PostAsync("/api/v1/credit/reconciliation/run", null));
+        Assert.All(run.GetProperty("rows").EnumerateArray(), r => Assert.Equal(0m, r.GetProperty("difference").GetDecimal()));
+    }
 }

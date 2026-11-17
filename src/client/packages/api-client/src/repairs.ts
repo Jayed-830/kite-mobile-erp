@@ -96,7 +96,8 @@ export interface RepairDetail {
   corrections?: RepairCorrectionRow[];
 }
 export interface RepairInvoice {
-  header: { id: string; number: string; saleDate: string; grossTotal: number; taxTotal: number; netTotal: number; cashRounding: number };
+  /** onAccount (Phase 10): how much of the invoice was charged to the customer's credit account; it goes back there first. */
+  header: { id: string; number: string; saleDate: string; grossTotal: number; taxTotal: number; netTotal: number; cashRounding: number; onAccount?: number };
   lines: { id: string; kind: 'labour' | 'part' | 'extra' | null; variantId: string; descriptionEn: string; descriptionAr: string; qty: number; unitPrice: number;
     netAmount: number; taxAmount: number; grossAmount: number }[];
 }
@@ -134,6 +135,8 @@ export interface DeliveryPreview {
 export interface DeliverInput {
   check: 'qr' | 'verified'; collectedBy: string; signature: string; qrCode?: string | null; diagnosisFee?: number | null; payments?: TenderInput[];
   excessTo?: 'cash' | 'store_credit' | null; expectedDue?: number | null; note?: string | null;
+  /** Phase 10: the rest charged on account — a manager's approval over the limit, and the instalments. */
+  creditApprovalId?: string | null; creditPlan?: { instalments: number; intervalDays?: number | null } | null;
 }
 export interface DeliverResult {
   id: string; number: string; saleId: string | null; saleNumber: string | null; gross: number; applied: number; due: number; excess: number; refundId: string | null;
@@ -213,6 +216,7 @@ export interface RuleUsageRow { ruleKey: string; version: number; nameEn: string
 export interface RepairCorrectionLine { kind: 'labour' | 'part' | 'extra'; variantId: string; qty: number; unitPrice?: number | null; minutes?: number | null; descriptionEn?: string | null; descriptionAr?: string | null }
 export interface RepairCorrectionInput {
   id: string; reason: string; refunds: TenderInput[]; lines?: RepairCorrectionLine[] | null; payments?: TenderInput[] | null; expectedCredit?: number | null; correctedId?: string | null;
+  creditApprovalId?: string | null; creditPlan?: { instalments: number; intervalDays?: number | null } | null;
 }
 export interface RepairCorrectionResult {
   jobId: string; creditNoteId: string; creditNoteNumber: string; credited: number; refunded?: number; correctedId: string | null; correctedNumber: string | null;

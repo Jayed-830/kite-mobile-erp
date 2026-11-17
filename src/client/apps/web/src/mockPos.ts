@@ -213,6 +213,9 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
     creditNote: (originalId, reason, tenders) => {
       const { u, t, s } = myShift();
       const o = sales.find((x) => x.detail.sale.id === originalId)!;
+      const backOnAccount = n(tenders.filter((p) => p.method === 'credit').reduce((x, p) => x + p.amount, 0n));
+      if (backOnAccount > 0 && backOnAccount > cr.refundable(originalId))
+        throw problem(400, 'CRD-009', cr.refundable(originalId) <= 0 ? 'Nothing on this sale was charged on account: refund it another way.' : `At most ${cr.refundable(originalId).toFixed(3)} goes back on account.`);
       const gross = o.detail.lines.reduce((a, l) => a + toBaisa(l.gross), 0n);
       const tax = o.detail.lines.reduce((a, l) => a + toBaisa(l.tax), 0n);
       const d = write({ ...o.detail.sale, id: id(), number: next('cn', 'CN'), docType: 'credit_note', creditReason: 'correction', originalSaleId: originalId, originalNumber: o.detail.sale.number,
@@ -220,11 +223,16 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
         o.detail.lines.map((l) => ({ ...l, id: id(), returnedQty: 0, returnable: 0 })), tenders, true, s.id, t);
       o.detail.creditNotes.push({ id: d.sale.id, number: d.sale.number, creditReason: 'correction', grossTotal: d.sale.grossTotal });
       ti.applyPayments(tenders, o.detail.sale.customerId, d.sale.id, d.sale.number, true, u.displayNameEn);
+      if (backOnAccount > 0) cr.creditNote(o.detail.sale.customerId!, backOnAccount, d.sale.id, originalId, d.sale.number, t.branchId);
       return { id: d.sale.id, number: d.sale.number };
     },
+    onAccount: (saleId) => cr.refundable(saleId),
     drawer: (sid, kind, method, amount) => cashEvents.push({ shiftId: sid, kind, amount, reason: method, createdAt: now() }),
-    invoice: (customerId, ls, tenders) => {
+    invoice: (customerId, ls, tenders, opts) => {
       const { u, t, s } = myShift();
+      // Phase 10: the rest charged on account is checked like a sale at the till (CRD-001…004) before anything is written.
+      const onAccount = tenders.filter((p) => p.method === 'credit').reduce((x, p) => x + p.amount, 0n);
+      const credit = onAccount > 0n ? cr.checkSale(customerId, n(onAccount), opts?.approvalId ?? null, opts?.plan ?? null, u) : null;
       const cust = customers.find((c) => c.id === customerId) ?? null;
       const sum = (k: 'netAmount' | 'taxAmount' | 'grossAmount') => ls.reduce((a, l) => a + toBaisa(l[k]), 0n);
       const lines: SaleLine[] = ls.map((l) => ({ id: id(), variantId: l.variantId, productType: 'service', descriptionEn: l.descriptionEn, descriptionAr: l.descriptionAr, qty: l.qty, unitPrice: l.unitPrice,
@@ -232,6 +240,7 @@ export function createMockPos(ctx: MockPosContext): PosApi & DeviceApi & DeviceI
       const d = write({ id: id(), branchId: t.branchId, number: next('inv', 'INV'), docType: 'tax_invoice', creditReason: null, originalSaleId: null, originalNumber: null, saleDate: now().slice(0, 10),
         completedAt: now(), netTotal: n(sum('netAmount')), discountTotal: 0, taxTotal: n(sum('taxAmount')), grossTotal: n(sum('grossAmount')), cashRounding: 0, isEmergency: false, note: null,
         customerId, customerName: cust?.nameEn ?? null, customerVat: cust?.vatNumber ?? null, cashierName: u.displayNameEn, terminalCode: t.code, shiftId: s.id }, lines, tenders, false, s.id, t);
+      if (credit) cr.charge(credit, d.sale.id, d.sale.number, t.branchId);
       return { id: d.sale.id, number: d.sale.number };
     },
   });

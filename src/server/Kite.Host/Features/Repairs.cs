@@ -34,7 +34,8 @@ public sealed record DepositRequest(decimal Amount, string Method, decimal? Tend
     string? Reference = null);
 public sealed record DepositRefundRequest(decimal Amount, string Method, string Reason, string? CardTerminal = null, string? Reference = null);
 public sealed record DeliverRequest(string Check, string CollectedBy, string Signature, string? QrCode = null, decimal? DiagnosisFee = null,
-    List<TenderInput>? Payments = null, string? ExcessTo = null, decimal? ExpectedDue = null, string? Note = null);
+    List<TenderInput>? Payments = null, string? ExcessTo = null, decimal? ExpectedDue = null, string? Note = null, Guid? CreditApprovalId = null,
+    CreditPlanInput? CreditPlan = null);
 public sealed record RepairMessageRequest(string Text);
 public sealed record RepairSettingsRequest(decimal PreAuthorised, int WarrantyDays, int PasscodeKeepDays, int[] UncollectedDays, decimal DiagnosisFee,
     decimal HourlyRate, bool DepositVatPoint, string[] NotifyStatuses, string TermsEn, string TermsAr, int Version);
@@ -588,7 +589,9 @@ public static partial class RepairEndpoints
             {
                 header = (await t.RowsAsync("""
                     SELECT s.id, s.number, s.sale_date AS "saleDate", s.gross_total AS "grossTotal", s.tax_total AS "taxTotal", s.net_total AS "netTotal",
-                           s.cash_rounding AS "cashRounding" FROM sales.sale s WHERE s.id = @invoiceId
+                           s.cash_rounding AS "cashRounding",
+                           (SELECT coalesce(sum(p.amount), 0) FROM sales.payment p WHERE p.sale_id = s.id AND p.method = 'credit') AS "onAccount"
+                      FROM sales.sale s WHERE s.id = @invoiceId
                     """, new { invoiceId }))[0],
                 lines = await t.RowsAsync("""
                     SELECT l.id, l.repair_kind AS kind, l.variant_id AS "variantId", l.description_en AS "descriptionEn", l.description_ar AS "descriptionAr", l.qty,
