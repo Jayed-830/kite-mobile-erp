@@ -20,6 +20,8 @@ Phase 11 lets the shops buy from their suppliers and gives the accountant the bo
 
 All screens are in English and Arabic.
 
+The exit gate passed on GitHub Actions. CI run `44128196146` on commit `ba4a069` has all twenty-six jobs green, including the new Phase 11 exit gate and the Phase 11 browser walk-through (`e2e/phase11.mjs`, 21 checks against a real server, PostgreSQL and Chrome).
+
 ## Exit gate (blueprint section 25, row 11)
 
 "Full chart of accounts UI, periods, VAT return, reconciliation jobs … Three-way match; trial balance and subledger reconciliation clean." The test table adds: "Accounting reconciliation | Daily reconciliation after all scenarios | Subledgers equal control accounts; trial balance balances; interbranch eliminates."
@@ -32,7 +34,16 @@ All screens are in English and Arabic.
 - **A full day at three branches:** orders and receipts with landed costs and IMEIs; invoices matched three ways, one outside tolerance posted with an override after a phone was sold (the difference split between stock and price variance); head office booking one invoice for goods two branches received; returns before and after invoicing; head office paying a branch's invoice; expenses; card sales and their settlement; a manual journal; a sale on account at one branch paid at another.
 - **The quarter closed:** its months closed at every branch, its VAT return filed with the VAT report agreeing with the VAT accounts branch by branch, a late receipt moving to the next open month; then the ledger check over the whole database: every subledger equals its control account at every branch, each branch's trial balance balances, interbranch receivable equals interbranch payable, the balance sheets balance and the cash flow explains the cash.
 
-CI_RESULTS
+On CI the gate ran in 5 seconds with 16 workers in each race:
+
+| Race | Open | Each worker tried | Succeeded | Refused | Result |
+|---|---:|---:|---:|---|---:|
+| Receiving one order line | 20 ordered | 3 | 6 | 10 (PUR-002) | 18 received |
+| Invoicing one receipt line | 10 received | 3 | 3 | 13 (PUR-002) | 9 invoiced |
+| Paying one invoice | 105.000 owed | 40.000 | 2 | 14 (PUR-005) | 80.000 paid |
+| Returning one receipt line | 10 received | 3 | 3 | 13 (PUR-002) | 9 returned |
+
+The day then made 30 till sales at the three branches; the quarter (January to March 2025) was closed at all three and its VAT return filed with input VAT 66.445, agreeing with the VAT accounts at each branch. (The tills sell on the day the test runs, so their output VAT falls outside that quarter; the walk-through below files a return with both.) The ledger check made 21 comparisons for the three branches — customers, suppliers, GRNI, inventory, VAT output and input, each trial balance, and interbranch — with no difference. The consolidated trial balance had 5,423.200 of debits and of credits, interbranch receivable and payable of 630.000 eliminated each other, and the cash flow statement explained the cash with no difference.
 
 **The browser walk-through** (`e2e/phase11.mjs`, CI job `e2e-phase11`), 21 checks:
 
